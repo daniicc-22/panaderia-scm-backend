@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { verificarToken, autorizarRoles } from './middleware/autenticacion';
 
 dotenv.config();
 
@@ -17,7 +18,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', mensaje: 'API panaderia-scm-backend funcionando' });
 });
 
-app.get('/roles', async (_req, res) => {
+app.get('/roles', verificarToken, async (_req, res) => {
   try {
     const roles = await prisma.rol.findMany();
     res.json(roles);
@@ -80,5 +81,10 @@ app.post('/login', async (req, res) => {
     console.error('Error en /login:', error);
     res.status(500).json({ error: 'Error al iniciar sesión' });
   }
-});
+app.get('/perfil', verificarToken, autorizarRoles('superadministrador'), (req, res) => {
+  res.json({
+    mensaje: 'Acceso concedido: eres superadministrador',
+    usuario: req.usuario,
+  });
+});});
 export default app;
