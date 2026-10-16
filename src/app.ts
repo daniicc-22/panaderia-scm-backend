@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { verificarToken, autorizarRoles } from './middleware/autenticacion';
 import { resolverPanaderia } from './middleware/panaderia';
 import { crearRouterFormulaciones } from './routes/formulaciones';
+import { crearRouterAbc } from './routes/abc';
 
 dotenv.config();
 
@@ -132,4 +133,6 @@ app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (re
 });
 
 app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
+
+app.use('/abc', verificarToken, resolverPanaderia(prisma), autorizarRoles('administrador', 'superadministrador'), crearRouterAbc(prisma));
 export default app;

@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Costo por gramo de cada materia prima (precio de la presentación más grande / su contenido)
-async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: string) {
+export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: string) {
   const materias = await prisma.materia_prima.findMany({
     where: { panaderia_id: panaderiaId },
     include: {
