@@ -10,8 +10,7 @@ interface ItemMenu {
 
 const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Inicio', ruta: '/inicio' },
-  // Aquí se agregarán más ítems (inventario, formulaciones, reportes)
-  // a medida que existan endpoints reales en el backend.
+  { etiqueta: 'Materias primas', ruta: '/materias-primas' },
 ];
 
 interface SidebarProps {

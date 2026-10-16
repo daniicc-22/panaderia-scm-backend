@@ -5,6 +5,7 @@ import { HomePage } from '../../pages/HomePage';
 import { NotFoundPage } from '../../pages/NotFoundPage';
 import { ForbiddenPage } from '../../pages/ForbiddenPage';
 import { AppLayout } from '../../components/layout/AppLayout';
+import { MateriasPrimasPage } from '../../pages/MateriasPrimasPage';
 
 export function AppRouter() {
   return (
@@ -16,6 +17,7 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<HomePage />} />
+          <Route path="/materias-primas" element={<MateriasPrimasPage />} />
         </Route>
       </Route>
 
