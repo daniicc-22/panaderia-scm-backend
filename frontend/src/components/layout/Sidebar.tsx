@@ -11,6 +11,7 @@ interface ItemMenu {
 const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Inicio', ruta: '/inicio' },
   { etiqueta: 'Materias primas', ruta: '/materias-primas' },
+  { etiqueta: 'Formulaciones', ruta: '/formulaciones' },
 ];
 
 interface SidebarProps {

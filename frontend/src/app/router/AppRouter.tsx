@@ -6,6 +6,8 @@ import { NotFoundPage } from '../../pages/NotFoundPage';
 import { ForbiddenPage } from '../../pages/ForbiddenPage';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { MateriasPrimasPage } from '../../pages/MateriasPrimasPage';
+import { FormulacionesPage } from '../../pages/FormulacionesPage';
+import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 
 export function AppRouter() {
   return (
@@ -18,6 +20,8 @@ export function AppRouter() {
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/materias-primas" element={<MateriasPrimasPage />} />
+          <Route path="/formulaciones" element={<FormulacionesPage />} />
+          <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
         </Route>
       </Route>
 
