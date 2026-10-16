@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../features/auth/AuthContext';
 import { getMiPanaderia } from '../../services/panaderiaService';
 import { Button } from '../ui/Button';
@@ -9,6 +9,7 @@ interface HeaderProps {
 
 export function Header({ onAbrirMenu }: HeaderProps) {
   const { usuario, cerrarSesion } = useAuth();
+  const queryClient = useQueryClient();
 
   // La clave incluye al usuario para no mostrar la panadería de otra sesión
   const { data: panaderia } = useQuery({
@@ -17,6 +18,11 @@ export function Header({ onAbrirMenu }: HeaderProps) {
     enabled: !!usuario,
     staleTime: 5 * 60 * 1000,
   });
+
+  const salir = () => {
+    queryClient.clear(); // evita que la siguiente sesión vea datos en caché de la anterior
+    cerrarSesion();
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
@@ -36,7 +42,7 @@ export function Header({ onAbrirMenu }: HeaderProps) {
           <p className="text-sm font-medium text-gray-900">{usuario?.nombre}</p>
           <p className="text-xs text-gray-500">{usuario?.rol}</p>
         </div>
-        <Button variant="secondary" onClick={cerrarSesion}>
+        <Button variant="secondary" onClick={salir}>
           Cerrar sesión
         </Button>
       </div>
