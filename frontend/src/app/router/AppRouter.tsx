@@ -8,6 +8,7 @@ import { AppLayout } from '../../components/layout/AppLayout';
 import { MateriasPrimasPage } from '../../pages/MateriasPrimasPage';
 import { FormulacionesPage } from '../../pages/FormulacionesPage';
 import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
+import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 
 export function AppRouter() {
   return (
@@ -22,6 +23,7 @@ export function AppRouter() {
           <Route path="/materias-primas" element={<MateriasPrimasPage />} />
           <Route path="/formulaciones" element={<FormulacionesPage />} />
           <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
+          <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />
         </Route>
       </Route>
 
