@@ -31,6 +31,8 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
 }
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
+const ROLES_CON_COSTOS = ['administrador', 'superadministrador'];
+const puedeVerCostos = (rol?: string) => !!rol && ROLES_CON_COSTOS.includes(rol);
 
 export function crearRouterFormulaciones(prisma: PrismaClient) {
   const router = Router();
@@ -39,6 +41,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
   router.get('/', async (req, res) => {
     try {
       const panaderiaId = req.panaderiaId!;
+      const verCostos = puedeVerCostos(req.usuario?.rol);
       const [formulaciones, costos] = await Promise.all([
         prisma.formulacion.findMany({
           where: { panaderia_id: panaderiaId, activa: true },
@@ -69,9 +72,9 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             rendimiento,
             ingredientes: f.detalle_formulacion.length,
             peso_lote_g: redondear(peso),
-            costo_lote: redondear(costo),
-            costo_unidad: rendimiento ? redondear(costo / rendimiento) : null,
-            costo_incompleto: incompleto,
+            costo_lote: verCostos ? redondear(costo) : null,
+            costo_unidad: verCostos && rendimiento ? redondear(costo / rendimiento) : null,
+            costo_incompleto: verCostos ? incompleto : false,
           };
         }),
       );
@@ -88,6 +91,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
 
     try {
       const panaderiaId = req.panaderiaId!;
+      const verCostos = puedeVerCostos(req.usuario?.rol);
       const f = await prisma.formulacion.findFirst({
         where: { id, panaderia_id: panaderiaId },
         include: { producto: true, detalle_formulacion: { include: { unidad_medida: true } } },
@@ -122,8 +126,8 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             nombre: mp?.nombre ?? nombreIntermedio.get(d.producto_intermedio_id ?? '') ?? 'Sin identificar',
             cantidad,
             unidad: d.unidad_medida.codigo,
-            costo_por_unidad: costoUnidad == null ? null : Math.round(costoUnidad * 10000) / 10000,
-            costo: costo == null ? null : redondear(costo),
+            costo_por_unidad: verCostos && costoUnidad != null ? Math.round(costoUnidad * 10000) / 10000 : null,
+            costo: verCostos && costo != null ? redondear(costo) : null,
           };
         })
         .sort((a, b) => b.cantidad - a.cantidad);
@@ -135,9 +139,9 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         version: f.version,
         rendimiento,
         peso_lote_g: redondear(pesoTotal),
-        costo_lote: redondear(costoTotal),
-        costo_unidad: rendimiento ? redondear(costoTotal / rendimiento) : null,
-        costo_incompleto: incompleto,
+        costo_lote: verCostos ? redondear(costoTotal) : null,
+        costo_unidad: verCostos && rendimiento ? redondear(costoTotal / rendimiento) : null,
+        costo_incompleto: verCostos ? incompleto : false,
         ingredientes,
       });
     } catch (error) {

@@ -135,4 +135,15 @@ app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (re
 app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 
 app.use('/abc', verificarToken, resolverPanaderia(prisma), autorizarRoles('administrador', 'superadministrador'), crearRouterAbc(prisma));
+
+app.get('/mi-panaderia', verificarToken, resolverPanaderia(prisma), async (req, res) => {
+  try {
+    const panaderia = await prisma.panaderia.findUnique({ where: { id: req.panaderiaId! } });
+    if (!panaderia) return res.status(404).json({ error: 'Panadería no encontrada' });
+    res.json({ id: panaderia.id, nombre: panaderia.nombre });
+  } catch (error) {
+    console.error('Error al consultar la panadería:', error);
+    res.status(500).json({ error: 'Error al consultar la panadería' });
+  }
+});
 export default app;
