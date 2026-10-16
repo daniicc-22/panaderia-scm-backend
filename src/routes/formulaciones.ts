@@ -1,0 +1,150 @@
+import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Costo por gramo de cada materia prima (precio de la presentación más grande / su contenido)
+async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: string) {
+  const materias = await prisma.materia_prima.findMany({
+    where: { panaderia_id: panaderiaId },
+    include: {
+      presentacion: {
+        where: { activa: true },
+        orderBy: { contenido: 'desc' },
+        include: { presentacion_proveedor: { where: { vigente: true } } },
+      },
+    },
+  });
+
+  const mapa = new Map<string, { codigo: string; nombre: string; costo: number | null }>();
+  for (const m of materias) {
+    const p = m.presentacion[0];
+    const contenido = p ? Number(p.contenido) : 0;
+    const precio = Number(p?.presentacion_proveedor[0]?.precio_referencia ?? 0);
+    mapa.set(m.id, {
+      codigo: m.codigo,
+      nombre: m.nombre,
+      costo: contenido > 0 && precio > 0 ? precio / contenido : null,
+    });
+  }
+  return mapa;
+}
+
+const redondear = (n: number) => Math.round(n * 100) / 100;
+
+export function crearRouterFormulaciones(prisma: PrismaClient) {
+  const router = Router();
+
+  // Lista de formulaciones activas con peso y costo por lote y por unidad
+  router.get('/', async (req, res) => {
+    try {
+      const panaderiaId = req.panaderiaId!;
+      const [formulaciones, costos] = await Promise.all([
+        prisma.formulacion.findMany({
+          where: { panaderia_id: panaderiaId, activa: true },
+          include: { producto: true, detalle_formulacion: true },
+          orderBy: { producto: { nombre: 'asc' } },
+        }),
+        costosPorUnidadBase(prisma, panaderiaId),
+      ]);
+
+      res.json(
+        formulaciones.map((f) => {
+          let costo = 0;
+          let peso = 0;
+          let incompleto = false;
+          for (const d of f.detalle_formulacion) {
+            const cantidad = Number(d.cantidad_estandar);
+            peso += cantidad;
+            const c = d.materia_prima_id ? costos.get(d.materia_prima_id)?.costo : null;
+            if (c == null) incompleto = true;
+            else costo += c * cantidad;
+          }
+          const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
+          return {
+            id: f.id,
+            producto: f.producto.nombre,
+            es_intermedio: f.producto.es_intermedio,
+            version: f.version,
+            rendimiento,
+            ingredientes: f.detalle_formulacion.length,
+            peso_lote_g: redondear(peso),
+            costo_lote: redondear(costo),
+            costo_unidad: rendimiento ? redondear(costo / rendimiento) : null,
+            costo_incompleto: incompleto,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('Error al consultar formulaciones:', error);
+      res.status(500).json({ error: 'Error al consultar las formulaciones' });
+    }
+  });
+
+  // Detalle de una formulación con el costo de cada ingrediente
+  router.get('/:id', async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido' });
+
+    try {
+      const panaderiaId = req.panaderiaId!;
+      const f = await prisma.formulacion.findFirst({
+        where: { id, panaderia_id: panaderiaId },
+        include: { producto: true, detalle_formulacion: { include: { unidad_medida: true } } },
+      });
+      if (!f) return res.status(404).json({ error: 'Formulación no encontrada' });
+
+      const costos = await costosPorUnidadBase(prisma, panaderiaId);
+      const idsIntermedios = f.detalle_formulacion
+        .map((d) => d.producto_intermedio_id)
+        .filter((x): x is string => !!x);
+      const intermedios = idsIntermedios.length
+        ? await prisma.producto.findMany({ where: { id: { in: idsIntermedios } } })
+        : [];
+      const nombreIntermedio = new Map(intermedios.map((p) => [p.id, p.nombre]));
+
+      let costoTotal = 0;
+      let pesoTotal = 0;
+      let incompleto = false;
+
+      const ingredientes = f.detalle_formulacion
+        .map((d) => {
+          const cantidad = Number(d.cantidad_estandar);
+          pesoTotal += cantidad;
+          const mp = d.materia_prima_id ? costos.get(d.materia_prima_id) : undefined;
+          const costoUnidad = mp?.costo ?? null;
+          const costo = costoUnidad == null ? null : costoUnidad * cantidad;
+          if (costo == null) incompleto = true;
+          else costoTotal += costo;
+          return {
+            tipo: d.materia_prima_id ? 'materia_prima' : 'producto_intermedio',
+            codigo: mp?.codigo ?? null,
+            nombre: mp?.nombre ?? nombreIntermedio.get(d.producto_intermedio_id ?? '') ?? 'Sin identificar',
+            cantidad,
+            unidad: d.unidad_medida.codigo,
+            costo_por_unidad: costoUnidad == null ? null : Math.round(costoUnidad * 10000) / 10000,
+            costo: costo == null ? null : redondear(costo),
+          };
+        })
+        .sort((a, b) => b.cantidad - a.cantidad);
+
+      const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
+      res.json({
+        id: f.id,
+        producto: f.producto.nombre,
+        version: f.version,
+        rendimiento,
+        peso_lote_g: redondear(pesoTotal),
+        costo_lote: redondear(costoTotal),
+        costo_unidad: rendimiento ? redondear(costoTotal / rendimiento) : null,
+        costo_incompleto: incompleto,
+        ingredientes,
+      });
+    } catch (error) {
+      console.error('Error al consultar la formulación:', error);
+      res.status(500).json({ error: 'Error al consultar la formulación' });
+    }
+  });
+
+  return router;
+}

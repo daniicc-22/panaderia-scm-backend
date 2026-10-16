@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { verificarToken, autorizarRoles } from './middleware/autenticacion';
 import { resolverPanaderia } from './middleware/panaderia';
+import { crearRouterFormulaciones } from './routes/formulaciones';
 
 dotenv.config();
 
@@ -129,4 +130,6 @@ app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (re
     res.status(500).json({ error: 'Error al consultar las materias primas' });
   }
 });
+
+app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 export default app;
