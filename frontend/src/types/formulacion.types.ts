@@ -6,7 +6,7 @@ export interface FormulacionResumen {
   rendimiento: number | null;
   ingredientes: number;
   peso_lote_g: number;
-  costo_lote: number;
+  costo_lote: number | null;
   costo_unidad: number | null;
   costo_incompleto: boolean;
 }
@@ -27,7 +27,7 @@ export interface FormulacionDetalle {
   version: number;
   rendimiento: number | null;
   peso_lote_g: number;
-  costo_lote: number;
+  costo_lote: number | null;
   costo_unidad: number | null;
   costo_incompleto: boolean;
   ingredientes: IngredienteFormulacion[];

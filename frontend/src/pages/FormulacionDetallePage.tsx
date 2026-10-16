@@ -25,6 +25,8 @@ export function FormulacionDetallePage() {
     enabled: !!id,
   });
 
+  const verCostos = data?.costo_lote != null;
+
   const columnas: ColumnaTabla<IngredienteFormulacion>[] = [
     {
       key: 'nombre',
@@ -37,14 +39,26 @@ export function FormulacionDetallePage() {
       ),
     },
     { key: 'cantidad', encabezado: 'Cantidad', render: (i) => `${numero.format(i.cantidad)} ${i.unidad}` },
-    { key: 'costo_unidad', encabezado: 'Costo por unidad', render: (i) => (i.costo_por_unidad == null ? '—' : pesos2.format(i.costo_por_unidad)) },
-    { key: 'costo', encabezado: 'Costo', render: (i) => (i.costo == null ? 'Sin costo' : pesos0.format(i.costo)) },
-    {
-      key: 'participacion',
-      encabezado: '% del costo',
-      render: (i) =>
-        i.costo == null || !data || data.costo_lote === 0 ? '—' : `${numero.format((i.costo / data.costo_lote) * 100)} %`,
-    },
+    ...(verCostos
+      ? ([
+          {
+            key: 'costo_unidad',
+            encabezado: 'Costo por unidad',
+            render: (i) => (i.costo_por_unidad == null ? '—' : pesos2.format(i.costo_por_unidad)),
+          },
+          {
+            key: 'costo',
+            encabezado: 'Costo',
+            render: (i) => (i.costo == null ? 'Sin costo' : pesos0.format(i.costo)),
+          },
+          {
+            key: 'participacion',
+            encabezado: '% del costo',
+            render: (i) =>
+              i.costo == null || !data?.costo_lote ? '—' : `${numero.format((i.costo / data.costo_lote) * 100)} %`,
+          },
+        ] as ColumnaTabla<IngredienteFormulacion>[])
+      : []),
   ];
 
   return (
@@ -63,11 +77,15 @@ export function FormulacionDetallePage() {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Dato etiqueta="Rinde" valor={data.rendimiento == null ? '—' : `${data.rendimiento} unidades`} />
             <Dato etiqueta="Peso del lote" valor={`${numero.format(data.peso_lote_g / 1000)} kg`} />
-            <Dato etiqueta="Costo por lote" valor={pesos0.format(data.costo_lote)} />
-            <Dato etiqueta="Costo por unidad" valor={data.costo_unidad == null ? '—' : pesos2.format(data.costo_unidad)} />
+            {verCostos && data.costo_lote != null && (
+              <Dato etiqueta="Costo por lote" valor={pesos0.format(data.costo_lote)} />
+            )}
+            {verCostos && (
+              <Dato etiqueta="Costo por unidad" valor={data.costo_unidad == null ? '—' : pesos2.format(data.costo_unidad)} />
+            )}
           </div>
 
-          {data.costo_incompleto && (
+          {verCostos && data.costo_incompleto && (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Esta formulación incluye un ingrediente sin costo (producto intermedio o materia prima sin precio). El costo total es parcial.
             </div>

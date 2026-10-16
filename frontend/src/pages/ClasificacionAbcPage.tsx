@@ -63,10 +63,12 @@ export function ClasificacionAbcPage() {
             ))}
           </div>
 
-          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             Demanda estimada a partir de las formulaciones, con {data.supuestos.lotes_por_semana_por_defecto} lotes por
             semana por producto y {data.supuestos.semanas_al_anio} semanas al año. Se recalibrará con el consumo real del
-            piloto.
+            piloto. Regla de clasificación: un insumo es clase A si el acumulado previo es menor a{' '}
+            {data.supuestos.limites.A} %, clase B si es menor a {data.supuestos.limites.B} %, y clase C en los demás
+            casos; así, el insumo que cruza el límite queda en la clase superior.
           </div>
         </>
       )}
