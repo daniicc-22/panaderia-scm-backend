@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { puedeVerCostos } from '../utils/permisos';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -31,8 +32,7 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
 }
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
-const ROLES_CON_COSTOS = ['administrador', 'superadministrador'];
-const puedeVerCostos = (rol?: string) => !!rol && ROLES_CON_COSTOS.includes(rol);
+
 
 export function crearRouterFormulaciones(prisma: PrismaClient) {
   const router = Router();

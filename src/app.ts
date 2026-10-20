@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -8,14 +10,45 @@ import { verificarToken, autorizarRoles } from './middleware/autenticacion';
 import { resolverPanaderia } from './middleware/panaderia';
 import { crearRouterFormulaciones } from './routes/formulaciones';
 import { crearRouterAbc } from './routes/abc';
+import { puedeVerCostos } from './utils/permisos';
 
 dotenv.config();
+
+// En producción no se arranca con un secreto ausente o débil
+if (process.env.NODE_ENV === 'production') {
+  const secreto = process.env.JWT_SECRET;
+  if (!secreto || secreto.length < 32) {
+    throw new Error('JWT_SECRET debe tener al menos 32 caracteres en producción');
+  }
+}
 
 const app = express();
 const prisma = new PrismaClient();
 
-app.use(cors());
-app.use(express.json());
+// Detrás del proxy del hosting, para que el límite de intentos use la IP real
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// CORS: solo los orígenes autorizados (lista separada por comas en CORS_ORIGINS)
+const origenesPermitidos = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(helmet());
+app.use(cors({ origin: origenesPermitidos }));
+app.use(express.json({ limit: '100kb' }));
+
+// Límite de intentos fallidos de inicio de sesión por IP (los exitosos no cuentan)
+const limitadorLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: Number(process.env.LOGIN_MAX_INTENTOS ?? 20),
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.' },
+});
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', mensaje: 'API panaderia-scm-backend funcionando' });
@@ -36,7 +69,7 @@ interface CredencialesLogin {
   password?: string;
 }
 
-app.post('/login', async (req, res) => {
+app.post('/login', limitadorLogin, async (req, res) => {
   const { email, password }: CredencialesLogin = req.body;
 
   if (!email || !password) {
@@ -84,15 +117,12 @@ app.post('/login', async (req, res) => {
     console.error('Error en /login:', error);
     res.status(500).json({ error: 'Error al iniciar sesión' });
   }
-app.get('/perfil', verificarToken, autorizarRoles('superadministrador'), (req, res) => {
-  res.json({
-    mensaje: 'Acceso concedido: eres superadministrador',
-    usuario: req.usuario,
-  });
-});});
+});
 
 app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (req, res) => {
   try {
+    const verCostos = puedeVerCostos(req.usuario?.rol);
+
     const materias = await prisma.materia_prima.findMany({
       where: { panaderia_id: req.panaderiaId, activa: true },
       include: {
@@ -120,8 +150,8 @@ app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (re
             id: p.id,
             nombre: p.nombre,
             contenido,
-            precio,
-            costo_por_unidad_base: contenido > 0 ? precio / contenido : null,
+            precio: verCostos ? precio : null,
+            costo_por_unidad_base: verCostos && contenido > 0 ? precio / contenido : null,
           };
         }),
       })),
@@ -134,7 +164,13 @@ app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (re
 
 app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 
-app.use('/abc', verificarToken, resolverPanaderia(prisma), autorizarRoles('administrador', 'superadministrador'), crearRouterAbc(prisma));
+app.use(
+  '/abc',
+  verificarToken,
+  resolverPanaderia(prisma),
+  autorizarRoles('administrador', 'superadministrador'),
+  crearRouterAbc(prisma),
+);
 
 app.get('/mi-panaderia', verificarToken, resolverPanaderia(prisma), async (req, res) => {
   try {
@@ -146,4 +182,5 @@ app.get('/mi-panaderia', verificarToken, resolverPanaderia(prisma), async (req, 
     res.status(500).json({ error: 'Error al consultar la panadería' });
   }
 });
+
 export default app;

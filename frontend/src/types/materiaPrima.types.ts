@@ -2,7 +2,7 @@ export interface PresentacionMateriaPrima {
   id: string;
   nombre: string;
   contenido: number;
-  precio: number;
+  precio: number | null;
   costo_por_unidad_base: number | null;
 }
 

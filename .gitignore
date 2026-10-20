@@ -3,6 +3,8 @@ node_modules
 
 # Variables de entorno (contiene la contraseña real de la base de datos)
 .env
+.env.*
+!.env.example
 
 # Cliente de Prisma generado (se regenera con "npx prisma generate")
 /src/generated/prisma

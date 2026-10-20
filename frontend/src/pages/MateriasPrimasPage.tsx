@@ -17,35 +17,44 @@ const formatoCosto = new Intl.NumberFormat('es-CO', {
   maximumFractionDigits: 2,
 });
 
-const columnas: ColumnaTabla<MateriaPrima>[] = [
-  { key: 'codigo', encabezado: 'Código', render: (m) => m.codigo },
-  { key: 'nombre', encabezado: 'Materia prima', render: (m) => <span className="font-medium text-gray-900">{m.nombre}</span> },
-  { key: 'categoria', encabezado: 'Categoría', render: (m) => m.categoria ?? '—' },
-  {
-    key: 'presentaciones',
-    encabezado: 'Presentación y precio',
-    render: (m) =>
-      m.presentaciones.length === 0 ? (
-        '—'
-      ) : (
-        <div className="flex flex-col gap-0.5">
-          {m.presentaciones.map((p) => (
-            <span key={p.id}>
-              {p.nombre} · {formatoPrecio.format(p.precio)}
-            </span>
-          ))}
-        </div>
-      ),
-  },
-  {
-    key: 'costo',
-    encabezado: 'Costo por unidad base',
-    render: (m) => {
-      const costo = m.presentaciones[0]?.costo_por_unidad_base;
-      return costo == null ? '—' : `${formatoCosto.format(costo)} / ${m.unidad}`;
+function crearColumnas(verPrecios: boolean): ColumnaTabla<MateriaPrima>[] {
+  const base: ColumnaTabla<MateriaPrima>[] = [
+    { key: 'codigo', encabezado: 'Código', render: (m) => m.codigo },
+    { key: 'nombre', encabezado: 'Materia prima', render: (m) => <span className="font-medium text-gray-900">{m.nombre}</span> },
+    { key: 'categoria', encabezado: 'Categoría', render: (m) => m.categoria ?? '—' },
+    {
+      key: 'presentaciones',
+      encabezado: verPrecios ? 'Presentación y precio' : 'Presentación',
+      render: (m) =>
+        m.presentaciones.length === 0 ? (
+          '—'
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {m.presentaciones.map((p) => (
+              <span key={p.id}>
+                {p.nombre}
+                {verPrecios && p.precio != null ? ` · ${formatoPrecio.format(p.precio)}` : ''}
+              </span>
+            ))}
+          </div>
+        ),
     },
-  },
-];
+  ];
+
+  if (!verPrecios) return base;
+
+  return [
+    ...base,
+    {
+      key: 'costo',
+      encabezado: 'Costo por unidad base',
+      render: (m) => {
+        const costo = m.presentaciones[0]?.costo_por_unidad_base;
+        return costo == null ? '—' : `${formatoCosto.format(costo)} / ${m.unidad}`;
+      },
+    },
+  ];
+}
 
 export function MateriasPrimasPage() {
   const [busqueda, setBusqueda] = useState('');
@@ -55,6 +64,10 @@ export function MateriasPrimasPage() {
     queryKey: ['materias-primas'],
     queryFn: getMateriasPrimas,
   });
+
+  // Si el servidor no envía precios (rol operario), se ocultan esas columnas
+  const verPrecios = (data ?? []).some((m) => m.presentaciones.some((p) => p.precio !== null));
+  const columnas = useMemo(() => crearColumnas(verPrecios), [verPrecios]);
 
   const categorias = useMemo(
     () => Array.from(new Set((data ?? []).map((m) => m.categoria).filter((c): c is string => !!c))).sort(),
