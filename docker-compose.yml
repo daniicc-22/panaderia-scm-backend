@@ -1,0 +1,35 @@
+# Levanta la API y la web en contenedores, contra la base de Supabase.
+# Las variables secretas NO van en este archivo: se toman de la sesión de PowerShell.
+#
+#   $env:DATABASE_URL = "postgresql://..."
+#   $env:JWT_SECRET   = "..."
+#   docker compose up --build
+services:
+  api:
+    build: .
+    image: panaderia-api
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL
+      - JWT_SECRET
+      - CORS_ORIGINS=http://localhost:8080
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:3000
+        VITE_API_MODE: real
+    image: panaderia-web
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
