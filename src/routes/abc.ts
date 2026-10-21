@@ -31,7 +31,8 @@ export function crearRouterAbc(prisma: PrismaClient) {
 
       const [formulaciones, costos] = await Promise.all([
         prisma.formulacion.findMany({
-          where: { panaderia_id: panaderiaId, activa: true },
+          // Los productos dados de baja no generan demanda
+          where: { panaderia_id: panaderiaId, activa: true, producto: { activo: true } },
           include: { producto: true, detalle_formulacion: true },
         }),
         costosPorUnidadBase(prisma, panaderiaId),

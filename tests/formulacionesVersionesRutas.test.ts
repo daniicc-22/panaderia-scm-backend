@@ -21,6 +21,7 @@ const F_V1 = '66666666-6666-4666-8666-666666666661';
 const F_V2 = '66666666-6666-4666-8666-666666666662';
 const F_OTRO = '66666666-6666-4666-8666-666666666663';
 const F_AJENA = '66666666-6666-4666-8666-666666666664';
+const F_INTER = '66666666-6666-4666-8666-666666666665';
 
 type Fila = Record<string, any>;
 let formulaciones: Fila[];
@@ -50,12 +51,16 @@ const coincide = (f: Fila, where: any) => {
   if (where.panaderia_id !== undefined && f.panaderia_id !== where.panaderia_id) return false;
   if (where.producto_id !== undefined && f.producto_id !== where.producto_id) return false;
   if (where.activa !== undefined && f.activa !== where.activa) return false;
+  if (where.producto?.activo !== undefined) {
+    const prod = productos.find((x) => x.id === f.producto_id);
+    if (!prod || prod.activo !== where.producto.activo) return false;
+  }
   return true;
 };
 
 const conRelaciones = (f: Fila) => ({
   ...f,
-  producto: { id: f.producto_id, nombre: f.producto_id === PROD_PAN ? 'Pan' : 'Otro', es_intermedio: false },
+  producto: productos.find((x) => x.id === f.producto_id) ?? { id: f.producto_id, nombre: 'Otro', es_intermedio: false, activo: true },
   usuario: f.aprobado_por ? { nombre: 'Ana Administradora' } : null,
   detalle_formulacion: f.detalle_formulacion.map((d: Fila) => ({ ...d, unidad_medida: { codigo: 'g' } })),
 });
@@ -114,8 +119,23 @@ const prismaFalso: any = {
           presentacion: [{ id: 'p', contenido: 1000, activa: true, presentacion_proveedor: [{ id: 'o', precio_referencia: 2000, vigente: true, proveedor: { activo: true } }] }],
         })),
   },
+  detalle_formulacion: {
+    findMany: async ({ where }: any) =>
+      formulaciones
+        .filter((f) => coincide(f, { panaderia_id: where.formulacion.panaderia_id, activa: where.formulacion.activa, producto: where.formulacion.producto }))
+        .flatMap((f) =>
+          f.detalle_formulacion
+            .filter((d: Fila) => d.producto_intermedio_id === where.producto_intermedio_id)
+            .map((d: Fila) => ({ ...d, formulacion: conRelaciones(f) })),
+        ),
+  },
   producto: {
     findMany: async () => [],
+    update: async ({ where, data }: any) => {
+      const prod = productos.find((x) => x.id === where.id)!;
+      Object.assign(prod, data);
+      return prod;
+    },
     findFirst: async ({ where }: any) =>
       productos.find(
         (p) =>
@@ -178,6 +198,7 @@ beforeEach(() => {
   productos = [
     { id: PROD_PAN, panaderia_id: PAN_A, nombre: 'Pan', es_intermedio: false, activo: true },
     { id: PROD_OTRO, panaderia_id: PAN_A, nombre: 'Otro viejo', es_intermedio: false, activo: false },
+    { id: INTER, panaderia_id: PAN_A, nombre: 'Masa añadida', es_intermedio: true, activo: true },
     { id: 'producto-b', panaderia_id: PAN_B, nombre: 'Pan de yuca', es_intermedio: false, activo: true },
   ];
   operaciones = [];
@@ -204,6 +225,11 @@ beforeEach(() => {
       id: F_OTRO, panaderia_id: PAN_A, producto_id: PROD_OTRO, version: 1, activa: true,
       vigente_desde: new Date('2026-10-01'), vigente_hasta: null, rendimiento_esperado: 5, aprobado_por: null,
       detalle_formulacion: [linea(SAL, 10)],
+    },
+    {
+      id: F_INTER, panaderia_id: PAN_A, producto_id: INTER, version: 1, activa: true,
+      vigente_desde: new Date('2026-10-01'), vigente_hasta: null, rendimiento_esperado: 1, aprobado_por: null,
+      detalle_formulacion: [linea(HARINA, 500)],
     },
     {
       id: F_AJENA, panaderia_id: PAN_B, producto_id: '55555555-5555-4555-8555-5555555555b1', version: 1, activa: true,
@@ -477,7 +503,7 @@ describe('POST /formulaciones (producto nuevo con su primera versión)', () => {
       expect(r.status).toBe(400);
     }
     expect(operaciones).toEqual([]);
-    expect(productos).toHaveLength(3);
+    expect(productos).toHaveLength(4);
   });
 
   test('no acepta productos intermedios, unidad ni es_intermedio desde el cliente', async () => {
@@ -502,8 +528,8 @@ describe('POST /formulaciones (producto nuevo con su primera versión)', () => {
     fallarCreacion = 'otro';
     const r = await sinErroresEnConsola(() => llamar('POST', '/formulaciones', 'administrador', nuevo()));
     expect(r.status).toBe(500);
-    expect(productos).toHaveLength(3);
-    expect(formulaciones).toHaveLength(4);
+    expect(productos).toHaveLength(4);
+    expect(formulaciones).toHaveLength(5);
   });
 
   test('si falta la unidad un en el catálogo: 500 sin crear nada', async () => {
@@ -518,5 +544,78 @@ describe('POST /formulaciones (producto nuevo con su primera versión)', () => {
     const r = await llamar('GET', `/formulaciones/${creada.cuerpo.id}/versiones`, 'administrador');
     expect(r.cuerpo.versiones).toHaveLength(1);
     expect(r.cuerpo.versiones[0]).toMatchObject({ version: 1, activa: true, ingredientes: 2 });
+  });
+});
+
+describe('GET /formulaciones (productos dados de baja)', () => {
+  const nombres = (r: any) => r.cuerpo.map((x: any) => x.producto).sort();
+
+  test('por defecto no muestra los productos inactivos', async () => {
+    const r = await llamar('GET', '/formulaciones', 'administrador');
+    expect(nombres(r)).toEqual(['Masa añadida', 'Pan']);
+    expect(r.cuerpo[0]).toHaveProperty('producto_id');
+    expect(r.cuerpo[0].producto_activo).toBe(true);
+  });
+
+  test('el administrador puede pedirlos con incluir_inactivos', async () => {
+    const r = await llamar('GET', '/formulaciones?incluir_inactivos=true', 'administrador');
+    expect(nombres(r)).toEqual(['Masa añadida', 'Otro viejo', 'Pan']);
+    expect(r.cuerpo.find((x: any) => x.producto === 'Otro viejo').producto_activo).toBe(false);
+  });
+
+  test('el operario no puede verlos aunque lo pida', async () => {
+    const r = await llamar('GET', '/formulaciones?incluir_inactivos=true', 'operario');
+    expect(nombres(r)).toEqual(['Masa añadida', 'Pan']);
+  });
+});
+
+describe('PATCH /formulaciones/:id/producto', () => {
+  const ruta = (id: string) => `/formulaciones/${id}/producto`;
+
+  test('da de baja un producto; sus versiones se conservan y sale de la lista', async () => {
+    const r = await llamar('PATCH', ruta(F_V2), 'administrador', { activo: false });
+    expect(r.status).toBe(200);
+    expect(r.cuerpo).toMatchObject({ producto_id: PROD_PAN, producto: 'Pan', activo: false });
+    expect(productos.find((p) => p.id === PROD_PAN)!.activo).toBe(false);
+    expect(formulaciones.filter((f) => f.producto_id === PROD_PAN)).toHaveLength(2);
+    const lista = await llamar('GET', '/formulaciones', 'administrador');
+    expect(lista.cuerpo.map((x: any) => x.producto)).toEqual(['Masa añadida']);
+  });
+
+  test('reactiva un producto dado de baja', async () => {
+    const r = await llamar('PATCH', ruta(F_OTRO), 'administrador', { activo: true });
+    expect(r.status).toBe(200);
+    expect(productos.find((p) => p.id === PROD_OTRO)!.activo).toBe(true);
+    const lista = await llamar('GET', '/formulaciones', 'administrador');
+    expect(lista.cuerpo.map((x: any) => x.producto)).toContain('Otro viejo');
+  });
+
+  test('no da de baja un intermedio que usa un producto vigente (409 con los nombres)', async () => {
+    const r = await llamar('PATCH', ruta(F_INTER), 'administrador', { activo: false });
+    expect(r.status).toBe(409);
+    expect(r.cuerpo.productos).toEqual(['Pan']);
+    expect(r.cuerpo.error).toContain('Pan');
+    expect(productos.find((p) => p.id === INTER)!.activo).toBe(true);
+  });
+
+  test('sí lo da de baja si quien lo usa ya está inactivo', async () => {
+    await llamar('PATCH', ruta(F_V2), 'administrador', { activo: false });
+    const r = await llamar('PATCH', ruta(F_INTER), 'administrador', { activo: false });
+    expect(r.status).toBe(200);
+  });
+
+  test('el 409 también aplica a un intermedio que usa un producto inactivo solo si ese producto está vigente', async () => {
+    // Pan sigue activo: bloquea; al reactivar y dar de baja otra vez el orden no importa
+    expect((await llamar('PATCH', ruta(F_INTER), 'administrador', { activo: false })).status).toBe(409);
+  });
+
+  test('permisos y validaciones', async () => {
+    expect((await llamar('PATCH', ruta(F_V2), 'operario', { activo: false })).status).toBe(403);
+    expect((await llamar('PATCH', ruta(F_AJENA), 'administrador', { activo: false })).status).toBe(404);
+    expect((await llamar('PATCH', ruta('xx'), 'administrador', { activo: false })).status).toBe(400);
+    expect((await llamar('PATCH', ruta(F_V2), 'administrador', { activo: 'no' })).status).toBe(400);
+    expect((await llamar('PATCH', ruta(F_V2), 'administrador', { activo: false, nombre: 'x' })).status).toBe(400);
+    expect((await llamar('PATCH', ruta(F_V2), 'administrador', {})).status).toBe(400);
+    expect(productos.find((p) => p.id === PROD_PAN)!.activo).toBe(true);
   });
 });

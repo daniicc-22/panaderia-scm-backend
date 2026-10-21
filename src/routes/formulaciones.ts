@@ -4,9 +4,11 @@ import { puedeVerCostos } from '../utils/permisos';
 import { calcularCostoFormulacion } from '../utils/costeo';
 import { elegirPrecio } from '../utils/precios';
 import { autorizarRoles } from '../middleware/autenticacion';
+import { resumirNombres } from '../utils/texto';
 import {
   fechaHoyColombia,
   hayCambios,
+  validarEstadoProducto,
   validarProductoNuevo,
   validarVersion,
   type LineaVersion,
@@ -88,9 +90,15 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
     try {
       const panaderiaId = req.panaderiaId!;
       const verCostos = puedeVerCostos(req.usuario?.rol);
+      // Los productos dados de baja no salen, salvo que la gestión pida verlos
+      const incluirInactivos = req.query.incluir_inactivos === 'true' && ROLES_GESTION.includes(req.usuario?.rol ?? '');
       const [formulaciones, costos] = await Promise.all([
         prisma.formulacion.findMany({
-          where: { panaderia_id: panaderiaId, activa: true },
+          where: {
+            panaderia_id: panaderiaId,
+            activa: true,
+            ...(incluirInactivos ? {} : { producto: { activo: true } }),
+          },
           include: { producto: true, detalle_formulacion: true },
           orderBy: { producto: { nombre: 'asc' } },
         }),
@@ -108,7 +116,9 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
           const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
           return {
             id: f.id,
+            producto_id: f.producto_id,
             producto: f.producto.nombre,
+            producto_activo: f.producto.activo,
             es_intermedio: f.producto.es_intermedio,
             version: f.version,
             rendimiento,
@@ -182,6 +192,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         id: f.id,
         producto_id: f.producto_id,
         producto: f.producto.nombre,
+        producto_activo: f.producto.activo,
         version: f.version,
         activa: f.activa,
         vigente_desde: f.vigente_desde.toISOString().slice(0, 10),
@@ -266,6 +277,49 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       if (esErrorUnico(error)) return res.status(409).json({ error: MENSAJE_CONFLICTO });
       console.error('Error al crear el producto con su formulación:', error);
       res.status(500).json({ error: 'Error al crear la formulación' });
+    }
+  });
+
+  // Da de baja o reactiva el producto de una formulación. Un producto inactivo deja de salir en la lista,
+  // en los costos y en el ABC; sus versiones se conservan.
+  router.patch('/:id/producto', soloGestion, async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido' });
+    const validado = validarEstadoProducto(req.body);
+    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const { activo } = validado.datos;
+    const panaderiaId = req.panaderiaId!;
+
+    try {
+      const base = await prisma.formulacion.findFirst({
+        where: { id, panaderia_id: panaderiaId },
+        include: { producto: true },
+      });
+      if (!base) return res.status(404).json({ error: 'Formulación no encontrada' });
+
+      // No se da de baja un intermedio que otros productos vigentes usan como ingrediente
+      if (!activo && base.producto.activo) {
+        const usos = await prisma.detalle_formulacion.findMany({
+          where: {
+            producto_intermedio_id: base.producto_id,
+            formulacion: { panaderia_id: panaderiaId, activa: true, producto: { activo: true } },
+          },
+          include: { formulacion: { include: { producto: true } } },
+        });
+        if (usos.length > 0) {
+          const productos = [...new Set(usos.map((u) => u.formulacion.producto.nombre))].sort();
+          return res.status(409).json({
+            error: `No se puede dar de baja: lo usan como ingrediente ${resumirNombres(productos)}.`,
+            productos,
+          });
+        }
+      }
+
+      await prisma.producto.update({ where: { id: base.producto_id }, data: { activo } });
+      res.json({ id: base.id, producto_id: base.producto_id, producto: base.producto.nombre, activo });
+    } catch (error) {
+      console.error('Error al cambiar el estado del producto:', error);
+      res.status(500).json({ error: 'Error al cambiar el estado del producto' });
     }
   });
 

@@ -4,14 +4,11 @@ import { autorizarRoles } from '../middleware/autenticacion';
 import { puedeVerCostos } from '../utils/permisos';
 import { mejorOferta } from '../utils/precios';
 import { UUID, siguienteCodigo, validarCrear, validarEditar } from '../utils/materiaPrima';
+import { resumirNombres } from '../utils/texto';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 // Mensaje corto: los primeros nombres y cuántos faltan (la lista completa va en el campo productos)
-const MAX_NOMBRES_EN_MENSAJE = 5;
-const resumirProductos = (productos: string[]) =>
-  productos.length <= MAX_NOMBRES_EN_MENSAJE
-    ? productos.join(', ')
-    : `${productos.slice(0, MAX_NOMBRES_EN_MENSAJE).join(', ')} y ${productos.length - MAX_NOMBRES_EN_MENSAJE} más`;
+const resumirProductos = resumirNombres;
 
 const esErrorUnico = (e: unknown) => typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002';
 

@@ -147,6 +147,18 @@ export function validarProductoNuevo(cuerpo: unknown): Resultado<DatosProductoNu
   return { ok: true, datos: { nombre, ...version.datos } };
 }
 
+// Cuerpo de PATCH /formulaciones/:id/producto
+export function validarEstadoProducto(cuerpo: unknown): Resultado<{ activo: boolean }> {
+  if (!esObjeto(cuerpo)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
+  const errores: string[] = [];
+  for (const campo of Object.keys(cuerpo)) {
+    if (campo !== 'activo') errores.push(`El campo ${campo} no se puede enviar aquí.`);
+  }
+  if (typeof cuerpo.activo !== 'boolean') errores.push('El estado activo debe ser verdadero o falso.');
+  if (errores.length > 0) return { ok: false, errores };
+  return { ok: true, datos: { activo: cuerpo.activo as boolean } };
+}
+
 // ¿La nueva versión difiere de la vigente? Evita crear versiones idénticas por error.
 export function hayCambios(
   actual: { rendimiento: number | null; ingredientes: LineaVersion[] },

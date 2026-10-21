@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { fechaHoyColombia, hayCambios, validarProductoNuevo, validarVersion, type LineaVersion } from '../src/utils/formulacion';
+import {
+  fechaHoyColombia,
+  hayCambios,
+  validarEstadoProducto,
+  validarProductoNuevo,
+  validarVersion,
+  type LineaVersion,
+} from '../src/utils/formulacion';
 
 const A = '33333333-3333-4333-8333-333333333331';
 const B = '33333333-3333-4333-8333-333333333332';
@@ -205,5 +212,18 @@ describe('validarProductoNuevo', () => {
     const r = validarProductoNuevo({ nombre: '', rendimiento: -1, ingredientes: [] });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errores.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('validarEstadoProducto', () => {
+  test('acepta activo verdadero o falso', () => {
+    expect(validarEstadoProducto({ activo: false })).toEqual({ ok: true, datos: { activo: false } });
+    expect(validarEstadoProducto({ activo: true })).toEqual({ ok: true, datos: { activo: true } });
+  });
+
+  test('rechaza otros valores, campos extra y cuerpos inválidos', () => {
+    for (const malo of [{}, { activo: 'si' }, { activo: 1 }, { activo: null }, { activo: false, nombre: 'x' }, null, [], 'x']) {
+      expect(validarEstadoProducto(malo).ok).toBe(false);
+    }
   });
 });
