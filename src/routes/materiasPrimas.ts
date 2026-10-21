@@ -5,6 +5,13 @@ import { puedeVerCostos } from '../utils/permisos';
 import { UUID, siguienteCodigo, validarCrear, validarEditar } from '../utils/materiaPrima';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
+// Mensaje corto: los primeros nombres y cuántos faltan (la lista completa va en el campo productos)
+const MAX_NOMBRES_EN_MENSAJE = 5;
+const resumirProductos = (productos: string[]) =>
+  productos.length <= MAX_NOMBRES_EN_MENSAJE
+    ? productos.join(', ')
+    : `${productos.slice(0, MAX_NOMBRES_EN_MENSAJE).join(', ')} y ${productos.length - MAX_NOMBRES_EN_MENSAJE} más`;
+
 const esErrorUnico = (e: unknown) => typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002';
 
 export function crearRouterMateriasPrimas(prisma: PrismaClient) {
@@ -165,7 +172,7 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
         if (usos.length > 0) {
           const productos = [...new Set(usos.map((u) => u.formulacion.producto.nombre))];
           return res.status(409).json({
-            error: `No se puede desactivar: la usan las formulaciones activas de ${productos.join(', ')}.`,
+            error: `No se puede desactivar: la usan las formulaciones activas de ${resumirProductos(productos)}.`,
             productos,
           });
         }

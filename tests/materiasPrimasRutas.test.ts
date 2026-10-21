@@ -254,6 +254,15 @@ describe('PATCH /materias-primas/:id', () => {
     expect(materias[0].activa).toBe(true);
   });
 
+  test('con muchos productos el mensaje se acorta pero la lista completa va aparte', async () => {
+    usos = Array.from({ length: 12 }, (_, i) => ({ materia: ID_HARINA, panaderia: PAN_A, producto: `Pan ${i + 1}`, activa: true }));
+    const r = await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { activa: false });
+    expect(r.status).toBe(409);
+    expect(r.cuerpo.productos).toHaveLength(12);
+    expect(r.cuerpo.error).toContain('y 7 más');
+    expect(r.cuerpo.error).not.toContain('Pan 12');
+  });
+
   test('se desactiva si solo la usan formulaciones inactivas', async () => {
     usos = [{ materia: ID_HARINA, panaderia: PAN_A, producto: 'Fórmula vieja', activa: false }];
     const r = await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { activa: false });
