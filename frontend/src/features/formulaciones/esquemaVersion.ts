@@ -6,6 +6,8 @@ export const CANTIDAD_MAX = 999_999_999;
 export const TOLERANCIA_MAX = 100;
 export const INGREDIENTES_MIN = 1;
 export const INGREDIENTES_MAX = 100;
+export const NOMBRE_PRODUCTO_MIN = 2;
+export const NOMBRE_PRODUCTO_MAX = 100;
 
 export interface FilaEditor {
   clave: string; // identifica la fila en pantalla; no viaja al servidor
@@ -134,4 +136,13 @@ export function validarEditor(valores: ValoresEditor, materiasActivas: ReadonlyS
     return { ok: false, errores };
   }
   return { ok: true, datos: { rendimiento: redondear3(rend), ingredientes } };
+}
+
+// Nombre del producto nuevo: sin espacios sobrantes (igual que el servidor)
+export function validarNombreProducto(texto: string): { ok: true; nombre: string } | { ok: false; error: string } {
+  const nombre = texto.trim().replace(/\s+/g, ' ');
+  if (nombre.length < NOMBRE_PRODUCTO_MIN || nombre.length > NOMBRE_PRODUCTO_MAX) {
+    return { ok: false, error: `El nombre debe tener entre ${NOMBRE_PRODUCTO_MIN} y ${NOMBRE_PRODUCTO_MAX} caracteres.` };
+  }
+  return { ok: true, nombre };
 }

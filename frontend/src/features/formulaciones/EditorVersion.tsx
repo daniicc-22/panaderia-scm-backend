@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { ErrorState } from '../../components/feedback/ErrorState';
-import { crearVersion } from '../../services/formulacionesService';
+import { crearProducto, crearVersion } from '../../services/formulacionesService';
 import { getMateriasPrimas } from '../../services/materiasPrimasService';
 import { mensajeDeError } from '../../services/errores';
 import type { FormulacionDetalle } from '../../types/formulacion.types';
@@ -15,21 +15,25 @@ import {
   INGREDIENTES_MAX,
   filaVacia,
   validarEditor,
+  validarNombreProducto,
   valoresDesdeDetalle,
   type ErroresEditor,
   type FilaEditor,
 } from './esquemaVersion';
 
 interface Props {
-  // Versión de la que se parte: la vigente (editar) o una anterior (usarla como base)
-  base: FormulacionDetalle;
+  // Versión de la que se parte: la vigente (editar) o una anterior (usarla como base).
+  // Sin `base` el formulario crea un producto nuevo con su primera versión.
+  base?: FormulacionDetalle;
   onTerminar: () => void;
 }
 
 export function EditorVersion({ base, onTerminar }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const inicial = useMemo(() => valoresDesdeDetalle(base), [base]);
+  const inicial = useMemo(() => (base ? valoresDesdeDetalle(base) : { rendimiento: '', filas: [filaVacia()] }), [base]);
+  const [nombre, setNombre] = useState('');
+  const [errorNombre, setErrorNombre] = useState<string | undefined>();
   const [rendimiento, setRendimiento] = useState(inicial.rendimiento);
   const [filas, setFilas] = useState<FilaEditor[]>(inicial.filas);
   const [errores, setErrores] = useState<ErroresEditor>({ filas: {} });
@@ -41,7 +45,8 @@ export function EditorVersion({ base, onTerminar }: Props) {
   const porId = useMemo(() => new Map(activas.map((m) => [m.id, m])), [activas]);
 
   const guardar = useMutation({
-    mutationFn: (datos: Parameters<typeof crearVersion>[1]) => crearVersion(base.id, datos),
+    mutationFn: ({ nombreProducto, datos }: { nombreProducto: string; datos: Parameters<typeof crearVersion>[1] }) =>
+      base ? crearVersion(base.id, datos) : crearProducto({ nombre: nombreProducto, ...datos }),
     onSuccess: async (creada) => {
       // El costo, el ABC y las listas cambian con la versión vigente
       await Promise.all([
@@ -53,7 +58,8 @@ export function EditorVersion({ base, onTerminar }: Props) {
       onTerminar();
       navigate(`/formulaciones/${creada.id}`);
     },
-    onError: (error) => setErrorServidor(mensajeDeError(error, 'No se pudo guardar la nueva versión.')),
+    onError: (error) =>
+      setErrorServidor(mensajeDeError(error, base ? 'No se pudo guardar la nueva versión.' : 'No se pudo crear el producto.')),
   });
 
   function cambiarFila(clave: string, cambios: Partial<FilaEditor>) {
@@ -63,13 +69,19 @@ export function EditorVersion({ base, onTerminar }: Props) {
   function enviar(e: FormEvent) {
     e.preventDefault();
     setErrorServidor(null);
-    const resultado = validarEditor({ rendimiento, filas }, idsActivas);
-    if (!resultado.ok) {
-      setErrores(resultado.errores);
-      return;
+    let nombreProducto = '';
+    let nombreMal = false;
+    if (!base) {
+      const n = validarNombreProducto(nombre);
+      if (n.ok) nombreProducto = n.nombre;
+      else nombreMal = true;
+      setErrorNombre(n.ok ? undefined : n.error);
     }
+    const resultado = validarEditor({ rendimiento, filas }, idsActivas);
+    if (!resultado.ok) setErrores(resultado.errores);
+    if (nombreMal || !resultado.ok) return;
     setErrores({ filas: {} });
-    guardar.mutate(resultado.datos);
+    guardar.mutate({ nombreProducto, datos: resultado.datos });
   }
 
   if (materias.isLoading) return <LoadingState mensaje="Cargando insumos..." />;
@@ -78,11 +90,26 @@ export function EditorVersion({ base, onTerminar }: Props) {
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
       <Alert variant="info">
-        {base.activa
-          ? 'Al guardar se crea una versión nueva y la actual queda como anterior (con su fecha de cierre).'
-          : `Se crea una versión nueva con estos valores, que pasa a ser la vigente. La versión vigente queda como anterior; la v${base.version} no se modifica.`}{' '}
-        Cambiará el costo del lote y el ABC.
+        {!base
+          ? 'Se crea el producto con su primera versión (v1), ya vigente. Cuenta en el ABC con el supuesto de 6 lotes por semana hasta que exista el plan de producción.'
+          : base.activa
+            ? 'Al guardar se crea una versión nueva y la actual queda como anterior (con su fecha de cierre). Cambiará el costo del lote y el ABC.'
+            : `Se crea una versión nueva con estos valores, que pasa a ser la vigente. La versión vigente queda como anterior; la v${base.version} no se modifica. Cambiará el costo del lote y el ABC.`}
       </Alert>
+
+      {!base && (
+        <div className="sm:max-w-md">
+          <Input
+            id="prod-nombre"
+            label="Nombre del producto"
+            maxLength={120}
+            autoFocus
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            error={errorNombre}
+          />
+        </div>
+      )}
 
       <div className="sm:max-w-xs">
         <Input
@@ -188,7 +215,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
           Cancelar
         </Button>
         <Button type="submit" isLoading={guardar.isPending}>
-          Guardar como versión nueva
+          {base ? 'Guardar como versión nueva' : 'Crear producto'}
         </Button>
       </div>
     </form>

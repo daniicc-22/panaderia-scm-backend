@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { EditorVersion } from '../features/formulaciones/EditorVersion';
 import { useAuth } from '../features/auth/AuthContext';
 import { getFormulaciones, getFormulacionesConInactivos } from '../services/formulacionesService';
 import type { FormulacionResumen } from '../types/formulacion.types';
@@ -72,6 +75,7 @@ export function FormulacionesPage() {
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const [busqueda, setBusqueda] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
+  const [creando, setCreando] = useState(false);
   const conInactivos = puedeGestionar && mostrarInactivos;
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['formulaciones', conInactivos ? 'con-inactivos' : 'activos'],
@@ -88,11 +92,18 @@ export function FormulacionesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Formulaciones</h1>
-        <p className="text-sm text-gray-500">
-          {data ? `${filtradas.length} de ${data.length} recetas estandarizadas` : 'Recetas estandarizadas'}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Formulaciones</h1>
+          <p className="text-sm text-gray-500">
+            {data ? `${filtradas.length} de ${data.length} recetas estandarizadas` : 'Recetas estandarizadas'}
+          </p>
+        </div>
+        {puedeGestionar && (
+          <Button type="button" onClick={() => setCreando(true)}>
+            Nuevo producto
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -119,6 +130,12 @@ export function FormulacionesPage() {
         onReintentar={() => refetch()}
         obtenerKeyFila={(f) => f.id}
       />
+
+      {puedeGestionar && (
+        <Modal isOpen={creando} onClose={() => setCreando(false)} size="lg" title="Nuevo producto">
+          {creando && <EditorVersion onTerminar={() => setCreando(false)} />}
+        </Modal>
+      )}
     </div>
   );
 }
