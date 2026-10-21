@@ -64,6 +64,11 @@ export function crearRouterAbc(prisma: PrismaClient) {
 
       const { total, items, resumen } = clasificarAbc(filas);
 
+      // Un insumo sin precio vigente entra con valor 0 (clase C): se avisa para no leerlo como dato real
+      const insumosSinCosto = filas
+        .filter((f) => f.costo_por_g === 0)
+        .map((f) => ({ codigo: f.codigo, nombre: f.nombre }));
+
       res.json({
         supuestos: {
           semanas_al_anio: SEMANAS_AL_ANIO,
@@ -72,6 +77,7 @@ export function crearRouterAbc(prisma: PrismaClient) {
         },
         total_valor_anual: redondear(total),
         resumen,
+        insumos_sin_costo: insumosSinCosto,
         items,
       });
     } catch (error) {

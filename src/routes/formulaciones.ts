@@ -1,33 +1,38 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { puedeVerCostos } from '../utils/permisos';
-import { calcularCostoFormulacion, costoUnitario } from '../utils/costeo';
+import { calcularCostoFormulacion } from '../utils/costeo';
+import { elegirPrecio } from '../utils/precios';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Costo por gramo de cada materia prima (precio de la presentación más grande / su contenido)
+// Costo por unidad base de cada materia prima según la regla de utils/precios.ts
 export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: string) {
   const materias = await prisma.materia_prima.findMany({
     where: { panaderia_id: panaderiaId },
     include: {
       presentacion: {
-        where: { activa: true },
-        orderBy: { contenido: 'desc' },
-        include: { presentacion_proveedor: { where: { vigente: true } } },
+        include: { presentacion_proveedor: { include: { proveedor: { select: { activo: true } } } } },
       },
     },
   });
 
   const mapa = new Map<string, { codigo: string; nombre: string; costo: number | null }>();
   for (const m of materias) {
-    const p = m.presentacion[0];
-    const contenido = p ? Number(p.contenido) : 0;
-    const precio = Number(p?.presentacion_proveedor[0]?.precio_referencia ?? 0);
-    mapa.set(m.id, {
-      codigo: m.codigo,
-      nombre: m.nombre,
-      costo: costoUnitario(precio, contenido),
-    });
+    const elegido = elegirPrecio(
+      m.presentacion.map((p) => ({
+        id: p.id,
+        contenido: Number(p.contenido),
+        activa: p.activa,
+        ofertas: p.presentacion_proveedor.map((o) => ({
+          id: o.id,
+          precio: Number(o.precio_referencia),
+          vigente: o.vigente,
+          proveedor_activo: o.proveedor.activo,
+        })),
+      })),
+    );
+    mapa.set(m.id, { codigo: m.codigo, nombre: m.nombre, costo: elegido ? elegido.costo_por_unidad_base : null });
   }
   return mapa;
 }

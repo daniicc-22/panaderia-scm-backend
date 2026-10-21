@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { puedeVerCostos } from '../utils/permisos';
+import { mejorOferta } from '../utils/precios';
 import { UUID, siguienteCodigo, validarCrear, validarEditar } from '../utils/materiaPrima';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
@@ -31,7 +32,7 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
           unidad_medida: true,
           presentacion: {
             where: { activa: true },
-            include: { presentacion_proveedor: { where: { vigente: true } } },
+            include: { presentacion_proveedor: { include: { proveedor: { select: { activo: true } } } } },
           },
         },
         orderBy: { codigo: 'asc' },
@@ -52,7 +53,16 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
           variabilidad_peso_unitario: m.variabilidad_peso_unitario,
           presentaciones: m.presentacion.map((p) => {
             const contenido = Number(p.contenido);
-            const precio = Number(p.presentacion_proveedor[0]?.precio_referencia ?? 0);
+            // Precio que cuenta: la menor oferta vigente de un proveedor activo (utils/precios.ts)
+            const mejor = mejorOferta(
+              p.presentacion_proveedor.map((o) => ({
+                id: o.id,
+                precio: Number(o.precio_referencia),
+                vigente: o.vigente,
+                proveedor_activo: o.proveedor.activo,
+              })),
+            );
+            const precio = mejor?.precio ?? 0;
             return {
               id: p.id,
               nombre: p.nombre,

@@ -50,7 +50,7 @@ const prismaFalso: any = {
           ...m,
           categoria_materia_prima: null,
           unidad_medida: { codigo: 'g' },
-          presentacion: [{ id: 'p1', nombre: 'Bulto 25 kg', contenido: 25000, presentacion_proveedor: [{ precio_referencia: 100000 }] }],
+          presentacion: [{ id: 'p1', nombre: 'Bulto 25 kg', contenido: 25000, presentacion_proveedor: [{ id: 'o1', precio_referencia: 100000, vigente: true, proveedor: { activo: true } }] }],
         })),
     findFirst: async ({ where }: any) =>
       materias.find((m) => {
