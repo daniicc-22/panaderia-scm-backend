@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { EditorVersion } from '../features/formulaciones/EditorVersion';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/AuthContext';
 import { getFormulacion } from '../services/formulacionesService';
@@ -29,6 +33,7 @@ export function FormulacionDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { usuario } = useAuth();
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
+  const [editando, setEditando] = useState(false);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['formulacion', id],
     queryFn: () => getFormulacion(id as string),
@@ -79,19 +84,26 @@ export function FormulacionDetallePage() {
 
       {data && (
         <>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {data.producto}
-              {!data.producto_activo && (
-                <span className="ml-3 rounded bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
-                  Dado de baja
-                </span>
-              )}
-            </h1>
-            <p className="text-sm text-gray-500">
-              Versión {data.version} · {data.activa ? 'vigente' : 'anterior'} desde {fechaCorta(data.vigente_desde)}
-              {data.vigente_hasta ? ` hasta ${fechaCorta(data.vigente_hasta)}` : ''}
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                {data.producto}
+                {!data.producto_activo && (
+                  <span className="ml-3 rounded bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
+                    Dado de baja
+                  </span>
+                )}
+              </h1>
+              <p className="text-sm text-gray-500">
+                Versión {data.version} · {data.activa ? 'vigente' : 'anterior'} desde {fechaCorta(data.vigente_desde)}
+                {data.vigente_hasta ? ` hasta ${fechaCorta(data.vigente_hasta)}` : ''}
+              </p>
+            </div>
+            {puedeGestionar && (
+              <Button type="button" onClick={() => setEditando(true)}>
+                {data.activa ? 'Editar formulación' : 'Usar como base'}
+              </Button>
+            )}
           </div>
 
           {!data.activa && (
@@ -130,6 +142,17 @@ export function FormulacionDetallePage() {
       />
 
       {puedeGestionar && id && <HistorialVersiones formulacionId={id} />}
+
+      {puedeGestionar && data && (
+        <Modal
+          isOpen={editando}
+          onClose={() => setEditando(false)}
+          size="lg"
+          title={data.activa ? `Editar ${data.producto}` : `${data.producto}: usar la v${data.version} como base`}
+        >
+          {editando && <EditorVersion key={data.id} base={data} onTerminar={() => setEditando(false)} />}
+        </Modal>
+      )}
     </div>
   );
 }
