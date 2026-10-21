@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
-import { getFormulaciones } from '../services/formulacionesService';
+import { useAuth } from '../features/auth/AuthContext';
+import { getFormulaciones, getFormulacionesConInactivos } from '../services/formulacionesService';
 import type { FormulacionResumen } from '../types/formulacion.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const pesos2 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kg = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+const ROLES_GESTION = ['administrador', 'superadministrador'];
 
 function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
   const base: ColumnaTabla<FormulacionResumen>[] = [
@@ -16,11 +18,17 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
       encabezado: 'Producto',
       render: (f) => (
         <div className="flex flex-col">
-          <span className="font-medium text-gray-900">{f.producto}</span>
+          <span className={`font-medium ${f.producto_activo ? 'text-gray-900' : 'text-gray-400'}`}>
+            {f.producto}
+            {!f.producto_activo && (
+              <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Dado de baja</span>
+            )}
+          </span>
           {f.es_intermedio && <span className="text-xs text-gray-500">Producto intermedio</span>}
         </div>
       ),
     },
+    { key: 'version', encabezado: 'Versión', render: (f) => `v${f.version}` },
     { key: 'rendimiento', encabezado: 'Rinde (unidades)', render: (f) => f.rendimiento ?? '—' },
     { key: 'peso', encabezado: 'Peso del lote', render: (f) => `${kg.format(f.peso_lote_g / 1000)} kg` },
     { key: 'ingredientes', encabezado: 'Ingredientes', render: (f) => f.ingredientes },
@@ -60,10 +68,14 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
 }
 
 export function FormulacionesPage() {
+  const { usuario } = useAuth();
+  const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const [busqueda, setBusqueda] = useState('');
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+  const conInactivos = puedeGestionar && mostrarInactivos;
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['formulaciones'],
-    queryFn: getFormulaciones,
+    queryKey: ['formulaciones', conInactivos ? 'con-inactivos' : 'activos'],
+    queryFn: conInactivos ? getFormulacionesConInactivos : getFormulaciones,
   });
 
   const verCostos = (data ?? []).some((f) => f.costo_lote !== null);
@@ -83,13 +95,21 @@ export function FormulacionesPage() {
         </p>
       </div>
 
-      <input
-        type="search"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Buscar producto"
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar producto"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+        />
+        {puedeGestionar && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
+            Mostrar dados de baja
+          </label>
+        )}
+      </div>
 
       <DataTable
         columnas={columnas}

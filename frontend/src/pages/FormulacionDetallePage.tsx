@@ -1,12 +1,20 @@
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
+import { useAuth } from '../features/auth/AuthContext';
 import { getFormulacion } from '../services/formulacionesService';
 import type { IngredienteFormulacion } from '../types/formulacion.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const pesos2 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+const ROLES_GESTION = ['administrador', 'superadministrador'];
+
+function fechaCorta(iso: string): string {
+  const [a, m, d] = iso.split('-');
+  return `${d}/${m}/${a}`;
+}
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
@@ -19,6 +27,8 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
 export function FormulacionDetallePage() {
   const { id } = useParams<{ id: string }>();
+  const { usuario } = useAuth();
+  const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['formulacion', id],
     queryFn: () => getFormulacion(id as string),
@@ -70,9 +80,26 @@ export function FormulacionDetallePage() {
       {data && (
         <>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">{data.producto}</h1>
-            <p className="text-sm text-gray-500">Versión {data.version}</p>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {data.producto}
+              {!data.producto_activo && (
+                <span className="ml-3 rounded bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
+                  Dado de baja
+                </span>
+              )}
+            </h1>
+            <p className="text-sm text-gray-500">
+              Versión {data.version} · {data.activa ? 'vigente' : 'anterior'} desde {fechaCorta(data.vigente_desde)}
+              {data.vigente_hasta ? ` hasta ${fechaCorta(data.vigente_hasta)}` : ''}
+            </p>
           </div>
+
+          {!data.activa && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              Estás viendo una versión anterior. No se usa en la producción ni en el ABC; el costo se calcula con los
+              precios de hoy.
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Dato etiqueta="Rinde" valor={data.rendimiento == null ? '—' : `${data.rendimiento} unidades`} />
@@ -101,6 +128,8 @@ export function FormulacionDetallePage() {
         onReintentar={() => refetch()}
         obtenerKeyFila={(i) => `${i.tipo}-${i.codigo ?? i.nombre}`}
       />
+
+      {puedeGestionar && id && <HistorialVersiones formulacionId={id} />}
     </div>
   );
 }
