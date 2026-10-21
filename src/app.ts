@@ -11,6 +11,7 @@ import { resolverPanaderia } from './middleware/panaderia';
 import { crearRouterFormulaciones } from './routes/formulaciones';
 import { crearRouterAbc } from './routes/abc';
 import { crearRouterMateriasPrimas } from './routes/materiasPrimas';
+import { crearRouterProveedores } from './routes/proveedores';
 
 dotenv.config();
 
@@ -120,6 +121,8 @@ app.post('/login', limitadorLogin, async (req, res) => {
 });
 
 app.use('/materias-primas', verificarToken, resolverPanaderia(prisma), crearRouterMateriasPrimas(prisma));
+
+app.use('/proveedores', verificarToken, resolverPanaderia(prisma), crearRouterProveedores(prisma));
 
 app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 
