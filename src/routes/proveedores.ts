@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { autorizarRoles } from '../middleware/autenticacion';
+import { alcanceProveedores } from '../utils/alcance';
 import { UUID } from '../utils/materiaPrima';
 import { validarProveedorCrear, validarProveedorEditar } from '../utils/proveedor';
 
@@ -11,13 +12,7 @@ export function crearRouterProveedores(prisma: PrismaClient) {
   // Los datos de contacto de proveedores son de gestión: el operario no los ve
   router.use(autorizarRoles(...ROLES_GESTION));
 
-  // Proveedores propios de la panadería y, si pertenece a un grupo, los compartidos del grupo
-  async function alcanceVisible(panaderiaId: string) {
-    const panaderia = await prisma.panaderia.findUnique({ where: { id: panaderiaId }, select: { grupo_id: true } });
-    return panaderia?.grupo_id
-      ? [{ panaderia_id: panaderiaId }, { grupo_id: panaderia.grupo_id }]
-      : [{ panaderia_id: panaderiaId }];
-  }
+  const alcanceVisible = (panaderiaId: string) => alcanceProveedores(prisma, panaderiaId);
 
   router.get('/', async (req, res) => {
     try {
