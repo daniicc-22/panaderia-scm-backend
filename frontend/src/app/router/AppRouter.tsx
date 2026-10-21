@@ -9,6 +9,7 @@ import { MateriasPrimasPage } from '../../pages/MateriasPrimasPage';
 import { FormulacionesPage } from '../../pages/FormulacionesPage';
 import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
+import { ProveedoresPage } from '../../pages/ProveedoresPage';
 
 export function AppRouter() {
   return (
@@ -24,6 +25,13 @@ export function AppRouter() {
           <Route path="/formulaciones" element={<FormulacionesPage />} />
           <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
           <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />
+        </Route>
+      </Route>
+
+      {/* Los proveedores son datos de gestión: el operario no entra (el servidor también lo impide) */}
+      <Route element={<ProtectedRoute rolesPermitidos={['administrador', 'superadministrador']} />}>
+        <Route element={<AppLayout />}>
+          <Route path="/proveedores" element={<ProveedoresPage />} />
         </Route>
       </Route>
 
