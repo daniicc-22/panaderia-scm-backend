@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { puedeVerCostos } from '../utils/permisos';
+import { calcularCostoFormulacion, costoUnitario } from '../utils/costeo';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,7 +26,7 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
     mapa.set(m.id, {
       codigo: m.codigo,
       nombre: m.nombre,
-      costo: contenido > 0 && precio > 0 ? precio / contenido : null,
+      costo: costoUnitario(precio, contenido),
     });
   }
   return mapa;
@@ -53,16 +54,12 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
 
       res.json(
         formulaciones.map((f) => {
-          let costo = 0;
-          let peso = 0;
-          let incompleto = false;
-          for (const d of f.detalle_formulacion) {
-            const cantidad = Number(d.cantidad_estandar);
-            peso += cantidad;
-            const c = d.materia_prima_id ? costos.get(d.materia_prima_id)?.costo : null;
-            if (c == null) incompleto = true;
-            else costo += c * cantidad;
-          }
+          const { peso, costo, incompleto } = calcularCostoFormulacion(
+            f.detalle_formulacion.map((d) => ({
+              cantidad: Number(d.cantidad_estandar),
+              costo_por_unidad: d.materia_prima_id ? (costos.get(d.materia_prima_id)?.costo ?? null) : null,
+            })),
+          );
           const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
           return {
             id: f.id,
@@ -107,19 +104,19 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         : [];
       const nombreIntermedio = new Map(intermedios.map((p) => [p.id, p.nombre]));
 
-      let costoTotal = 0;
-      let pesoTotal = 0;
-      let incompleto = false;
+      const { peso: pesoTotal, costo: costoTotal, incompleto } = calcularCostoFormulacion(
+        f.detalle_formulacion.map((d) => ({
+          cantidad: Number(d.cantidad_estandar),
+          costo_por_unidad: d.materia_prima_id ? (costos.get(d.materia_prima_id)?.costo ?? null) : null,
+        })),
+      );
 
       const ingredientes = f.detalle_formulacion
         .map((d) => {
           const cantidad = Number(d.cantidad_estandar);
-          pesoTotal += cantidad;
           const mp = d.materia_prima_id ? costos.get(d.materia_prima_id) : undefined;
           const costoUnidad = mp?.costo ?? null;
           const costo = costoUnidad == null ? null : costoUnidad * cantidad;
-          if (costo == null) incompleto = true;
-          else costoTotal += costo;
           return {
             tipo: d.materia_prima_id ? 'materia_prima' : 'producto_intermedio',
             codigo: mp?.codigo ?? null,
