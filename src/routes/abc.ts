@@ -3,11 +3,10 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { costosPorUnidadBase } from './formulaciones';
+import { clasificarAbc, LIMITE_A, LIMITE_B, redondear } from '../utils/abc';
 
 const SEMANAS_AL_ANIO = 52;
 const LOTES_POR_DEFECTO = 6;
-const LIMITE_A = 80;
-const LIMITE_B = 95;
 
 // Insumos que no se compran ni se almacenan (no entran al ABC)
 const CODIGOS_EXCLUIDOS = new Set(['MP-008']); // Agua
@@ -21,8 +20,6 @@ function leerFrecuencias(): Record<string, number> {
     return {};
   }
 }
-
-const redondear = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 
 export function crearRouterAbc(prisma: PrismaClient) {
   const router = Router();
@@ -65,38 +62,7 @@ export function crearRouterAbc(prisma: PrismaClient) {
         })
         .filter((f) => !CODIGOS_EXCLUIDOS.has(f.codigo));
 
-      filas.sort((a, b) => b.valor_anual - a.valor_anual);
-      const total = filas.reduce((s, f) => s + f.valor_anual, 0);
-
-      // Clase según el acumulado ANTES de sumar el insumo:
-      // el que cruza el 80 % sigue siendo A.
-      let acumulado = 0;
-      const items = filas.map((f) => {
-        const clase = acumulado < LIMITE_A ? 'A' : acumulado < LIMITE_B ? 'B' : 'C';
-        const porcentaje = total > 0 ? (f.valor_anual / total) * 100 : 0;
-        acumulado += porcentaje;
-        return {
-          codigo: f.codigo,
-          nombre: f.nombre,
-          demanda_anual_kg: redondear(f.demanda_anual_g / 1000),
-          costo_por_kg: redondear(f.costo_por_g * 1000),
-          valor_anual: redondear(f.valor_anual),
-          porcentaje: redondear(porcentaje),
-          porcentaje_acumulado: redondear(acumulado),
-          clase,
-        };
-      });
-
-      const resumen = (['A', 'B', 'C'] as const).map((clase) => {
-        const grupo = items.filter((i) => i.clase === clase);
-        const valor = grupo.reduce((s, i) => s + i.valor_anual, 0);
-        return {
-          clase,
-          insumos: grupo.length,
-          valor_anual: redondear(valor),
-          porcentaje: total > 0 ? redondear((valor / total) * 100) : 0,
-        };
-      });
+      const { total, items, resumen } = clasificarAbc(filas);
 
       res.json({
         supuestos: {
