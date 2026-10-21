@@ -12,3 +12,6 @@ node_modules
 # Código compilado
 dist
 /dump
+
+# informes de cobertura de pruebas
+coverage
