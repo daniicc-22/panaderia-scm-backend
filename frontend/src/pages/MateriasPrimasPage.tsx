@@ -1,8 +1,21 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
-import { getMateriasPrimas } from '../services/materiasPrimasService';
+import { Alert } from '../components/ui/Alert';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { useAuth } from '../features/auth/AuthContext';
+import { MateriaPrimaForm } from '../features/materias-primas/MateriaPrimaForm';
+import {
+  editarMateriaPrima,
+  getCatalogosMateriaPrima,
+  getMateriasPrimas,
+  getMateriasPrimasConInactivas,
+} from '../services/materiasPrimasService';
+import { mensajeDeError } from '../services/errores';
 import type { MateriaPrima } from '../types/materiaPrima.types';
+
+const ROLES_GESTION = ['administrador', 'superadministrador'];
 
 const formatoPrecio = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -17,10 +30,28 @@ const formatoCosto = new Intl.NumberFormat('es-CO', {
   maximumFractionDigits: 2,
 });
 
-function crearColumnas(verPrecios: boolean): ColumnaTabla<MateriaPrima>[] {
+interface AccionesFila {
+  onEditar: (m: MateriaPrima) => void;
+  onDesactivar: (m: MateriaPrima) => void;
+  onReactivar: (m: MateriaPrima) => void;
+  ocupado: boolean;
+}
+
+function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): ColumnaTabla<MateriaPrima>[] {
   const base: ColumnaTabla<MateriaPrima>[] = [
     { key: 'codigo', encabezado: 'Código', render: (m) => m.codigo },
-    { key: 'nombre', encabezado: 'Materia prima', render: (m) => <span className="font-medium text-gray-900">{m.nombre}</span> },
+    {
+      key: 'nombre',
+      encabezado: 'Materia prima',
+      render: (m) => (
+        <span className={`font-medium ${m.activa ? 'text-gray-900' : 'text-gray-400'}`}>
+          {m.nombre}
+          {!m.activa && (
+            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactiva</span>
+          )}
+        </span>
+      ),
+    },
     { key: 'categoria', encabezado: 'Categoría', render: (m) => m.categoria ?? '—' },
     {
       key: 'presentaciones',
@@ -41,56 +72,183 @@ function crearColumnas(verPrecios: boolean): ColumnaTabla<MateriaPrima>[] {
     },
   ];
 
-  if (!verPrecios) return base;
+  const columnas: ColumnaTabla<MateriaPrima>[] = verPrecios
+    ? [
+        ...base,
+        {
+          key: 'costo',
+          encabezado: 'Costo por unidad base',
+          render: (m) => {
+            const costo = m.presentaciones[0]?.costo_por_unidad_base;
+            return costo == null ? '—' : `${formatoCosto.format(costo)} / ${m.unidad}`;
+          },
+        },
+      ]
+    : base;
+
+  if (!acciones) return columnas;
 
   return [
-    ...base,
+    ...columnas,
     {
-      key: 'costo',
-      encabezado: 'Costo por unidad base',
-      render: (m) => {
-        const costo = m.presentaciones[0]?.costo_por_unidad_base;
-        return costo == null ? '—' : `${formatoCosto.format(costo)} / ${m.unidad}`;
-      },
+      key: 'acciones',
+      encabezado: 'Acciones',
+      render: (m) => (
+        <div className="flex gap-3 whitespace-nowrap text-sm">
+          <button
+            type="button"
+            className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+            disabled={acciones.ocupado}
+            onClick={() => acciones.onEditar(m)}
+          >
+            Editar
+          </button>
+          {m.activa ? (
+            <button
+              type="button"
+              className="font-medium text-red-600 hover:underline disabled:opacity-50"
+              disabled={acciones.ocupado}
+              onClick={() => acciones.onDesactivar(m)}
+            >
+              Desactivar
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="font-medium text-green-700 hover:underline disabled:opacity-50"
+              disabled={acciones.ocupado}
+              onClick={() => acciones.onReactivar(m)}
+            >
+              Reactivar
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 }
 
 export function MateriasPrimasPage() {
+  const { usuario } = useAuth();
+  const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
+  const queryClient = useQueryClient();
+
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('');
+  const [mostrarInactivas, setMostrarInactivas] = useState(false);
+  // 'nueva' abre el formulario vacío; una materia prima lo abre para editarla
+  const [formulario, setFormulario] = useState<'nueva' | MateriaPrima | null>(null);
+  const [porDesactivar, setPorDesactivar] = useState<MateriaPrima | null>(null);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['materias-primas'],
-    queryFn: getMateriasPrimas,
+    queryKey: ['materias-primas', puedeGestionar ? 'gestion' : 'activas'],
+    queryFn: puedeGestionar ? getMateriasPrimasConInactivas : getMateriasPrimas,
   });
+
+  const catalogos = useQuery({
+    queryKey: ['materias-primas-catalogos'],
+    queryFn: getCatalogosMateriaPrima,
+    enabled: puedeGestionar,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const cambiarEstado = useMutation({
+    mutationFn: ({ id, activa }: { id: string; activa: boolean }) => editarMateriaPrima(id, { activa }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['materias-primas'] }),
+        queryClient.invalidateQueries({ queryKey: ['formulaciones'] }),
+        queryClient.invalidateQueries({ queryKey: ['clasificacion-abc'] }),
+      ]);
+    },
+  });
+
+  function reactivar(m: MateriaPrima) {
+    setErrorAccion(null);
+    cambiarEstado.mutate(
+      { id: m.id, activa: true },
+      { onError: (e) => setErrorAccion(mensajeDeError(e, 'No se pudo reactivar la materia prima.')) },
+    );
+  }
+
+  function confirmarDesactivar() {
+    if (!porDesactivar) return;
+    cambiarEstado.mutate(
+      { id: porDesactivar.id, activa: false },
+      { onSuccess: () => setPorDesactivar(null) },
+    );
+  }
 
   // Si el servidor no envía precios (rol operario), se ocultan esas columnas
   const verPrecios = (data ?? []).some((m) => m.presentaciones.some((p) => p.precio !== null));
-  const columnas = useMemo(() => crearColumnas(verPrecios), [verPrecios]);
+  const columnas = useMemo(
+    () =>
+      crearColumnas(
+        verPrecios,
+        puedeGestionar
+          ? {
+              onEditar: (m) => {
+                setErrorAccion(null);
+                setFormulario(m);
+              },
+              onDesactivar: (m) => {
+                cambiarEstado.reset();
+                setPorDesactivar(m);
+              },
+              onReactivar: reactivar,
+              ocupado: cambiarEstado.isPending,
+            }
+          : null,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [verPrecios, puedeGestionar, cambiarEstado.isPending],
+  );
+
+  const visibles = useMemo(
+    () => (mostrarInactivas ? (data ?? []) : (data ?? []).filter((m) => m.activa)),
+    [data, mostrarInactivas],
+  );
 
   const categorias = useMemo(
-    () => Array.from(new Set((data ?? []).map((m) => m.categoria).filter((c): c is string => !!c))).sort(),
-    [data],
+    () => Array.from(new Set(visibles.map((m) => m.categoria).filter((c): c is string => !!c))).sort(),
+    [visibles],
   );
 
   const filtradas = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return (data ?? []).filter(
+    return visibles.filter(
       (m) =>
         (!categoria || m.categoria === categoria) &&
         (!texto || m.nombre.toLowerCase().includes(texto) || m.codigo.toLowerCase().includes(texto)),
     );
-  }, [data, busqueda, categoria]);
+  }, [visibles, busqueda, categoria]);
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Materias primas</h1>
-        <p className="text-sm text-gray-500">
-          {data ? `${filtradas.length} de ${data.length} materias primas` : 'Catálogo de insumos de la panadería'}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Materias primas</h1>
+          <p className="text-sm text-gray-500">
+            {data ? `${filtradas.length} de ${visibles.length} materias primas` : 'Catálogo de insumos de la panadería'}
+          </p>
+        </div>
+        {puedeGestionar && (
+          <Button type="button" onClick={() => setFormulario('nueva')} disabled={!catalogos.data}>
+            Nueva materia prima
+          </Button>
+        )}
       </div>
+
+      {errorAccion && <Alert variant="error">{errorAccion}</Alert>}
+      {puedeGestionar && catalogos.isError && (
+        <Alert variant="warning">
+          No se pudieron cargar las unidades y categorías, por eso no se puede crear ni editar.{' '}
+          <button type="button" className="font-medium underline" onClick={() => catalogos.refetch()}>
+            Reintentar
+          </button>
+        </Alert>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
@@ -112,6 +270,16 @@ export function MateriasPrimasPage() {
             </option>
           ))}
         </select>
+        {puedeGestionar && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={mostrarInactivas}
+              onChange={(e) => setMostrarInactivas(e.target.checked)}
+            />
+            Mostrar inactivas
+          </label>
+        )}
       </div>
 
       <DataTable
@@ -122,6 +290,43 @@ export function MateriasPrimasPage() {
         onReintentar={() => refetch()}
         obtenerKeyFila={(m) => m.id}
       />
+
+      {puedeGestionar && catalogos.data && (
+        <Modal
+          isOpen={formulario !== null}
+          onClose={() => setFormulario(null)}
+          title={formulario === 'nueva' || formulario === null ? 'Nueva materia prima' : 'Editar materia prima'}
+        >
+          {formulario !== null && (
+            <MateriaPrimaForm
+              key={formulario === 'nueva' ? 'nueva' : formulario.id}
+              materia={formulario === 'nueva' ? null : formulario}
+              catalogos={catalogos.data}
+              onTerminar={() => setFormulario(null)}
+            />
+          )}
+        </Modal>
+      )}
+
+      <Modal isOpen={porDesactivar !== null} onClose={() => setPorDesactivar(null)} title="Desactivar materia prima">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-700">
+            ¿Desactivar <span className="font-medium">{porDesactivar?.nombre}</span>? Dejará de aparecer en el catálogo.
+            Podrás reactivarla cuando quieras.
+          </p>
+          {cambiarEstado.isError && (
+            <Alert variant="error">{mensajeDeError(cambiarEstado.error, 'No se pudo desactivar la materia prima.')}</Alert>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setPorDesactivar(null)} disabled={cambiarEstado.isPending}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="danger" isLoading={cambiarEstado.isPending} onClick={confirmarDesactivar}>
+              Desactivar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
