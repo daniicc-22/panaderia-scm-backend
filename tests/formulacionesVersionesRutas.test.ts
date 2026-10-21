@@ -24,11 +24,16 @@ const F_AJENA = '66666666-6666-4666-8666-666666666664';
 
 type Fila = Record<string, any>;
 let formulaciones: Fila[];
+let productos: Fila[];
 let materias: Fila[];
 let operaciones: string[];
 let fallarCierre = false;
 let fallarCreacion: 'ninguna' | 'unico' | 'otro' = 'ninguna';
+let unidadUnExiste = true;
 let secuencia = 0;
+
+// Identificadores con formato UUID, como los genera la base
+const uuidNuevo = (d: string) => `${d.repeat(8)}-${d.repeat(4)}-4${d.repeat(3)}-8${d.repeat(3)}-${String(++secuencia).padStart(12, '0')}`;
 
 const linea = (materia: string | null, cantidad: number, extra: Fila = {}) => ({
   materia_prima_id: materia,
@@ -90,7 +95,7 @@ const prismaFalso: any = {
         throw Object.assign(new Error('indice unico'), { code: 'P2002' });
       }
       const { detalle_formulacion, ...resto } = data;
-      const fila = { id: `nueva-${++secuencia}`, vigente_hasta: null, ...resto, detalle_formulacion: detalle_formulacion.create };
+      const fila = { id: uuidNuevo('6'), vigente_hasta: null, ...resto, detalle_formulacion: detalle_formulacion.create };
       formulaciones.push(fila);
       return fila;
     },
@@ -109,14 +114,36 @@ const prismaFalso: any = {
           presentacion: [{ id: 'p', contenido: 1000, activa: true, presentacion_proveedor: [{ id: 'o', precio_referencia: 2000, vigente: true, proveedor: { activo: true } }] }],
         })),
   },
-  producto: { findMany: async () => [] },
+  producto: {
+    findMany: async () => [],
+    findFirst: async ({ where }: any) =>
+      productos.find(
+        (p) =>
+          p.panaderia_id === where.panaderia_id &&
+          // Como la base: solo ignora mayúsculas si se pide mode: 'insensitive'
+          (where.nombre.mode === 'insensitive'
+            ? p.nombre.toLowerCase() === String(where.nombre.equals).toLowerCase()
+            : p.nombre === where.nombre.equals),
+      ) ?? null,
+    create: async ({ data }: any) => {
+      operaciones.push('crear-producto');
+      const fila = { id: uuidNuevo('7'), activo: true, ...data };
+      productos.push(fila);
+      return fila;
+    },
+  },
+  unidad_medida: {
+    findUnique: async ({ where }: any) => (where.codigo === 'un' && unidadUnExiste ? { id: U_UND, codigo: 'un' } : null),
+  },
   // Transacción simulada: si falla algo, se deshacen todos los cambios
   $transaction: async (fn: any) => {
     const copia = JSON.parse(JSON.stringify(formulaciones, (_k, v) => v));
+    const copiaProductos = JSON.parse(JSON.stringify(productos));
     try {
       return await fn(prismaFalso);
     } catch (e) {
       formulaciones.splice(0, formulaciones.length, ...copia);
+      productos.splice(0, productos.length, ...copiaProductos);
       throw e;
     }
   },
@@ -147,6 +174,12 @@ afterAll(() => {
 beforeEach(() => {
   fallarCierre = false;
   fallarCreacion = 'ninguna';
+  unidadUnExiste = true;
+  productos = [
+    { id: PROD_PAN, panaderia_id: PAN_A, nombre: 'Pan', es_intermedio: false, activo: true },
+    { id: PROD_OTRO, panaderia_id: PAN_A, nombre: 'Otro viejo', es_intermedio: false, activo: false },
+    { id: 'producto-b', panaderia_id: PAN_B, nombre: 'Pan de yuca', es_intermedio: false, activo: true },
+  ];
   operaciones = [];
   secuencia = 0;
   materias = [
@@ -388,5 +421,102 @@ describe('POST /formulaciones/:id/versiones', () => {
     const v2 = formulaciones.find((f) => f.id === F_V2)!;
     expect(v2.activa).toBe(true);
     expect(v2.vigente_hasta).toBeNull();
+  });
+});
+
+describe('POST /formulaciones (producto nuevo con su primera versión)', () => {
+  const nuevo = () => ({
+    nombre: 'Pan de yuca',
+    rendimiento: 20,
+    ingredientes: [
+      { materia_prima_id: HARINA, cantidad: 1000 },
+      { materia_prima_id: AZUCAR, cantidad: 100, tolerancia_porcentaje: 1.5 },
+    ],
+  });
+
+  test('crea el producto y la versión 1 vigente, en ese orden', async () => {
+    const r = await llamar('POST', '/formulaciones', 'administrador', nuevo());
+    expect(r.status).toBe(201);
+    expect(r.cuerpo.version).toBe(1);
+
+    const producto = productos.find((p) => p.nombre === 'Pan de yuca' && p.panaderia_id === PAN_A)!;
+    expect(producto).toMatchObject({ es_intermedio: false, unidad_produccion_id: U_UND, panaderia_id: PAN_A });
+    const f = formulaciones.find((x) => x.producto_id === producto.id)!;
+    expect(f).toMatchObject({ version: 1, activa: true, aprobado_por: 'u1', rendimiento_esperado: 20, panaderia_id: PAN_A });
+    expect(r.cuerpo).toMatchObject({ id: f.id, producto_id: producto.id });
+    expect(operaciones).toEqual(['crear-producto', 'crear']);
+  });
+
+  test('la unidad de cada ingrediente sale de la materia prima', async () => {
+    await llamar('POST', '/formulaciones', 'administrador', nuevo());
+    const f = formulaciones.find((x) => x.producto_id.startsWith('77777777'))!;
+    expect(f.detalle_formulacion.find((d: any) => d.materia_prima_id === HARINA).unidad_id).toBe(U_G);
+    expect(f.detalle_formulacion.find((d: any) => d.materia_prima_id === AZUCAR)).toMatchObject({
+      unidad_id: U_UND,
+      tolerancia_porcentaje: 1.5,
+    });
+  });
+
+  test('el nombre repetido se rechaza sin distinguir mayúsculas, también contra inactivos', async () => {
+    expect((await llamar('POST', '/formulaciones', 'administrador', { ...nuevo(), nombre: 'PAN' })).status).toBe(409);
+    expect((await llamar('POST', '/formulaciones', 'administrador', { ...nuevo(), nombre: ' otro  viejo ' })).status).toBe(409);
+    expect(operaciones).toEqual([]);
+  });
+
+  test('el mismo nombre en otra panadería no estorba', async () => {
+    // "Pan de yuca" ya existe en la panadería B, pero esta es la A
+    expect((await llamar('POST', '/formulaciones', 'administrador', nuevo())).status).toBe(201);
+  });
+
+  test('materia prima inactiva, inexistente o ajena: 400 sin escribir', async () => {
+    for (const id of [INACTIVA, AJENA, '33333333-3333-4333-8333-333333333398']) {
+      const r = await llamar('POST', '/formulaciones', 'administrador', {
+        ...nuevo(),
+        ingredientes: [{ materia_prima_id: id, cantidad: 5 }],
+      });
+      expect(r.status).toBe(400);
+    }
+    expect(operaciones).toEqual([]);
+    expect(productos).toHaveLength(3);
+  });
+
+  test('no acepta productos intermedios, unidad ni es_intermedio desde el cliente', async () => {
+    const casos = [
+      { ...nuevo(), ingredientes: [{ producto_intermedio_id: INTER, cantidad: 5 }] },
+      { ...nuevo(), es_intermedio: true },
+      { ...nuevo(), unidad_produccion_id: U_G },
+    ];
+    for (const c of casos) expect((await llamar('POST', '/formulaciones', 'administrador', c)).status).toBe(400);
+    expect(operaciones).toEqual([]);
+  });
+
+  test('operario 403; cuerpo inválido 400', async () => {
+    expect((await llamar('POST', '/formulaciones', 'operario', nuevo())).status).toBe(403);
+    const r = await llamar('POST', '/formulaciones', 'administrador', { nombre: '', rendimiento: 0, ingredientes: [] });
+    expect(r.status).toBe(400);
+    expect(r.cuerpo.errores.length).toBeGreaterThanOrEqual(3);
+    expect(operaciones).toEqual([]);
+  });
+
+  test('si falla la formulación, el producto tampoco queda creado (transacción)', async () => {
+    fallarCreacion = 'otro';
+    const r = await sinErroresEnConsola(() => llamar('POST', '/formulaciones', 'administrador', nuevo()));
+    expect(r.status).toBe(500);
+    expect(productos).toHaveLength(3);
+    expect(formulaciones).toHaveLength(4);
+  });
+
+  test('si falta la unidad un en el catálogo: 500 sin crear nada', async () => {
+    unidadUnExiste = false;
+    const r = await sinErroresEnConsola(() => llamar('POST', '/formulaciones', 'administrador', nuevo()));
+    expect(r.status).toBe(500);
+    expect(operaciones).toEqual([]);
+  });
+
+  test('un producto recién creado ya tiene historial con su versión 1', async () => {
+    const creada = await llamar('POST', '/formulaciones', 'administrador', nuevo());
+    const r = await llamar('GET', `/formulaciones/${creada.cuerpo.id}/versiones`, 'administrador');
+    expect(r.cuerpo.versiones).toHaveLength(1);
+    expect(r.cuerpo.versiones[0]).toMatchObject({ version: 1, activa: true, ingredientes: 2 });
   });
 });

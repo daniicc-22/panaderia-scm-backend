@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { fechaHoyColombia, hayCambios, validarVersion, type LineaVersion } from '../src/utils/formulacion';
+import { fechaHoyColombia, hayCambios, validarProductoNuevo, validarVersion, type LineaVersion } from '../src/utils/formulacion';
 
 const A = '33333333-3333-4333-8333-333333333331';
 const B = '33333333-3333-4333-8333-333333333332';
@@ -159,5 +159,51 @@ describe('fechaHoyColombia', () => {
     expect(fechaHoyColombia(new Date('2026-10-21T15:00:00Z'))).toBe('2026-10-21');
     expect(fechaHoyColombia(new Date('2026-10-21T05:00:00Z'))).toBe('2026-10-21');
     expect(fechaHoyColombia(new Date('2026-10-21T04:59:00Z'))).toBe('2026-10-20');
+  });
+});
+
+describe('validarProductoNuevo', () => {
+  const cuerpo = (extra: Record<string, unknown> = {}) => ({
+    nombre: '  Pan   de   yuca ',
+    rendimiento: 20,
+    ingredientes: [{ materia_prima_id: A, cantidad: 500 }],
+    ...extra,
+  });
+
+  test('acepta un cuerpo válido y limpia el nombre', () => {
+    const r = validarProductoNuevo(cuerpo());
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.datos.nombre).toBe('Pan de yuca');
+      expect(r.datos.rendimiento).toBe(20);
+      expect(r.datos.ingredientes).toHaveLength(1);
+    }
+  });
+
+  test('rechaza nombre faltante, muy corto o muy largo', () => {
+    for (const malo of [undefined, null, 5, '', ' ', 'a', 'x'.repeat(101)]) {
+      expect(validarProductoNuevo(cuerpo({ nombre: malo })).ok).toBe(false);
+    }
+    expect(validarProductoNuevo(cuerpo({ nombre: 'x'.repeat(100) })).ok).toBe(true);
+  });
+
+  test('rechaza productos intermedios como ingrediente', () => {
+    const r = validarProductoNuevo(cuerpo({ ingredientes: [{ producto_intermedio_id: INTER, cantidad: 10 }] }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errores.join(' ')).toContain('materias primas');
+  });
+
+  test('hereda las reglas de la versión: rendimiento, ingredientes y campos extra', () => {
+    expect(validarProductoNuevo(cuerpo({ rendimiento: 0 })).ok).toBe(false);
+    expect(validarProductoNuevo(cuerpo({ ingredientes: [] })).ok).toBe(false);
+    expect(validarProductoNuevo(cuerpo({ es_intermedio: true })).ok).toBe(false);
+    expect(validarProductoNuevo(cuerpo({ unidad_produccion_id: A })).ok).toBe(false);
+    expect(validarProductoNuevo(null).ok).toBe(false);
+  });
+
+  test('reúne los errores del nombre y de la versión juntos', () => {
+    const r = validarProductoNuevo({ nombre: '', rendimiento: -1, ingredientes: [] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errores.length).toBeGreaterThanOrEqual(3);
   });
 });

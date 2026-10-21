@@ -1,5 +1,5 @@
 // Validación y comparación de versiones de formulaciones, sin acceso a base de datos (se prueban solas).
-import { UUID } from './materiaPrima';
+import { UUID, normalizarNombre } from './materiaPrima';
 
 // Límites de las columnas decimales de la base: cantidad y rendimiento Decimal(12,3), tolerancia Decimal(5,2)
 export const CANTIDAD_MAX = 999_999_999;
@@ -7,6 +7,8 @@ export const RENDIMIENTO_MAX = 999_999_999;
 export const TOLERANCIA_MAX = 100;
 export const INGREDIENTES_MIN = 1;
 export const INGREDIENTES_MAX = 100;
+export const NOMBRE_PRODUCTO_MIN = 2;
+export const NOMBRE_PRODUCTO_MAX = 100;
 
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; errores: string[] };
 
@@ -112,6 +114,37 @@ export function validarVersion(cuerpo: unknown): Resultado<DatosVersion> {
 
   if (errores.length > 0) return { ok: false, errores };
   return { ok: true, datos: { rendimiento, ingredientes } };
+}
+
+export interface DatosProductoNuevo extends DatosVersion {
+  nombre: string;
+}
+
+// Cuerpo de POST /formulaciones: un producto final nuevo con su primera versión.
+// Los productos intermedios se gestionan aparte (HU-10), por eso no se aceptan como ingrediente.
+export function validarProductoNuevo(cuerpo: unknown): Resultado<DatosProductoNuevo> {
+  if (!esObjeto(cuerpo)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
+  const errores: string[] = [];
+
+  let nombre = '';
+  if (typeof cuerpo.nombre !== 'string') {
+    errores.push('El nombre del producto es obligatorio.');
+  } else {
+    nombre = normalizarNombre(cuerpo.nombre);
+    if (nombre.length < NOMBRE_PRODUCTO_MIN || nombre.length > NOMBRE_PRODUCTO_MAX) {
+      errores.push(`El nombre debe tener entre ${NOMBRE_PRODUCTO_MIN} y ${NOMBRE_PRODUCTO_MAX} caracteres.`);
+    }
+  }
+
+  const { nombre: _nombre, ...resto } = cuerpo;
+  const version = validarVersion(resto);
+  if (!version.ok) errores.push(...version.errores);
+  else if (version.datos.ingredientes.some((l) => l.producto_intermedio_id)) {
+    errores.push('Un producto nuevo solo puede llevar materias primas como ingredientes.');
+  }
+
+  if (errores.length > 0 || !version.ok) return { ok: false, errores };
+  return { ok: true, datos: { nombre, ...version.datos } };
 }
 
 // ¿La nueva versión difiere de la vigente? Evita crear versiones idénticas por error.

@@ -4,7 +4,13 @@ import { puedeVerCostos } from '../utils/permisos';
 import { calcularCostoFormulacion } from '../utils/costeo';
 import { elegirPrecio } from '../utils/precios';
 import { autorizarRoles } from '../middleware/autenticacion';
-import { fechaHoyColombia, hayCambios, validarVersion, type LineaVersion } from '../utils/formulacion';
+import {
+  fechaHoyColombia,
+  hayCambios,
+  validarProductoNuevo,
+  validarVersion,
+  type LineaVersion,
+} from '../utils/formulacion';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -65,6 +71,17 @@ const aLinea = (d: {
 export function crearRouterFormulaciones(prisma: PrismaClient) {
   const router = Router();
   const soloGestion = autorizarRoles(...ROLES_GESTION);
+
+  // Materias primas activas de la panadería con su unidad base; null si alguna no existe, está inactiva o es ajena
+  async function unidadesDeMaterias(panaderiaId: string, ids: string[]) {
+    if (ids.length === 0) return new Map<string, string>();
+    const materias = await prisma.materia_prima.findMany({
+      where: { id: { in: ids }, panaderia_id: panaderiaId, activa: true },
+      select: { id: true, unidad_base_id: true },
+    });
+    const mapa = new Map(materias.map((m) => [m.id, m.unidad_base_id]));
+    return mapa.size === ids.length ? mapa : null;
+  }
 
   // Lista de formulaciones activas con peso y costo por lote y por unidad
   router.get('/', async (req, res) => {
@@ -183,6 +200,75 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
   });
 
 
+  // Crea un producto final nuevo con su primera versión (1), ya vigente.
+  router.post('/', soloGestion, async (req, res) => {
+    const validado = validarProductoNuevo(req.body);
+    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const datos = validado.datos;
+    const panaderiaId = req.panaderiaId!;
+
+    try {
+      const repetido = await prisma.producto.findFirst({
+        where: { panaderia_id: panaderiaId, nombre: { equals: datos.nombre, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (repetido) return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
+
+      const idsMaterias = datos.ingredientes.map((l) => l.materia_prima_id!);
+      const unidadDeMateria = await unidadesDeMaterias(panaderiaId, idsMaterias);
+      if (!unidadDeMateria) {
+        return res.status(400).json({
+          error: 'Algún ingrediente no existe, está inactivo o no pertenece a tu panadería.',
+        });
+      }
+
+      // Todos los productos del piloto se producen por unidad ('un')
+      const unidadProduccion = await prisma.unidad_medida.findUnique({ where: { codigo: 'un' } });
+      if (!unidadProduccion) {
+        console.error("Falta la unidad de medida 'un' en el catálogo");
+        return res.status(500).json({ error: 'Falta la unidad de producción en el catálogo.' });
+      }
+
+      const hoy = new Date(fechaHoyColombia());
+      const { producto, formulacion } = await prisma.$transaction(async (tx) => {
+        const producto = await tx.producto.create({
+          data: {
+            panaderia_id: panaderiaId,
+            nombre: datos.nombre,
+            unidad_produccion_id: unidadProduccion.id,
+            es_intermedio: false,
+          },
+        });
+        const formulacion = await tx.formulacion.create({
+          data: {
+            panaderia_id: panaderiaId,
+            producto_id: producto.id,
+            version: 1,
+            activa: true,
+            vigente_desde: hoy,
+            rendimiento_esperado: datos.rendimiento,
+            aprobado_por: req.usuario!.id,
+            detalle_formulacion: {
+              create: datos.ingredientes.map((l) => ({
+                materia_prima_id: l.materia_prima_id,
+                cantidad_estandar: l.cantidad,
+                unidad_id: unidadDeMateria.get(l.materia_prima_id!)!,
+                tolerancia_porcentaje: l.tolerancia_porcentaje,
+              })),
+            },
+          },
+        });
+        return { producto, formulacion };
+      });
+
+      res.status(201).json({ id: formulacion.id, producto_id: producto.id, version: formulacion.version });
+    } catch (error) {
+      if (esErrorUnico(error)) return res.status(409).json({ error: MENSAJE_CONFLICTO });
+      console.error('Error al crear el producto con su formulación:', error);
+      res.status(500).json({ error: 'Error al crear la formulación' });
+    }
+  });
+
   // Historial de versiones del producto de una formulación (solo gestión).
   // Los costos se calculan con los precios de hoy, no con los de la fecha de cada versión.
   router.get('/:id/versiones', soloGestion, async (req, res) => {
@@ -275,14 +361,8 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
 
       // Las materias primas deben ser de esta panadería y estar activas
       const idsMaterias = datos.ingredientes.map((l) => l.materia_prima_id).filter((x): x is string => !!x);
-      const materias = idsMaterias.length
-        ? await prisma.materia_prima.findMany({
-            where: { id: { in: idsMaterias }, panaderia_id: panaderiaId, activa: true },
-            select: { id: true, unidad_base_id: true },
-          })
-        : [];
-      const unidadDeMateria = new Map(materias.map((m) => [m.id, m.unidad_base_id]));
-      if (unidadDeMateria.size !== idsMaterias.length) {
+      const unidadDeMateria = await unidadesDeMaterias(panaderiaId, idsMaterias);
+      if (!unidadDeMateria) {
         return res.status(400).json({
           error: 'Algún ingrediente no existe, está inactivo o no pertenece a tu panadería.',
         });
