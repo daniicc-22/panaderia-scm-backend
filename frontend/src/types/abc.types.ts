@@ -26,5 +26,7 @@ export interface RespuestaAbc {
   };
   total_valor_anual: number;
   resumen: ResumenAbc[];
+  // Insumos sin precio que cuente: entran con valor 0 y quedan en clase C
+  insumos_sin_costo: { codigo: string; nombre: string }[];
   items: ItemAbc[];
 }

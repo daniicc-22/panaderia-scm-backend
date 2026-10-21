@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { useAuth } from '../features/auth/AuthContext';
 import { MateriaPrimaForm } from '../features/materias-primas/MateriaPrimaForm';
+import { PanelPrecios } from '../features/precios/PanelPrecios';
 import {
   editarMateriaPrima,
   getCatalogosMateriaPrima,
@@ -32,6 +33,7 @@ const formatoCosto = new Intl.NumberFormat('es-CO', {
 
 interface AccionesFila {
   onEditar: (m: MateriaPrima) => void;
+  onPrecios: (m: MateriaPrima) => void;
   onDesactivar: (m: MateriaPrima) => void;
   onReactivar: (m: MateriaPrima) => void;
   ocupado: boolean;
@@ -103,6 +105,14 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
           >
             Editar
           </button>
+          <button
+            type="button"
+            className="font-medium text-gray-700 hover:underline disabled:opacity-50"
+            disabled={acciones.ocupado}
+            onClick={() => acciones.onPrecios(m)}
+          >
+            Precios
+          </button>
           {m.activa ? (
             <button
               type="button"
@@ -139,6 +149,7 @@ export function MateriasPrimasPage() {
   // 'nueva' abre el formulario vacío; una materia prima lo abre para editarla
   const [formulario, setFormulario] = useState<'nueva' | MateriaPrima | null>(null);
   const [porDesactivar, setPorDesactivar] = useState<MateriaPrima | null>(null);
+  const [conPrecios, setConPrecios] = useState<MateriaPrima | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -191,6 +202,10 @@ export function MateriasPrimasPage() {
               onEditar: (m) => {
                 setErrorAccion(null);
                 setFormulario(m);
+              },
+              onPrecios: (m) => {
+                setErrorAccion(null);
+                setConPrecios(m);
               },
               onDesactivar: (m) => {
                 cambiarEstado.reset();
@@ -305,6 +320,17 @@ export function MateriasPrimasPage() {
               onTerminar={() => setFormulario(null)}
             />
           )}
+        </Modal>
+      )}
+
+      {puedeGestionar && (
+        <Modal
+          isOpen={conPrecios !== null}
+          onClose={() => setConPrecios(null)}
+          title={conPrecios ? `Precios · ${conPrecios.nombre}` : 'Precios'}
+          size="lg"
+        >
+          {conPrecios && <PanelPrecios key={conPrecios.id} materiaId={conPrecios.id} />}
         </Modal>
       )}
 

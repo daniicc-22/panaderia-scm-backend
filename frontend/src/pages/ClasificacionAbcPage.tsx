@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { Alert } from '../components/ui/Alert';
 import { getClasificacionAbc } from '../services/abcService';
 import type { ClaseAbc, ItemAbc } from '../types/abc.types';
 
@@ -48,6 +49,16 @@ export function ClasificacionAbcPage() {
 
       {data && (
         <>
+          {data.insumos_sin_costo.length > 0 && (
+            <Alert variant="warning">
+              {data.insumos_sin_costo.length === 1
+                ? '1 insumo no tiene un precio que cuente'
+                : `${data.insumos_sin_costo.length} insumos no tienen un precio que cuente`}
+              : {data.insumos_sin_costo.map((i) => i.nombre).join(', ')}. Entran con valor 0 y quedan en clase C, así que
+              esta clasificación puede estar subestimada. Registra su precio en Materias primas → Precios.
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
               <div key={r.clase} className="rounded-lg border border-gray-200 bg-white p-4">
