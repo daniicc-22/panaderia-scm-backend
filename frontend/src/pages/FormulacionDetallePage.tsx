@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/AuthContext';
-import { getFormulacion } from '../services/formulacionesService';
+import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
+import { mensajeDeError } from '../services/errores';
 import type { IngredienteFormulacion } from '../types/formulacion.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
@@ -33,7 +35,10 @@ export function FormulacionDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { usuario } = useAuth();
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
+  const queryClient = useQueryClient();
   const [editando, setEditando] = useState(false);
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false);
+  const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['formulacion', id],
     queryFn: () => getFormulacion(id as string),
@@ -41,6 +46,41 @@ export function FormulacionDetallePage() {
   });
 
   const verCostos = data?.costo_lote != null;
+
+  const cambiarEstado = useMutation({
+    mutationFn: (activo: boolean) => cambiarEstadoProducto(id as string, activo),
+    onSuccess: async () => {
+      // La lista, el detalle y el ABC dependen de qué productos estén activos
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['formulaciones'] }),
+        queryClient.invalidateQueries({ queryKey: ['formulacion'] }),
+        queryClient.invalidateQueries({ queryKey: ['clasificacion-abc'] }),
+      ]);
+    },
+  });
+
+  function reactivar() {
+    if (!data) return;
+    setAviso(null);
+    cambiarEstado.mutate(true, {
+      onSuccess: () =>
+        setAviso({ tipo: 'success', texto: `${data.producto} está activo de nuevo: vuelve a la lista y al ABC.` }),
+      onError: (e) => setAviso({ tipo: 'error', texto: mensajeDeError(e, 'No se pudo reactivar el producto.') }),
+    });
+  }
+
+  function confirmarBaja() {
+    if (!data) return;
+    cambiarEstado.mutate(false, {
+      onSuccess: () => {
+        setConfirmandoBaja(false);
+        setAviso({
+          tipo: 'success',
+          texto: `${data.producto} se dio de baja. Sale de la lista y del ABC; sus versiones se conservan.`,
+        });
+      },
+    });
+  }
 
   const columnas: ColumnaTabla<IngredienteFormulacion>[] = [
     {
@@ -100,11 +140,32 @@ export function FormulacionDetallePage() {
               </p>
             </div>
             {puedeGestionar && (
-              <Button type="button" onClick={() => setEditando(true)}>
-                {data.activa ? 'Editar formulación' : 'Usar como base'}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => setEditando(true)}>
+                  {data.activa ? 'Editar formulación' : 'Usar como base'}
+                </Button>
+                {data.producto_activo ? (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => {
+                      cambiarEstado.reset();
+                      setAviso(null);
+                      setConfirmandoBaja(true);
+                    }}
+                  >
+                    Dar de baja
+                  </Button>
+                ) : (
+                  <Button type="button" variant="secondary" isLoading={cambiarEstado.isPending} onClick={reactivar}>
+                    Reactivar producto
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+
+          {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
           {!data.activa && (
             <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
@@ -142,6 +203,31 @@ export function FormulacionDetallePage() {
       />
 
       {puedeGestionar && id && <HistorialVersiones formulacionId={id} />}
+
+      {puedeGestionar && data && (
+        <Modal isOpen={confirmandoBaja} onClose={() => setConfirmandoBaja(false)} title="Dar de baja el producto">
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-700">
+              ¿Dar de baja <span className="font-medium">{data.producto}</span>?
+            </p>
+            <Alert variant="warning">
+              Dejará de salir en la lista de formulaciones y de contar en la demanda del ABC. Sus versiones y su historial
+              se conservan, y podrás reactivarlo cuando quieras.
+            </Alert>
+            {cambiarEstado.isError && (
+              <Alert variant="error">{mensajeDeError(cambiarEstado.error, 'No se pudo dar de baja el producto.')}</Alert>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setConfirmandoBaja(false)} disabled={cambiarEstado.isPending}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="danger" isLoading={cambiarEstado.isPending} onClick={confirmarBaja}>
+                Dar de baja
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {puedeGestionar && data && (
         <Modal
