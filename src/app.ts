@@ -10,7 +10,7 @@ import { verificarToken, autorizarRoles } from './middleware/autenticacion';
 import { resolverPanaderia } from './middleware/panaderia';
 import { crearRouterFormulaciones } from './routes/formulaciones';
 import { crearRouterAbc } from './routes/abc';
-import { puedeVerCostos } from './utils/permisos';
+import { crearRouterMateriasPrimas } from './routes/materiasPrimas';
 
 dotenv.config();
 
@@ -119,48 +119,7 @@ app.post('/login', limitadorLogin, async (req, res) => {
   }
 });
 
-app.get('/materias-primas', verificarToken, resolverPanaderia(prisma), async (req, res) => {
-  try {
-    const verCostos = puedeVerCostos(req.usuario?.rol);
-
-    const materias = await prisma.materia_prima.findMany({
-      where: { panaderia_id: req.panaderiaId, activa: true },
-      include: {
-        categoria_materia_prima: true,
-        unidad_medida: true,
-        presentacion: {
-          where: { activa: true },
-          include: { presentacion_proveedor: { where: { vigente: true } } },
-        },
-      },
-      orderBy: { codigo: 'asc' },
-    });
-
-    res.json(
-      materias.map((m) => ({
-        id: m.id,
-        codigo: m.codigo,
-        nombre: m.nombre,
-        categoria: m.categoria_materia_prima?.nombre ?? null,
-        unidad: m.unidad_medida.codigo,
-        presentaciones: m.presentacion.map((p) => {
-          const contenido = Number(p.contenido);
-          const precio = Number(p.presentacion_proveedor[0]?.precio_referencia ?? 0);
-          return {
-            id: p.id,
-            nombre: p.nombre,
-            contenido,
-            precio: verCostos ? precio : null,
-            costo_por_unidad_base: verCostos && contenido > 0 ? precio / contenido : null,
-          };
-        }),
-      })),
-    );
-  } catch (error) {
-    console.error('Error al consultar materias primas:', error);
-    res.status(500).json({ error: 'Error al consultar las materias primas' });
-  }
-});
+app.use('/materias-primas', verificarToken, resolverPanaderia(prisma), crearRouterMateriasPrimas(prisma));
 
 app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 
