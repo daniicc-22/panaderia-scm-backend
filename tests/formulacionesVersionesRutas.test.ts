@@ -619,3 +619,67 @@ describe('PATCH /formulaciones/:id/producto', () => {
     expect(productos.find((p) => p.id === PROD_PAN)!.activo).toBe(true);
   });
 });
+
+describe('costo con productos intermedios', () => {
+  // Pan v2: harina 1000 g, sal 20 g y 300 g de «Masa añadida» (receta vigente: 500 g de harina). Cada gramo cuesta 2.
+  // Masa: 300/500 x 500 g de harina = 300 g -> 600. Total: 2000 + 40 + 600 = 2640.
+  const pan = (r: any) => r.cuerpo.find((x: any) => x.producto === 'Pan');
+
+  test('el detalle reparte el costo del intermedio entre sus materias primas', async () => {
+    const r = await llamar('GET', `/formulaciones/${F_V2}`, 'administrador');
+    expect(r.cuerpo.costo_lote).toBe(2640);
+    expect(r.cuerpo.costo_incompleto).toBe(false);
+    const masa = r.cuerpo.ingredientes.find((i: any) => i.tipo === 'producto_intermedio');
+    expect(masa.costo).toBe(600);
+    expect(masa.costo_por_unidad).toBe(2);
+  });
+
+  test('la lista muestra el mismo costo y sin aviso de costo incompleto', async () => {
+    const r = await llamar('GET', '/formulaciones', 'administrador');
+    expect(pan(r).costo_lote).toBe(2640);
+    expect(pan(r).costo_unidad).toBe(264);
+    expect(pan(r).costo_incompleto).toBe(false);
+  });
+
+  test('si el intermedio no tiene receta, el costo queda incompleto y su línea sin costo', async () => {
+    formulaciones = formulaciones.filter((f) => f.id !== F_INTER);
+    const lista = await llamar('GET', '/formulaciones', 'administrador');
+    expect(pan(lista).costo_incompleto).toBe(true);
+    expect(pan(lista).costo_lote).toBe(2040); // solo harina y sal
+    const det = await llamar('GET', `/formulaciones/${F_V2}`, 'administrador');
+    const masa = det.cuerpo.ingredientes.find((i: any) => i.tipo === 'producto_intermedio');
+    expect(masa.costo).toBeNull();
+    expect(masa.costo_por_unidad).toBeNull();
+  });
+
+  test('un intermedio dado de baja sigue costeando a quien lo usa', async () => {
+    productos.find((p) => p.id === INTER)!.activo = false;
+    const det = await llamar('GET', `/formulaciones/${F_V2}`, 'administrador');
+    expect(det.cuerpo.costo_lote).toBe(2640);
+    expect(det.cuerpo.costo_incompleto).toBe(false);
+  });
+
+  test('si la receta del intermedio tiene varias materias primas, el peso del lote cuenta sus gramos', async () => {
+    formulaciones.find((f) => f.id === F_INTER)!.detalle_formulacion = [linea(HARINA, 500), linea(SAL, 500)];
+    // Masa de 1000 g (500 harina + 500 sal): 300 g = 150 + 150 -> 600 con el mismo precio por gramo
+    const det = await llamar('GET', `/formulaciones/${F_V2}`, 'administrador');
+    expect(det.cuerpo.costo_lote).toBe(2000 + 40 + 600);
+    expect(det.cuerpo.peso_lote_g).toBe(1320);
+  });
+
+  test('el historial costea cada versión con los intermedios repartidos', async () => {
+    const r = await llamar('GET', `/formulaciones/${F_V1}/versiones`, 'administrador');
+    const v = (n: number) => r.cuerpo.versiones.find((x: any) => x.version === n);
+    expect(v(2).costo_lote).toBe(2640);
+    expect(v(2).costo_incompleto).toBe(false);
+    expect(v(1).costo_lote).toBe(1800); // 900 g de harina
+  });
+
+  test('el operario no ve costos de intermedios', async () => {
+    const det = await llamar('GET', `/formulaciones/${F_V2}`, 'operario');
+    const masa = det.cuerpo.ingredientes.find((i: any) => i.tipo === 'producto_intermedio');
+    expect(masa.costo).toBeNull();
+    expect(masa.costo_por_unidad).toBeNull();
+    expect(det.cuerpo.costo_lote).toBeNull();
+  });
+});

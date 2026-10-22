@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { puedeVerCostos } from '../utils/permisos';
-import { calcularCostoFormulacion } from '../utils/costeo';
+import { aLineasReceta, costearLineas, type LineaReceta } from '../utils/intermedios';
 import { elegirPrecio } from '../utils/precios';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { resumirNombres } from '../utils/texto';
@@ -46,6 +46,23 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
   }
   return mapa;
 }
+
+// Receta vigente de cada producto de la panadería (clave: id del producto). Incluye los productos
+// dados de baja: uno inactivo puede seguir siendo ingrediente de otro.
+export async function recetasVigentes(prisma: PrismaClient, panaderiaId: string) {
+  const filas = await prisma.formulacion.findMany({
+    where: { panaderia_id: panaderiaId, activa: true },
+    select: {
+      producto_id: true,
+      detalle_formulacion: { select: { materia_prima_id: true, producto_intermedio_id: true, cantidad_estandar: true } },
+    },
+  });
+  return new Map<string, LineaReceta[]>(filas.map((f) => [f.producto_id, aLineasReceta(f.detalle_formulacion)]));
+}
+
+// Costo por gramo de cada materia prima, listo para el cálculo de costos
+export const costosPorGramo = (costos: Map<string, { costo: number | null }>) =>
+  new Map<string, number | null>([...costos].map(([id, c]) => [id, c.costo]));
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
 
@@ -92,7 +109,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       const verCostos = puedeVerCostos(req.usuario?.rol);
       // Los productos dados de baja no salen, salvo que la gestión pida verlos
       const incluirInactivos = req.query.incluir_inactivos === 'true' && ROLES_GESTION.includes(req.usuario?.rol ?? '');
-      const [formulaciones, costos] = await Promise.all([
+      const [formulaciones, costos, recetas] = await Promise.all([
         prisma.formulacion.findMany({
           where: {
             panaderia_id: panaderiaId,
@@ -103,15 +120,17 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
           orderBy: { producto: { nombre: 'asc' } },
         }),
         costosPorUnidadBase(prisma, panaderiaId),
+        recetasVigentes(prisma, panaderiaId),
       ]);
+      const costosG = costosPorGramo(costos);
 
       res.json(
         formulaciones.map((f) => {
-          const { peso, costo, incompleto } = calcularCostoFormulacion(
-            f.detalle_formulacion.map((d) => ({
-              cantidad: Number(d.cantidad_estandar),
-              costo_por_unidad: d.materia_prima_id ? (costos.get(d.materia_prima_id)?.costo ?? null) : null,
-            })),
+          const { peso, costo, incompleto } = costearLineas(
+            aLineasReceta(f.detalle_formulacion),
+            recetas,
+            f.producto_id,
+            costosG,
           );
           const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
           return {
@@ -150,7 +169,8 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       });
       if (!f) return res.status(404).json({ error: 'Formulación no encontrada' });
 
-      const costos = await costosPorUnidadBase(prisma, panaderiaId);
+      const [costos, recetas] = await Promise.all([costosPorUnidadBase(prisma, panaderiaId), recetasVigentes(prisma, panaderiaId)]);
+      const costosG = costosPorGramo(costos);
       const idsIntermedios = f.detalle_formulacion
         .map((d) => d.producto_intermedio_id)
         .filter((x): x is string => !!x);
@@ -159,19 +179,29 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         : [];
       const nombreIntermedio = new Map(intermedios.map((p) => [p.id, p.nombre]));
 
-      const { peso: pesoTotal, costo: costoTotal, incompleto } = calcularCostoFormulacion(
-        f.detalle_formulacion.map((d) => ({
-          cantidad: Number(d.cantidad_estandar),
-          costo_por_unidad: d.materia_prima_id ? (costos.get(d.materia_prima_id)?.costo ?? null) : null,
-        })),
+      const { peso: pesoTotal, costo: costoTotal, incompleto } = costearLineas(
+        aLineasReceta(f.detalle_formulacion),
+        recetas,
+        f.producto_id,
+        costosG,
       );
 
       const ingredientes = f.detalle_formulacion
         .map((d) => {
           const cantidad = Number(d.cantidad_estandar);
           const mp = d.materia_prima_id ? costos.get(d.materia_prima_id) : undefined;
-          const costoUnidad = mp?.costo ?? null;
-          const costo = costoUnidad == null ? null : costoUnidad * cantidad;
+          // Un intermedio cuesta lo que cuestan sus materias primas repartidas; sin receta o sin precio, no hay costo
+          const deIntermedio = d.producto_intermedio_id
+            ? costearLineas(aLineasReceta([d]), recetas, f.producto_id, costosG)
+            : null;
+          const costo = deIntermedio
+            ? deIntermedio.incompleto
+              ? null
+              : deIntermedio.costo
+            : mp?.costo == null
+              ? null
+              : mp.costo * cantidad;
+          const costoUnidad = deIntermedio ? (costo == null || cantidad <= 0 ? null : costo / cantidad) : (mp?.costo ?? null);
           return {
             tipo: d.materia_prima_id ? 'materia_prima' : 'producto_intermedio',
             materia_prima_id: d.materia_prima_id,
@@ -337,24 +367,26 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       });
       if (!base) return res.status(404).json({ error: 'Formulación no encontrada' });
 
-      const [versiones, costos] = await Promise.all([
+      const [versiones, costos, recetas] = await Promise.all([
         prisma.formulacion.findMany({
           where: { producto_id: base.producto_id, panaderia_id: panaderiaId },
           include: { detalle_formulacion: true, usuario: { select: { nombre: true } } },
           orderBy: { version: 'desc' },
         }),
         costosPorUnidadBase(prisma, panaderiaId),
+        recetasVigentes(prisma, panaderiaId),
       ]);
+      const costosG = costosPorGramo(costos);
 
       res.json({
         producto_id: base.producto_id,
         producto: base.producto.nombre,
         versiones: versiones.map((v) => {
-          const { costo, incompleto } = calcularCostoFormulacion(
-            v.detalle_formulacion.map((d) => ({
-              cantidad: Number(d.cantidad_estandar),
-              costo_por_unidad: d.materia_prima_id ? (costos.get(d.materia_prima_id)?.costo ?? null) : null,
-            })),
+          const { costo, incompleto } = costearLineas(
+            aLineasReceta(v.detalle_formulacion),
+            recetas,
+            base.producto_id,
+            costosG,
           );
           const rendimiento = v.rendimiento_esperado == null ? null : Number(v.rendimiento_esperado);
           return {

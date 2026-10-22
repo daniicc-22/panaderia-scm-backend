@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { costosPorUnidadBase } from './formulaciones';
+import { costosPorUnidadBase, recetasVigentes } from './formulaciones';
+import { aLineasReceta, demandaAnualPorMateria } from '../utils/intermedios';
 import { clasificarAbc, LIMITE_A, LIMITE_B, redondear } from '../utils/abc';
 
 const SEMANAS_AL_ANIO = 52;
@@ -29,25 +30,39 @@ export function crearRouterAbc(prisma: PrismaClient) {
       const panaderiaId = req.panaderiaId!;
       const frecuencias = leerFrecuencias();
 
-      const [formulaciones, costos] = await Promise.all([
+      const [formulaciones, costos, recetas] = await Promise.all([
         prisma.formulacion.findMany({
           // Los productos dados de baja no generan demanda
           where: { panaderia_id: panaderiaId, activa: true, producto: { activo: true } },
           include: { producto: true, detalle_formulacion: true },
         }),
         costosPorUnidadBase(prisma, panaderiaId),
+        recetasVigentes(prisma, panaderiaId),
       ]);
 
-      // Demanda anual (g) = cantidad por lote x lotes por semana x 52
-      const demanda = new Map<string, number>();
-      for (const f of formulaciones) {
-        const lotes = frecuencias[f.producto.nombre] ?? LOTES_POR_DEFECTO;
-        for (const d of f.detalle_formulacion) {
-          if (!d.materia_prima_id) continue;
-          const anual = Number(d.cantidad_estandar) * lotes * SEMANAS_AL_ANIO;
-          demanda.set(d.materia_prima_id, (demanda.get(d.materia_prima_id) ?? 0) + anual);
-        }
-      }
+      // Demanda anual (g) = cantidad por lote x lotes por semana x 52. Un producto intermedio (masa base,
+      // galleta) reparte su demanda en las materias primas de su receta según lo que lleva cada producto.
+      const { demanda, sin_receta } = demandaAnualPorMateria(
+        formulaciones.map((f) => ({
+          producto_id: f.producto_id,
+          es_intermedio: f.producto.es_intermedio,
+          lotes_por_semana: frecuencias[f.producto.nombre] ?? LOTES_POR_DEFECTO,
+          lineas: aLineasReceta(f.detalle_formulacion),
+        })),
+        recetas,
+        SEMANAS_AL_ANIO,
+      );
+      // Intermedios que se usan pero no tienen receta: la demanda de sus insumos queda por debajo de la real
+      const intermediosSinReceta = sin_receta.size
+        ? (
+            await prisma.producto.findMany({
+              where: { id: { in: [...sin_receta] }, panaderia_id: panaderiaId },
+              select: { id: true, nombre: true },
+            })
+          )
+            .map((p) => ({ id: p.id, nombre: p.nombre }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+        : [];
 
       const filas = [...demanda.entries()]
         .map(([id, demandaG]) => {
@@ -79,6 +94,7 @@ export function crearRouterAbc(prisma: PrismaClient) {
         total_valor_anual: redondear(total),
         resumen,
         insumos_sin_costo: insumosSinCosto,
+        intermedios_sin_receta: intermediosSinReceta,
         items,
       });
     } catch (error) {

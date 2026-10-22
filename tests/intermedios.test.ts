@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
+  aLineasReceta,
+  costearLineas,
   costoDeExpansion,
   demandaAnualPorMateria,
   expandirLineas,
@@ -128,7 +130,7 @@ describe('demandaAnualPorMateria', () => {
 
   test('sin intermedios es cantidad x lotes x 52, como antes', () => {
     const f = [form(PAN, false, 6, [mp(HARINA, 1000), mp(AZUCAR, 20)])];
-    const d = demandaAnualPorMateria(f, recetas({}), SEMANAS);
+    const { demanda: d } = demandaAnualPorMateria(f, recetas({}), SEMANAS);
     expect(d.get(HARINA)).toBe(312000);
     expect(d.get(AZUCAR)).toBe(6240);
   });
@@ -136,7 +138,7 @@ describe('demandaAnualPorMateria', () => {
   test('la masa que usa un pan cuenta por el pan y no se duplica como producción aparte', () => {
     const masa = form(MASA, true, 6, [mp(HARINA, 600), mp(AGUA, 400)]);
     const pan = form(PAN, false, 2, [inter(MASA, 250), mp(AZUCAR, 100)]);
-    const d = demandaAnualPorMateria([masa, pan], recetas({ [MASA]: masa.lineas as LineaReceta[] }), SEMANAS);
+    const { demanda: d } = demandaAnualPorMateria([masa, pan], recetas({ [MASA]: masa.lineas as LineaReceta[] }), SEMANAS);
     // Solo por el pan: 250/1000 x 600 g x 2 lotes x 52 semanas
     expect(redondear(d.get(HARINA)!)).toBe(15600);
     expect(redondear(d.get(AGUA)!)).toBe(10400);
@@ -146,13 +148,13 @@ describe('demandaAnualPorMateria', () => {
   test('un intermedio que nadie usa se cuenta por su cuenta', () => {
     const galleta = form(GALLETA, true, 6, [mp(HARINA, 1000)]);
     const pan = form(PAN, false, 6, [mp(AZUCAR, 20)]);
-    const d = demandaAnualPorMateria([galleta, pan], recetas({}), SEMANAS);
+    const { demanda: d } = demandaAnualPorMateria([galleta, pan], recetas({}), SEMANAS);
     expect(d.get(HARINA)).toBe(312000);
   });
 
   test('un intermedio que nadie usa y sin receta vigente no rompe nada', () => {
     const pan = form(PAN, false, 6, [inter(MASA, 100), mp(AZUCAR, 20)]);
-    const d = demandaAnualPorMateria([pan], recetas({}), SEMANAS);
+    const { demanda: d } = demandaAnualPorMateria([pan], recetas({}), SEMANAS);
     expect(d.get(AZUCAR)).toBe(6240);
     expect(d.size).toBe(1);
   });
@@ -161,7 +163,7 @@ describe('demandaAnualPorMateria', () => {
     const masa = form(MASA, true, 6, [mp(HARINA, 600), mp(AGUA, 400)]);
     const a = form('pan-a', false, 1, [inter(MASA, 100)]);
     const b = form('pan-b', false, 3, [inter(MASA, 200)]);
-    const d = demandaAnualPorMateria([masa, a, b], recetas({ [MASA]: masa.lineas as LineaReceta[] }), SEMANAS);
+    const { demanda: d } = demandaAnualPorMateria([masa, a, b], recetas({ [MASA]: masa.lineas as LineaReceta[] }), SEMANAS);
     // harina: (100 x 1 + 200 x 3) / 1000 x 600 x 52 = 21840
     expect(redondear(d.get(HARINA)!)).toBe(21840);
   });
@@ -171,5 +173,43 @@ describe('intermediosUsados', () => {
   test('junta los intermedios que aparecen en las líneas', () => {
     const u = intermediosUsados([{ lineas: [inter(MASA, 1), mp(HARINA, 1)] }, { lineas: [inter(GALLETA, 1), inter(MASA, 2)] }]);
     expect([...u].sort()).toEqual([GALLETA, MASA]);
+  });
+});
+
+describe('costearLineas y aLineasReceta', () => {
+  const R = recetas({ [MASA]: [mp(HARINA, 600), mp(AGUA, 400)] });
+  const costos = new Map<string, number | null>([[HARINA, 3], [AGUA, 0.5], [AZUCAR, 4]]);
+
+  test('da peso, costo y completitud en una sola llamada', () => {
+    const r = costearLineas([inter(MASA, 250), mp(AZUCAR, 100)], R, PAN, costos);
+    expect(r.peso).toBe(350);
+    expect(redondear(r.costo)).toBe(900);
+    expect(r.incompleto).toBe(false);
+  });
+
+  test('sin intermedios coincide con la suma directa de costo por gramo x gramos', () => {
+    const r = costearLineas([mp(HARINA, 1000), mp(AZUCAR, 20)], recetas({}), PAN, costos);
+    expect(r.costo).toBe(1000 * 3 + 20 * 4);
+    expect(r.peso).toBe(1020);
+  });
+
+  test('convierte las cantidades Decimal de la base en números', () => {
+    const l = aLineasReceta([{ materia_prima_id: HARINA, producto_intermedio_id: null, cantidad_estandar: '12.500' }]);
+    expect(l).toEqual([{ materia_prima_id: HARINA, producto_intermedio_id: null, cantidad: 12.5 }]);
+  });
+
+  test('un intermedio sin receta deja incompleto, pero el peso cuenta sus gramos', () => {
+    const r = costearLineas([inter(GALLETA, 80), mp(HARINA, 10)], R, CONCHA, costos);
+    expect(r.incompleto).toBe(true);
+    expect(r.peso).toBe(90);
+  });
+});
+
+describe('demandaAnualPorMateria: avisos', () => {
+  test('informa los intermedios usados sin receta', () => {
+    const pan: FormulacionDemanda = { producto_id: PAN, es_intermedio: false, lotes_por_semana: 6, lineas: [inter(MASA, 100), mp(AZUCAR, 20)] };
+    const r = demandaAnualPorMateria([pan], recetas({}), 52);
+    expect([...r.sin_receta]).toEqual([MASA]);
+    expect(r.ciclos.size).toBe(0);
   });
 });

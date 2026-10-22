@@ -24,6 +24,17 @@ export interface Expansion {
 
 export const pesoReceta = (lineas: readonly LineaReceta[]) => lineas.reduce((s, l) => s + l.cantidad, 0);
 
+// Líneas tal como salen de la base (la cantidad llega como Decimal) a gramos como número
+export function aLineasReceta(
+  detalle: readonly { materia_prima_id: string | null; producto_intermedio_id: string | null; cantidad_estandar: unknown }[],
+): LineaReceta[] {
+  return detalle.map((d) => ({
+    materia_prima_id: d.materia_prima_id,
+    producto_intermedio_id: d.producto_intermedio_id,
+    cantidad: Number(d.cantidad_estandar),
+  }));
+}
+
 function recorrer(
   lineas: readonly LineaReceta[],
   factor: number,
@@ -79,6 +90,18 @@ export function costoDeExpansion(exp: Expansion, costosPorGramo: ReadonlyMap<str
   return { costo, incompleto };
 }
 
+// Peso, costo e indicador de costo incompleto de unas líneas, con los intermedios ya repartidos.
+// `raiz` es el producto dueño de las líneas.
+export function costearLineas(
+  lineas: readonly LineaReceta[],
+  recetas: Recetas,
+  raiz: string | null,
+  costosPorGramo: ReadonlyMap<string, number | null>,
+) {
+  const { costo, incompleto } = costoDeExpansion(expandirLineas(lineas, recetas, raiz), costosPorGramo);
+  return { peso: pesoReceta(lineas), costo, incompleto };
+}
+
 export interface FormulacionDemanda {
   producto_id: string;
   es_intermedio: boolean;
@@ -98,17 +121,23 @@ export function intermediosUsados(formulaciones: readonly { lineas: readonly Lin
 // Demanda anual (g) por materia prima. Un intermedio que alguien usa cuenta solo por ese camino
 // (según cuánto lleva cada lote del producto que lo usa) y no también como producción aparte;
 // uno que nadie usa se cuenta por su cuenta, como cualquier producto.
+// `sin_receta` junta los intermedios usados que no tienen receta vigente: su demanda no se puede
+// repartir, y la demanda de las materias primas que llevan queda por debajo de la real.
 export function demandaAnualPorMateria(
   formulaciones: readonly FormulacionDemanda[],
   recetas: Recetas,
   semanasAlAnio: number,
-): Map<string, number> {
+) {
   const usados = intermediosUsados(formulaciones);
   const demanda = new Map<string, number>();
+  const sin_receta = new Set<string>();
+  const ciclos = new Set<string>();
   for (const f of formulaciones) {
     if (f.es_intermedio && usados.has(f.producto_id)) continue;
-    const { materias } = expandirLineas(f.lineas, recetas, f.producto_id, f.lotes_por_semana * semanasAlAnio);
-    for (const [id, g] of materias) demanda.set(id, (demanda.get(id) ?? 0) + g);
+    const e = expandirLineas(f.lineas, recetas, f.producto_id, f.lotes_por_semana * semanasAlAnio);
+    for (const [id, g] of e.materias) demanda.set(id, (demanda.get(id) ?? 0) + g);
+    e.sin_receta.forEach((id) => sin_receta.add(id));
+    e.ciclos.forEach((id) => ciclos.add(id));
   }
-  return demanda;
+  return { demanda, sin_receta, ciclos };
 }
