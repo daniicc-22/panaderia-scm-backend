@@ -77,6 +77,13 @@ export function expandirLineas(
   return res;
 }
 
+// ¿Guardar `lineas` como la receta de `producto` haría que un intermedio se contenga a sí mismo?
+// La receta vigente de `producto` no se consulta: el recorrido parte con él en la ruta, y volver a
+// encontrarlo ya es el ciclo.
+export function creaCiclo(producto: string, lineas: readonly LineaReceta[], recetas: Recetas): boolean {
+  return expandirLineas(lineas, recetas, producto).ciclos.size > 0;
+}
+
 // Costo de una expansión con el costo por gramo de cada materia prima (null = sin precio).
 // Si falta un precio, una receta o hay un ciclo, el costo queda incompleto: no se inventa un valor.
 export function costoDeExpansion(exp: Expansion, costosPorGramo: ReadonlyMap<string, number | null>) {

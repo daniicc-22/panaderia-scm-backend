@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   aLineasReceta,
   costearLineas,
+  creaCiclo,
   costoDeExpansion,
   demandaAnualPorMateria,
   expandirLineas,
@@ -211,5 +212,34 @@ describe('demandaAnualPorMateria: avisos', () => {
     const r = demandaAnualPorMateria([pan], recetas({}), 52);
     expect([...r.sin_receta]).toEqual([MASA]);
     expect(r.ciclos.size).toBe(0);
+  });
+});
+
+describe('creaCiclo', () => {
+  const R2 = recetas({
+    [MASA]: [inter(GALLETA, 10), mp(HARINA, 5)],
+    [GALLETA]: [mp(HARINA, 5)],
+  });
+
+  test('un intermedio que se usa a sí mismo es un ciclo', () => {
+    expect(creaCiclo(GALLETA, [inter(GALLETA, 5)], R2)).toBe(true);
+  });
+
+  test('ciclo indirecto: la galleta usaría la masa y la masa ya usa la galleta', () => {
+    expect(creaCiclo(GALLETA, [inter(MASA, 5)], R2)).toBe(true);
+  });
+
+  test('usar un intermedio en un producto que nadie más usa no es ciclo', () => {
+    expect(creaCiclo(PAN, [inter(MASA, 5), mp(AZUCAR, 2)], R2)).toBe(false);
+  });
+
+  test('un intermedio usado dos veces por caminos distintos (rombo) no es ciclo', () => {
+    expect(creaCiclo(PAN, [inter(MASA, 5), inter(GALLETA, 5)], R2)).toBe(false);
+  });
+
+  test('prueba con la receta nueva, no con la vigente del mismo producto', () => {
+    const conCiclo = recetas({ [MASA]: [inter(GALLETA, 10)], [GALLETA]: [inter(MASA, 10)] });
+    expect(creaCiclo(MASA, [mp(HARINA, 5)], conCiclo)).toBe(false);
+    expect(creaCiclo(MASA, [inter(GALLETA, 5)], conCiclo)).toBe(true);
   });
 });

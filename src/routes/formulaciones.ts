@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { puedeVerCostos } from '../utils/permisos';
-import { aLineasReceta, costearLineas, type LineaReceta } from '../utils/intermedios';
+import { aLineasReceta, costearLineas, creaCiclo, pesoReceta, type LineaReceta } from '../utils/intermedios';
 import { elegirPrecio } from '../utils/precios';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { resumirNombres } from '../utils/texto';
@@ -100,6 +100,51 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
     });
     const mapa = new Map(materias.map((m) => [m.id, m.unidad_base_id]));
     return mapa.size === ids.length ? mapa : null;
+  }
+
+  // Revisa los productos intermedios que lleva una formulación. `conservados` son los que ya tenía
+  // (no se vuelven a exigir activos); los nuevos deben existir, estar activos y tener receta.
+  // `productoId` es el dueño de la formulación (null si el producto aún no existe).
+  // Devuelve el mensaje de error, o null si todo está bien.
+  async function revisarIntermedios(
+    panaderiaId: string,
+    productoId: string | null,
+    lineas: readonly { materia_prima_id: string | null; producto_intermedio_id: string | null; cantidad: number }[],
+    conservados: ReadonlySet<string>,
+  ): Promise<string | null> {
+    const ids = lineas.map((l) => l.producto_intermedio_id).filter((x): x is string => !!x);
+    if (ids.length === 0) return null;
+
+    const nuevos = ids.filter((x) => !conservados.has(x));
+    const nombres = new Map<string, string>();
+    if (nuevos.length > 0) {
+      const filas = await prisma.producto.findMany({
+        where: { id: { in: nuevos }, panaderia_id: panaderiaId, es_intermedio: true, activo: true },
+        select: { id: true, nombre: true },
+      });
+      if (filas.length !== nuevos.length) {
+        return 'Algún producto intermedio no existe, está dado de baja o no pertenece a tu panadería.';
+      }
+      filas.forEach((f) => nombres.set(f.id, f.nombre));
+    }
+
+    const recetas = await recetasVigentes(prisma, panaderiaId);
+    if (productoId && creaCiclo(productoId, lineas, recetas)) {
+      return 'Ese cambio haría que un producto intermedio se contenga a sí mismo (por ejemplo, la masa A usa la masa B y la masa B usa la masa A).';
+    }
+    for (const id of nuevos) {
+      const receta = recetas.get(id);
+      if (!receta || pesoReceta(receta) <= 0) {
+        return `El producto intermedio «${nombres.get(id)}» todavía no tiene receta; créala antes de usarlo como ingrediente.`;
+      }
+    }
+    return null;
+  }
+
+  // Los gramos de un intermedio se registran en la unidad 'g'
+  async function unidadGramo() {
+    const u = await prisma.unidad_medida.findUnique({ where: { codigo: 'g' } });
+    return u ? u.id : null;
   }
 
   // Lista de formulaciones activas con peso y costo por lote y por unidad
@@ -255,12 +300,23 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       });
       if (repetido) return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
 
-      const idsMaterias = datos.ingredientes.map((l) => l.materia_prima_id!);
+      const idsMaterias = datos.ingredientes.map((l) => l.materia_prima_id).filter((x): x is string => !!x);
       const unidadDeMateria = await unidadesDeMaterias(panaderiaId, idsMaterias);
       if (!unidadDeMateria) {
         return res.status(400).json({
           error: 'Algún ingrediente no existe, está inactivo o no pertenece a tu panadería.',
         });
+      }
+
+      const errorIntermedios = await revisarIntermedios(panaderiaId, null, datos.ingredientes, new Set());
+      if (errorIntermedios) return res.status(400).json({ error: errorIntermedios });
+      let gramo: string | null = null;
+      if (datos.ingredientes.some((l) => l.producto_intermedio_id)) {
+        gramo = await unidadGramo();
+        if (!gramo) {
+          console.error("Falta la unidad de medida 'g' en el catálogo");
+          return res.status(500).json({ error: 'Falta la unidad de gramos en el catálogo.' });
+        }
       }
 
       // Todos los productos del piloto se producen por unidad ('un')
@@ -277,7 +333,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             panaderia_id: panaderiaId,
             nombre: datos.nombre,
             unidad_produccion_id: unidadProduccion.id,
-            es_intermedio: false,
+            es_intermedio: datos.es_intermedio,
           },
         });
         const formulacion = await tx.formulacion.create({
@@ -292,8 +348,9 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             detalle_formulacion: {
               create: datos.ingredientes.map((l) => ({
                 materia_prima_id: l.materia_prima_id,
+                producto_intermedio_id: l.producto_intermedio_id,
                 cantidad_estandar: l.cantidad,
-                unidad_id: unidadDeMateria.get(l.materia_prima_id!)!,
+                unidad_id: (l.materia_prima_id ? unidadDeMateria.get(l.materia_prima_id) : gramo)!,
                 tolerancia_porcentaje: l.tolerancia_porcentaje,
               })),
             },
@@ -454,16 +511,24 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         });
       }
 
-      // Los productos intermedios solo se conservan: sumar nuevos llega con HU-10
+      // Los intermedios que ya tenía conservan su unidad; los nuevos se revisan y van en gramos
       const unidadDeIntermedio = new Map<string, string>();
       for (const d of [...base.detalle_formulacion, ...(vigente?.detalle_formulacion ?? [])]) {
         if (d.producto_intermedio_id) unidadDeIntermedio.set(d.producto_intermedio_id, d.unidad_id);
       }
-      for (const l of datos.ingredientes) {
-        if (l.producto_intermedio_id && !unidadDeIntermedio.has(l.producto_intermedio_id)) {
-          return res.status(400).json({
-            error: 'Solo se pueden conservar los productos intermedios que ya tiene la formulación.',
-          });
+      const errorIntermedios = await revisarIntermedios(
+        panaderiaId,
+        base.producto_id,
+        datos.ingredientes,
+        new Set(unidadDeIntermedio.keys()),
+      );
+      if (errorIntermedios) return res.status(400).json({ error: errorIntermedios });
+      let gramo: string | null = null;
+      if (datos.ingredientes.some((l) => l.producto_intermedio_id && !unidadDeIntermedio.has(l.producto_intermedio_id))) {
+        gramo = await unidadGramo();
+        if (!gramo) {
+          console.error("Falta la unidad de medida 'g' en el catálogo");
+          return res.status(500).json({ error: 'Falta la unidad de gramos en el catálogo.' });
         }
       }
 
@@ -497,7 +562,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
                 cantidad_estandar: l.cantidad,
                 unidad_id: (l.materia_prima_id
                   ? unidadDeMateria.get(l.materia_prima_id)
-                  : unidadDeIntermedio.get(l.producto_intermedio_id!))!,
+                  : (unidadDeIntermedio.get(l.producto_intermedio_id!) ?? gramo))!,
                 tolerancia_porcentaje: l.tolerancia_porcentaje,
               })),
             },

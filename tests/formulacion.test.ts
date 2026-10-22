@@ -194,16 +194,27 @@ describe('validarProductoNuevo', () => {
     expect(validarProductoNuevo(cuerpo({ nombre: 'x'.repeat(100) })).ok).toBe(true);
   });
 
-  test('rechaza productos intermedios como ingrediente', () => {
+  test('acepta productos intermedios como ingrediente', () => {
     const r = validarProductoNuevo(cuerpo({ ingredientes: [{ producto_intermedio_id: INTER, cantidad: 10 }] }));
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errores.join(' ')).toContain('materias primas');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.datos.ingredientes[0]).toMatchObject({ materia_prima_id: null, producto_intermedio_id: INTER, cantidad: 10 });
+  });
+
+  test('es_intermedio es opcional (falso por omisión) y debe ser booleano', () => {
+    const sin = validarProductoNuevo(cuerpo());
+    expect(sin.ok && sin.datos.es_intermedio).toBe(false);
+    const si = validarProductoNuevo(cuerpo({ es_intermedio: true }));
+    expect(si.ok && si.datos.es_intermedio).toBe(true);
+    const no = validarProductoNuevo(cuerpo({ es_intermedio: false }));
+    expect(no.ok && no.datos.es_intermedio).toBe(false);
+    for (const malo of ['true', 1, 0, null, {}]) {
+      expect(validarProductoNuevo(cuerpo({ es_intermedio: malo })).ok).toBe(false);
+    }
   });
 
   test('hereda las reglas de la versión: rendimiento, ingredientes y campos extra', () => {
     expect(validarProductoNuevo(cuerpo({ rendimiento: 0 })).ok).toBe(false);
     expect(validarProductoNuevo(cuerpo({ ingredientes: [] })).ok).toBe(false);
-    expect(validarProductoNuevo(cuerpo({ es_intermedio: true })).ok).toBe(false);
     expect(validarProductoNuevo(cuerpo({ unidad_produccion_id: A })).ok).toBe(false);
     expect(validarProductoNuevo(null).ok).toBe(false);
   });

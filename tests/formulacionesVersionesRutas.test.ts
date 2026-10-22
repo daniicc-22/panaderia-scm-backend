@@ -31,6 +31,7 @@ let operaciones: string[];
 let fallarCierre = false;
 let fallarCreacion: 'ninguna' | 'unico' | 'otro' = 'ninguna';
 let unidadUnExiste = true;
+let unidadGExiste = true;
 let secuencia = 0;
 
 // Identificadores con formato UUID, como los genera la base
@@ -130,7 +131,16 @@ const prismaFalso: any = {
         ),
   },
   producto: {
-    findMany: async () => [],
+    findMany: async ({ where }: any = {}) =>
+      productos
+        .filter(
+          (p) =>
+            (where?.id?.in === undefined || where.id.in.includes(p.id)) &&
+            (where?.panaderia_id === undefined || p.panaderia_id === where.panaderia_id) &&
+            (where?.es_intermedio === undefined || p.es_intermedio === where.es_intermedio) &&
+            (where?.activo === undefined || p.activo === where.activo),
+        )
+        .map((p) => ({ id: p.id, nombre: p.nombre })),
     update: async ({ where, data }: any) => {
       const prod = productos.find((x) => x.id === where.id)!;
       Object.assign(prod, data);
@@ -153,7 +163,11 @@ const prismaFalso: any = {
     },
   },
   unidad_medida: {
-    findUnique: async ({ where }: any) => (where.codigo === 'un' && unidadUnExiste ? { id: U_UND, codigo: 'un' } : null),
+    findUnique: async ({ where }: any) => {
+      if (where.codigo === 'un' && unidadUnExiste) return { id: U_UND, codigo: 'un' };
+      if (where.codigo === 'g' && unidadGExiste) return { id: U_G, codigo: 'g' };
+      return null;
+    },
   },
   // Transacción simulada: si falla algo, se deshacen todos los cambios
   $transaction: async (fn: any) => {
@@ -195,6 +209,7 @@ beforeEach(() => {
   fallarCierre = false;
   fallarCreacion = 'ninguna';
   unidadUnExiste = true;
+  unidadGExiste = true;
   productos = [
     { id: PROD_PAN, panaderia_id: PAN_A, nombre: 'Pan', es_intermedio: false, activo: true },
     { id: PROD_OTRO, panaderia_id: PAN_A, nombre: 'Otro viejo', es_intermedio: false, activo: false },
@@ -362,11 +377,12 @@ describe('POST /formulaciones/:id/versiones', () => {
     expect(inter).toMatchObject({ unidad_id: U_UND, materia_prima_id: null, cantidad_estandar: 300 });
   });
 
-  test('no permite sumar un intermedio que la formulación no tenía', async () => {
+  test('un intermedio inexistente no se puede sumar', async () => {
     const cuerpo = valido();
     cuerpo.ingredientes.push({ producto_intermedio_id: INTER_NUEVO, cantidad: 10 } as any);
     const r = await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', cuerpo);
     expect(r.status).toBe(400);
+    expect(r.cuerpo.error).toContain('intermedio');
     expect(operaciones).toEqual([]);
   });
 
@@ -506,10 +522,9 @@ describe('POST /formulaciones (producto nuevo con su primera versión)', () => {
     expect(productos).toHaveLength(4);
   });
 
-  test('no acepta productos intermedios, unidad ni es_intermedio desde el cliente', async () => {
+  test('no acepta la unidad ni un es_intermedio que no sea booleano', async () => {
     const casos = [
-      { ...nuevo(), ingredientes: [{ producto_intermedio_id: INTER, cantidad: 5 }] },
-      { ...nuevo(), es_intermedio: true },
+      { ...nuevo(), es_intermedio: 'si' },
       { ...nuevo(), unidad_produccion_id: U_G },
     ];
     for (const c of casos) expect((await llamar('POST', '/formulaciones', 'administrador', c)).status).toBe(400);
@@ -681,5 +696,192 @@ describe('costo con productos intermedios', () => {
     expect(masa.costo).toBeNull();
     expect(masa.costo_por_unidad).toBeNull();
     expect(det.cuerpo.costo_lote).toBeNull();
+  });
+});
+
+describe('productos intermedios: crearlos y usarlos como ingrediente', () => {
+  const INTER2 = '44444444-4444-4444-8444-444444444443'; // galleta, con receta
+  const INTER_SIN = '44444444-4444-4444-8444-444444444444'; // sin receta
+  const INTER_BAJA = '44444444-4444-4444-8444-444444444445'; // dado de baja, con receta
+  const INTER_AJENO = '44444444-4444-4444-8444-444444444446'; // de otra panadería
+  const F_INTER2 = '66666666-6666-4666-8666-666666666666';
+  const F_BAJA = '66666666-6666-4666-8666-666666666667';
+  const F_AJENO = '66666666-6666-4666-8666-666666666668';
+
+  beforeEach(() => {
+    productos.push(
+      { id: INTER2, panaderia_id: PAN_A, nombre: 'Galleta', es_intermedio: true, activo: true },
+      { id: INTER_SIN, panaderia_id: PAN_A, nombre: 'Relleno sin receta', es_intermedio: true, activo: true },
+      { id: INTER_BAJA, panaderia_id: PAN_A, nombre: 'Masa vieja', es_intermedio: true, activo: false },
+      { id: INTER_AJENO, panaderia_id: PAN_B, nombre: 'Masa ajena', es_intermedio: true, activo: true },
+    );
+    const receta = (id: string, producto: string, panaderia: string, lineas: Fila[]) => ({
+      id, panaderia_id: panaderia, producto_id: producto, version: 1, activa: true,
+      vigente_desde: new Date('2026-10-01'), vigente_hasta: null, rendimiento_esperado: 1, aprobado_por: null,
+      detalle_formulacion: lineas,
+    });
+    formulaciones.push(
+      receta(F_INTER2, INTER2, PAN_A, [linea(HARINA, 300)]),
+      receta(F_BAJA, INTER_BAJA, PAN_A, [linea(HARINA, 200)]),
+      receta(F_AJENO, INTER_AJENO, PAN_B, [linea(AJENA, 200)]),
+    );
+  });
+
+  const nuevoConIntermedio = (id: string) => ({
+    nombre: 'Concha de prueba',
+    rendimiento: 10,
+    ingredientes: [{ materia_prima_id: HARINA, cantidad: 800 }, { producto_intermedio_id: id, cantidad: 150 }],
+  });
+  const NO_VALIDO = 'no existe, está dado de baja o no pertenece';
+  const invalidos = () => [
+    [INTER_SIN, 'sin receta', 'todavía no tiene receta'],
+    [INTER_BAJA, 'dado de baja', NO_VALIDO],
+    [INTER_AJENO, 'de otra panadería', NO_VALIDO],
+    [PROD_PAN, 'que no es intermedio', NO_VALIDO],
+    [INTER_NUEVO, 'inexistente', NO_VALIDO],
+  ] as const;
+
+  test('POST /: crea un producto intermedio con su primera versión', async () => {
+    const r = await llamar('POST', '/formulaciones', 'administrador', {
+      nombre: 'Masa base', es_intermedio: true, rendimiento: 1, ingredientes: [{ materia_prima_id: HARINA, cantidad: 6000 }],
+    });
+    expect(r.status).toBe(201);
+    const p = productos.find((x) => x.nombre === 'Masa base')!;
+    expect(p).toMatchObject({ es_intermedio: true, unidad_produccion_id: U_UND, panaderia_id: PAN_A });
+    expect(formulaciones.find((f) => f.producto_id === p.id)).toMatchObject({ version: 1, activa: true });
+  });
+
+  test('POST /: sin es_intermedio el producto es final', async () => {
+    await llamar('POST', '/formulaciones', 'administrador', { ...nuevoConIntermedio(INTER2), nombre: 'Final' });
+    expect(productos.find((x) => x.nombre === 'Final')!.es_intermedio).toBe(false);
+  });
+
+  test('POST /: un producto nuevo puede llevar un intermedio como ingrediente, en gramos', async () => {
+    const r = await llamar('POST', '/formulaciones', 'administrador', nuevoConIntermedio(INTER2));
+    expect(r.status).toBe(201);
+    const f = formulaciones.find((x) => x.producto_id === r.cuerpo.producto_id)!;
+    const l = f.detalle_formulacion.find((d: any) => d.producto_intermedio_id === INTER2);
+    expect(l).toMatchObject({ materia_prima_id: null, cantidad_estandar: 150, unidad_id: U_G });
+    expect(f.detalle_formulacion.find((d: any) => d.materia_prima_id === HARINA)).toMatchObject({ producto_intermedio_id: null, unidad_id: U_G });
+  });
+
+  test('POST /: un intermedio puede llevar otro intermedio', async () => {
+    const r = await llamar('POST', '/formulaciones', 'administrador', { ...nuevoConIntermedio(INTER2), nombre: 'Masa con galleta', es_intermedio: true });
+    expect(r.status).toBe(201);
+    expect(productos.find((x) => x.nombre === 'Masa con galleta')!.es_intermedio).toBe(true);
+  });
+
+  test('POST /: rechaza intermedios sin receta, dados de baja, ajenos, que no lo son o inexistentes', async () => {
+    for (const [id, motivo, mensaje] of invalidos()) {
+      const antes = productos.length;
+      const r = await llamar('POST', '/formulaciones', 'administrador', nuevoConIntermedio(id));
+      expect([motivo, r.status]).toEqual([motivo, 400]);
+      expect([motivo, String(r.cuerpo.error).includes(mensaje)]).toEqual([motivo, true]);
+      expect(productos).toHaveLength(antes);
+    }
+    expect(operaciones).toEqual([]);
+  });
+
+  test('POST /: el mensaje de un intermedio sin receta nombra el producto', async () => {
+    const r = await llamar('POST', '/formulaciones', 'administrador', nuevoConIntermedio(INTER_SIN));
+    expect(r.cuerpo.error).toContain('Relleno sin receta');
+    expect(r.cuerpo.error).toContain('receta');
+  });
+
+  test('POST /: si falta la unidad de gramos responde 500 y no crea nada', async () => {
+    unidadGExiste = false;
+    const antes = productos.length;
+    const r = await llamar('POST', '/formulaciones', 'administrador', nuevoConIntermedio(INTER2));
+    expect(r.status).toBe(500);
+    expect(productos).toHaveLength(antes);
+    expect(operaciones).toEqual([]);
+  });
+
+  test('POST /: sin intermedios no hace falta la unidad de gramos', async () => {
+    unidadGExiste = false;
+    const r = await llamar('POST', '/formulaciones', 'administrador', {
+      nombre: 'Solo harina', rendimiento: 5, ingredientes: [{ materia_prima_id: HARINA, cantidad: 100 }],
+    });
+    expect(r.status).toBe(201);
+  });
+
+  test('versiones: suma un intermedio nuevo en gramos y conserva la unidad del que ya tenía', async () => {
+    const cuerpo = valido();
+    cuerpo.ingredientes.push({ producto_intermedio_id: INTER2, cantidad: 80 } as any);
+    const r = await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', cuerpo);
+    expect(r.status).toBe(201);
+    const nueva = formulaciones.find((f) => f.producto_id === PROD_PAN && f.version === 3)!;
+    expect(nueva.detalle_formulacion.find((d: any) => d.producto_intermedio_id === INTER2)).toMatchObject({ unidad_id: U_G, cantidad_estandar: 80 });
+    expect(nueva.detalle_formulacion.find((d: any) => d.producto_intermedio_id === INTER)).toMatchObject({ unidad_id: U_UND });
+  });
+
+  test('versiones: rechaza intermedios nuevos inválidos sin tocar nada', async () => {
+    for (const [id, motivo, mensaje] of invalidos()) {
+      const cuerpo = valido();
+      cuerpo.ingredientes.push({ producto_intermedio_id: id, cantidad: 10 } as any);
+      const r = await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', cuerpo);
+      expect([motivo, r.status]).toEqual([motivo, 400]);
+      expect([motivo, String(r.cuerpo.error).includes(mensaje)]).toEqual([motivo, true]);
+    }
+    expect(operaciones).toEqual([]);
+    expect(formulaciones.find((f) => f.id === F_V2)!.activa).toBe(true);
+  });
+
+  test('versiones: un intermedio dado de baja que la formulación ya tenía se puede conservar', async () => {
+    productos.find((p) => p.id === INTER)!.activo = false;
+    const r = await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', valido());
+    expect(r.status).toBe(201);
+  });
+
+  test('versiones: un intermedio no puede usarse a sí mismo', async () => {
+    const r = await llamar('POST', `/formulaciones/${F_INTER}/versiones`, 'administrador', {
+      rendimiento: 1, ingredientes: [{ materia_prima_id: HARINA, cantidad: 500 }, { producto_intermedio_id: INTER, cantidad: 10 }],
+    });
+    expect(r.status).toBe(400);
+    expect(r.cuerpo.error).toContain('sí mismo');
+    expect(operaciones).toEqual([]);
+  });
+
+  test('versiones: ciclo indirecto (la masa usaría la galleta y la galleta ya usa la masa)', async () => {
+    formulaciones.find((f) => f.id === F_INTER2)!.detalle_formulacion.push(linea(null, 100, { producto_intermedio_id: INTER, unidad_id: U_G }));
+    const r = await llamar('POST', `/formulaciones/${F_INTER}/versiones`, 'administrador', {
+      rendimiento: 1, ingredientes: [{ materia_prima_id: HARINA, cantidad: 500 }, { producto_intermedio_id: INTER2, cantidad: 10 }],
+    });
+    expect(r.status).toBe(400);
+    expect(r.cuerpo.error).toContain('sí mismo');
+    expect(operaciones).toEqual([]);
+  });
+
+  test('versiones: una cadena sin vueltas es válida (masa usa galleta, galleta solo harina)', async () => {
+    const r = await llamar('POST', `/formulaciones/${F_INTER}/versiones`, 'administrador', {
+      rendimiento: 1, ingredientes: [{ materia_prima_id: HARINA, cantidad: 500 }, { producto_intermedio_id: INTER2, cantidad: 10 }],
+    });
+    expect(r.status).toBe(201);
+  });
+
+  test('versiones: un producto que usa dos intermedios donde uno usa al otro no es ciclo', async () => {
+    formulaciones.find((f) => f.id === F_INTER)!.detalle_formulacion.push(linea(null, 50, { producto_intermedio_id: INTER2, unidad_id: U_G }));
+    const cuerpo = valido();
+    cuerpo.ingredientes.push({ producto_intermedio_id: INTER2, cantidad: 80 } as any);
+    expect((await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', cuerpo)).status).toBe(201);
+  });
+
+  test('versiones: la unidad de gramos solo hace falta si se suma un intermedio nuevo', async () => {
+    unidadGExiste = false;
+    expect((await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', valido())).status).toBe(201);
+    const cuerpo = valido();
+    cuerpo.ingredientes.push({ producto_intermedio_id: INTER2, cantidad: 80 } as any);
+    cuerpo.rendimiento = 13;
+    const antes = formulaciones.length;
+    const r = await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'administrador', cuerpo);
+    expect(r.status).toBe(500);
+    expect(formulaciones).toHaveLength(antes);
+  });
+
+  test('el operario no puede crear ni versionar', async () => {
+    expect((await llamar('POST', '/formulaciones', 'operario', nuevoConIntermedio(INTER2))).status).toBe(403);
+    const cuerpo = valido();
+    cuerpo.ingredientes.push({ producto_intermedio_id: INTER2, cantidad: 80 } as any);
+    expect((await llamar('POST', `/formulaciones/${F_V2}/versiones`, 'operario', cuerpo)).status).toBe(403);
   });
 });

@@ -118,10 +118,11 @@ export function validarVersion(cuerpo: unknown): Resultado<DatosVersion> {
 
 export interface DatosProductoNuevo extends DatosVersion {
   nombre: string;
+  es_intermedio: boolean;
 }
 
 // Cuerpo de POST /formulaciones: un producto final nuevo con su primera versión.
-// Los productos intermedios se gestionan aparte (HU-10), por eso no se aceptan como ingrediente.
+// Puede ser un producto final o un intermedio (es_intermedio), y llevar intermedios como ingredientes.
 export function validarProductoNuevo(cuerpo: unknown): Resultado<DatosProductoNuevo> {
   if (!esObjeto(cuerpo)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
   const errores: string[] = [];
@@ -136,15 +137,18 @@ export function validarProductoNuevo(cuerpo: unknown): Resultado<DatosProductoNu
     }
   }
 
-  const { nombre: _nombre, ...resto } = cuerpo;
-  const version = validarVersion(resto);
-  if (!version.ok) errores.push(...version.errores);
-  else if (version.datos.ingredientes.some((l) => l.producto_intermedio_id)) {
-    errores.push('Un producto nuevo solo puede llevar materias primas como ingredientes.');
+  let esIntermedio = false;
+  if (cuerpo.es_intermedio !== undefined) {
+    if (typeof cuerpo.es_intermedio !== 'boolean') errores.push('es_intermedio debe ser verdadero o falso.');
+    else esIntermedio = cuerpo.es_intermedio;
   }
 
+  const { nombre: _nombre, es_intermedio: _es, ...resto } = cuerpo;
+  const version = validarVersion(resto);
+  if (!version.ok) errores.push(...version.errores);
+
   if (errores.length > 0 || !version.ok) return { ok: false, errores };
-  return { ok: true, datos: { nombre, ...version.datos } };
+  return { ok: true, datos: { nombre, es_intermedio: esIntermedio, ...version.datos } };
 }
 
 // Cuerpo de PATCH /formulaciones/:id/producto
