@@ -79,4 +79,6 @@ export interface DatosVersion {
 
 export interface DatosProductoNuevo extends DatosVersion {
   nombre: string;
+  // Un producto intermedio (masa base, galleta) se usa como ingrediente de otros productos
+  es_intermedio?: boolean;
 }

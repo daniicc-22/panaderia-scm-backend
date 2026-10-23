@@ -56,6 +56,24 @@ export function filaVacia(): FilaEditor {
   };
 }
 
+// Valor del selector de ingredientes: "m:<id>" (insumo), "i:<id>" (producto intermedio) o "" (sin elegir)
+export function valorSelector(fila: Pick<FilaEditor, 'materia_prima_id' | 'producto_intermedio_id'>): string {
+  if (fila.producto_intermedio_id) return `i:${fila.producto_intermedio_id}`;
+  return fila.materia_prima_id ? `m:${fila.materia_prima_id}` : '';
+}
+
+// La fila con lo que se eligió en el selector. La cantidad de un intermedio se mide en gramos.
+export function filaConSeleccion(fila: FilaEditor, valor: string, nombreDe: (idIntermedio: string) => string): FilaEditor {
+  if (valor.startsWith('i:')) {
+    const id = valor.slice(2);
+    return { ...fila, materia_prima_id: null, producto_intermedio_id: id, nombre: nombreDe(id), unidad: 'g' };
+  }
+  if (valor.startsWith('m:')) {
+    return { ...fila, materia_prima_id: valor.slice(2), producto_intermedio_id: null, nombre: '', unidad: '' };
+  }
+  return { ...fila, materia_prima_id: '', producto_intermedio_id: null, nombre: '', unidad: '' };
+}
+
 // Número como lo escribe una persona en Colombia: coma decimal
 const aTexto = (n: number) => String(n).replace('.', ',');
 
@@ -101,7 +119,7 @@ export function validarEditor(valores: ValoresEditor, materiasActivas: ReadonlyS
     const idMateria = fila.materia_prima_id ?? '';
 
     if (!esIntermedio) {
-      if (!idMateria) marcar(fila.clave, 'materia', 'Elige un insumo.');
+      if (!idMateria) marcar(fila.clave, 'materia', 'Elige un ingrediente.');
       else if (!materiasActivas.has(idMateria)) marcar(fila.clave, 'materia', 'Este insumo está inactivo: cámbialo o quítalo.');
     }
     const clave = esIntermedio ? `i:${fila.producto_intermedio_id}` : `m:${idMateria}`;

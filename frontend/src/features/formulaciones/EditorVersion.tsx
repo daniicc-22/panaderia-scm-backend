@@ -7,15 +7,17 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { ErrorState } from '../../components/feedback/ErrorState';
-import { crearProducto, crearVersion } from '../../services/formulacionesService';
+import { crearProducto, crearVersion, getFormulaciones } from '../../services/formulacionesService';
 import { getMateriasPrimas } from '../../services/materiasPrimasService';
 import { mensajeDeError } from '../../services/errores';
 import type { FormulacionDetalle } from '../../types/formulacion.types';
 import {
   INGREDIENTES_MAX,
+  filaConSeleccion,
   filaVacia,
   validarEditor,
   validarNombreProducto,
+  valorSelector,
   valoresDesdeDetalle,
   type ErroresEditor,
   type FilaEditor,
@@ -33,6 +35,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
   const navigate = useNavigate();
   const inicial = useMemo(() => (base ? valoresDesdeDetalle(base) : { rendimiento: '', filas: [filaVacia()] }), [base]);
   const [nombre, setNombre] = useState('');
+  const [esIntermedio, setEsIntermedio] = useState(false);
   const [errorNombre, setErrorNombre] = useState<string | undefined>();
   const [rendimiento, setRendimiento] = useState(inicial.rendimiento);
   const [filas, setFilas] = useState<FilaEditor[]>(inicial.filas);
@@ -44,9 +47,20 @@ export function EditorVersion({ base, onTerminar }: Props) {
   const idsActivas = useMemo(() => new Set(activas.map((m) => m.id)), [activas]);
   const porId = useMemo(() => new Map(activas.map((m) => [m.id, m])), [activas]);
 
+  // Productos intermedios que se pueden usar como ingrediente (activos, y nunca el mismo producto)
+  const formulaciones = useQuery({ queryKey: ['formulaciones', 'activos'], queryFn: getFormulaciones });
+  const intermedios = useMemo(
+    () =>
+      (formulaciones.data ?? [])
+        .filter((f) => f.es_intermedio && f.producto_activo && f.producto_id !== base?.producto_id)
+        .sort((a, b) => a.producto.localeCompare(b.producto, 'es')),
+    [formulaciones.data, base?.producto_id],
+  );
+  const intermedioPorId = useMemo(() => new Map(intermedios.map((f) => [f.producto_id, f])), [intermedios]);
+
   const guardar = useMutation({
     mutationFn: ({ nombreProducto, datos }: { nombreProducto: string; datos: Parameters<typeof crearVersion>[1] }) =>
-      base ? crearVersion(base.id, datos) : crearProducto({ nombre: nombreProducto, ...datos }),
+      base ? crearVersion(base.id, datos) : crearProducto({ nombre: nombreProducto, es_intermedio: esIntermedio, ...datos }),
     onSuccess: async (creada) => {
       // El costo, el ABC y las listas cambian con la versión vigente
       await Promise.all([
@@ -84,8 +98,10 @@ export function EditorVersion({ base, onTerminar }: Props) {
     guardar.mutate({ nombreProducto, datos: resultado.datos });
   }
 
-  if (materias.isLoading) return <LoadingState mensaje="Cargando insumos..." />;
-  if (materias.isError) return <ErrorState onReintentar={() => materias.refetch()} />;
+  if (materias.isLoading || formulaciones.isLoading) return <LoadingState mensaje="Cargando insumos..." />;
+  if (materias.isError || formulaciones.isError) {
+    return <ErrorState onReintentar={() => void Promise.all([materias.refetch(), formulaciones.refetch()])} />;
+  }
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
@@ -98,7 +114,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
       </Alert>
 
       {!base && (
-        <div className="sm:max-w-md">
+        <div className="flex flex-col gap-3 sm:max-w-md">
           <Input
             id="prod-nombre"
             label="Nombre del producto"
@@ -108,6 +124,20 @@ export function EditorVersion({ base, onTerminar }: Props) {
             onChange={(e) => setNombre(e.target.value)}
             error={errorNombre}
           />
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={esIntermedio}
+              onChange={(e) => setEsIntermedio(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">Es un producto intermedio</span>
+              <span className="block text-xs text-gray-500">
+                Una masa base o una galleta que se usa como ingrediente de otros productos. Su cantidad se mide en gramos.
+              </span>
+            </span>
+          </label>
         </div>
       )}
 
@@ -132,7 +162,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
 
         {filas.map((fila, i) => {
           const err = errores.filas[fila.clave] ?? {};
-          const esIntermedio = !!fila.producto_intermedio_id;
+          const filaIntermedio = !!fila.producto_intermedio_id;
           const materia = fila.materia_prima_id ? porId.get(fila.materia_prima_id) : undefined;
           const unidad = materia?.unidad ?? fila.unidad;
           const enLista = !!fila.materia_prima_id && idsActivas.has(fila.materia_prima_id);
@@ -141,31 +171,53 @@ export function EditorVersion({ base, onTerminar }: Props) {
               key={fila.clave}
               className="grid grid-cols-1 gap-2 rounded-md border border-gray-200 p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start sm:border-0 sm:p-0"
             >
-              {esIntermedio ? (
-                <div className="flex flex-col justify-center py-2 text-sm">
-                  <span className="font-medium text-gray-900">{fila.nombre}</span>
-                  <span className="text-xs text-gray-500">Producto intermedio (se conserva)</span>
-                </div>
-              ) : (
-                <Select
-                  aria-label={`Ingrediente ${i + 1}`}
-                  value={fila.materia_prima_id ?? ''}
-                  onChange={(e) => cambiarFila(fila.clave, { materia_prima_id: e.target.value })}
-                  error={err.materia}
-                >
-                  <option value="">Elige un insumo…</option>
-                  {!enLista && fila.materia_prima_id && <option value={fila.materia_prima_id}>{fila.nombre} (inactivo)</option>}
+              <Select
+                aria-label={`Ingrediente ${i + 1}`}
+                value={valorSelector(fila)}
+                onChange={(e) =>
+                  setFilas((actuales) =>
+                    actuales.map((f) =>
+                      f.clave === fila.clave
+                        ? filaConSeleccion(f, e.target.value, (id) => intermedioPorId.get(id)?.producto ?? '')
+                        : f,
+                    ),
+                  )
+                }
+                error={err.materia}
+              >
+                <option value="">Elige un ingrediente…</option>
+                {!enLista && fila.materia_prima_id && <option value={`m:${fila.materia_prima_id}`}>{fila.nombre} (inactivo)</option>}
+                {filaIntermedio && fila.producto_intermedio_id && !intermedioPorId.has(fila.producto_intermedio_id) && (
+                  <option value={`i:${fila.producto_intermedio_id}`}>{fila.nombre} (intermedio no disponible)</option>
+                )}
+                <optgroup label="Insumos">
                   {activas.map((m) => (
                     <option
                       key={m.id}
-                      value={m.id}
+                      value={`m:${m.id}`}
                       disabled={m.id !== fila.materia_prima_id && filas.some((o) => o.materia_prima_id === m.id)}
                     >
                       {m.codigo} · {m.nombre}
                     </option>
                   ))}
-                </Select>
-              )}
+                </optgroup>
+                {intermedios.length > 0 && (
+                  <optgroup label="Productos intermedios">
+                    {intermedios.map((f) => (
+                      <option
+                        key={f.producto_id}
+                        value={`i:${f.producto_id}`}
+                        disabled={
+                          f.producto_id !== fila.producto_intermedio_id &&
+                          filas.some((o) => o.producto_intermedio_id === f.producto_id)
+                        }
+                      >
+                        {f.producto}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </Select>
 
               <Input
                 aria-label={`Cantidad del ingrediente ${i + 1}`}

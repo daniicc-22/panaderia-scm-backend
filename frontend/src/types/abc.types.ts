@@ -28,5 +28,7 @@ export interface RespuestaAbc {
   resumen: ResumenAbc[];
   // Insumos sin precio que cuente: entran con valor 0 y quedan en clase C
   insumos_sin_costo: { codigo: string; nombre: string }[];
+  // Productos intermedios usados o activos que no tienen receta vigente: su costo no se puede calcular
+  intermedios_sin_receta: { id: string; nombre: string }[];
   items: ItemAbc[];
 }

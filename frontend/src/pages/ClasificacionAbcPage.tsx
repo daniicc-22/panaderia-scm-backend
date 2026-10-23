@@ -59,6 +59,17 @@ export function ClasificacionAbcPage() {
             </Alert>
           )}
 
+          {data.intermedios_sin_receta.length > 0 && (
+            <Alert variant="warning">
+              {data.intermedios_sin_receta.length === 1
+                ? '1 producto intermedio no tiene receta vigente'
+                : `${data.intermedios_sin_receta.length} productos intermedios no tienen receta vigente`}
+              : {data.intermedios_sin_receta.map((i) => i.nombre).join(', ')}. Sin receta no se puede repartir su consumo entre
+              los insumos, así que el costo de los productos que lo usan queda incompleto y el ABC puede estar subestimado.
+              Crea su fórmula en Formulaciones.
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
               <div key={r.clase} className="rounded-lg border border-gray-200 bg-white p-4">
