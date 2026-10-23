@@ -1,17 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { login as loginService } from './authService';
 import type { Credenciales, Usuario } from '../../types/auth.types';
-
-interface AuthContextValue {
-  usuario: Usuario | null;
-  estaAutenticado: boolean;
-  cargando: boolean;
-  error: string | null;
-  iniciarSesion: (credenciales: Credenciales) => Promise<void>;
-  cerrarSesion: () => void;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext } from './useAuth';
 
 // IMPORTANTE: esta persistencia en localStorage es una solución de
 // DESARROLLO para el modo mock. Cuando exista autenticación real, el
@@ -20,25 +10,25 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const CLAVE_TOKEN = 'panaderia_token';
 const CLAVE_USUARIO = 'panaderia_usuario';
 
+// Sesión guardada en el navegador; si está dañada se descarta
+function leerSesionGuardada(): Usuario | null {
+  const usuarioGuardado = localStorage.getItem(CLAVE_USUARIO);
+  const tokenGuardado = localStorage.getItem(CLAVE_TOKEN);
+  if (!usuarioGuardado || !tokenGuardado) return null;
+  try {
+    return JSON.parse(usuarioGuardado) as Usuario;
+  } catch {
+    localStorage.removeItem(CLAVE_USUARIO);
+    localStorage.removeItem(CLAVE_TOKEN);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [cargando, setCargando] = useState(true);
+  // Se lee la sesión al crear el estado, así la primera pantalla ya sabe si hay usuario
+  const [usuario, setUsuario] = useState<Usuario | null>(leerSesionGuardada);
+  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const usuarioGuardado = localStorage.getItem(CLAVE_USUARIO);
-    const tokenGuardado = localStorage.getItem(CLAVE_TOKEN);
-
-    if (usuarioGuardado && tokenGuardado) {
-      try {
-        setUsuario(JSON.parse(usuarioGuardado) as Usuario);
-      } catch {
-        localStorage.removeItem(CLAVE_USUARIO);
-        localStorage.removeItem(CLAVE_TOKEN);
-      }
-    }
-    setCargando(false);
-  }, []);
 
   async function iniciarSesion(credenciales: Credenciales) {
     setError(null);
@@ -70,12 +60,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de un <AuthProvider>');
-  }
-  return context;
 }

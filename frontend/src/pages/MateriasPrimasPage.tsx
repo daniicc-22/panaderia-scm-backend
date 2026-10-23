@@ -4,7 +4,7 @@ import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 import { MateriaPrimaForm } from '../features/materias-primas/MateriaPrimaForm';
 import { PanelPrecios } from '../features/precios/PanelPrecios';
 import {

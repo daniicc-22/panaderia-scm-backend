@@ -5,7 +5,7 @@ import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 import { getFormulaciones, getFormulacionesConInactivos } from '../services/formulacionesService';
 import type { FormulacionResumen } from '../types/formulacion.types';
 

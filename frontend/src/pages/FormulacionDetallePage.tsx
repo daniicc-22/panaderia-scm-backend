@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
 import { mensajeDeError } from '../services/errores';
 import type { IngredienteFormulacion } from '../types/formulacion.types';

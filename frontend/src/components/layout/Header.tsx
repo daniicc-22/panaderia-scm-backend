@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../../features/auth/AuthContext';
+import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
 import { Button } from '../ui/Button';
 

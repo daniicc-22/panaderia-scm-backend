@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 import { getMateriasPrimas } from '../services/materiasPrimasService';
 import { getFormulaciones } from '../services/formulacionesService';
 import { getClasificacionAbc } from '../services/abcService';
