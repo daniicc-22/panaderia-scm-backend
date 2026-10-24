@@ -10,6 +10,7 @@ import { FormulacionesPage } from '../../pages/FormulacionesPage';
 import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 import { ProveedoresPage } from '../../pages/ProveedoresPage';
+import { InventarioPage } from '../../pages/InventarioPage';
 
 export function AppRouter() {
   return (
@@ -22,6 +23,7 @@ export function AppRouter() {
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/materias-primas" element={<MateriasPrimasPage />} />
+          <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/formulaciones" element={<FormulacionesPage />} />
           <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
           <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />

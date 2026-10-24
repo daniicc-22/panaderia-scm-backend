@@ -325,7 +325,7 @@ test('producción: la aplicación confía en el proxy del hosting; en desarrollo
 
 // ---------- guardas de las rutas ----------
 
-const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/abc'];
+const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/inventario', '/abc'];
 
 test('todas las rutas protegidas responden 401 sin token y con un token inválido', async () => {
   await conServidor(baseFalsa(), {}, async (base) => {
@@ -343,6 +343,15 @@ test('con un token válido ninguna ruta protegida responde 401 ni 403 (las guard
         const { status } = await get(base, ruta, tokenDe('administrador'));
         assert.ok(status !== 401 && status !== 403, `${ruta} respondió ${status}`);
       }
+    }),
+  );
+});
+
+test('/inventario: el operario también pasa las guardas (registra entradas y consulta existencias)', async () => {
+  await sinErroresEnConsola(() =>
+    conServidor(baseFalsa(), {}, async (base) => {
+      const { status } = await get(base, '/inventario', tokenDe('operario'));
+      assert.ok(status !== 401 && status !== 403, `/inventario respondió ${status}`);
     }),
   );
 });
