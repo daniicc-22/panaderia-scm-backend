@@ -52,6 +52,7 @@ export function MateriaPrimaForm({ materia, catalogos, onTerminar }: Props) {
         queryClient.invalidateQueries({ queryKey: ['formulaciones'] }),
         queryClient.invalidateQueries({ queryKey: ['formulacion'] }),
         queryClient.invalidateQueries({ queryKey: ['clasificacion-abc'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventario'] }),
       ]);
       onTerminar();
     },
@@ -128,6 +129,16 @@ export function MateriaPrimaForm({ materia, catalogos, onTerminar }: Props) {
         <option value="">Sin definir</option>
         <option value="si">Sí</option>
         <option value="no">No</option>
+      </Select>
+
+      <Select
+        id="mp-controla"
+        label="¿Se compra y se guarda en inventario?"
+        error={errors.controla_inventario?.message}
+        {...register('controla_inventario')}
+      >
+        <option value="si">Sí, llevar existencias y lotes</option>
+        <option value="no">No (por ejemplo, el agua)</option>
       </Select>
 
       {errorServidor && <Alert variant="error">{errorServidor}</Alert>}

@@ -5,7 +5,8 @@ import path from 'path';
 const prisma = new PrismaClient();
 
 type Presentacion = { gramos: number; precio: number; origen: string };
-type MateriaPrimaDato = { codigo: string; nombre: string; categoria: string; presentaciones: Presentacion[] };
+// controla_inventario=false: insumo que no se compra ni se guarda (el agua)
+type MateriaPrimaDato = { codigo: string; nombre: string; categoria: string; controla_inventario?: boolean; presentaciones: Presentacion[] };
 type Ingrediente = { mp: string; gramos: number };
 type ProductoDato = {
   nombre: string;
@@ -67,13 +68,14 @@ async function main() {
   for (const m of datos.materias_primas) {
     const mp = await prisma.materia_prima.upsert({
       where: { panaderia_id_codigo: { panaderia_id: panaderiaId, codigo: m.codigo } },
-      update: { nombre: m.nombre, categoria_id: categoria[m.categoria] },
+      update: { nombre: m.nombre, categoria_id: categoria[m.categoria], controla_inventario: m.controla_inventario ?? true },
       create: {
         panaderia_id: panaderiaId,
         codigo: m.codigo,
         nombre: m.nombre,
         categoria_id: categoria[m.categoria],
         unidad_base_id: unidad['g'],
+        controla_inventario: m.controla_inventario ?? true,
       },
     });
     mpId[m.codigo] = mp.id;

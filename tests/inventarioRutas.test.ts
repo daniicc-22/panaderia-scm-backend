@@ -10,6 +10,7 @@ const USU = '99999999-9999-4999-8999-999999999999';
 const MP_HARINA = '22222222-2222-4222-8222-222222222221';
 const MP_LEVADURA = '22222222-2222-4222-8222-222222222222';
 const MP_AJENA = '22222222-2222-4222-8222-222222222299';
+const MP_AGUA = '22222222-2222-4222-8222-222222222298';
 const PRES = '33333333-3333-4333-8333-333333333331';
 const PRES_LEV = '33333333-3333-4333-8333-333333333332';
 const PROV_1 = '44444444-4444-4444-8444-444444444441';
@@ -146,9 +147,9 @@ beforeEach(() => {
   asignado = true;
   fallarEnLote = false;
   materias = [
-    { id: MP_HARINA, panaderia_id: PAN, codigo: 'MP-001', nombre: 'Harina', activa: true, criterio_rotacion: null, unidad_base_id: 'u' },
-    { id: MP_LEVADURA, panaderia_id: PAN, codigo: 'MP-002', nombre: 'Levadura', activa: true, criterio_rotacion: 'FEFO', unidad_base_id: 'u' },
-    { id: MP_AJENA, panaderia_id: OTRA, codigo: 'MP-001', nombre: 'Ajena', activa: true, criterio_rotacion: null, unidad_base_id: 'u' },
+    { id: MP_HARINA, panaderia_id: PAN, codigo: 'MP-001', nombre: 'Harina', activa: true, controla_inventario: true, criterio_rotacion: null, unidad_base_id: 'u' },
+    { id: MP_LEVADURA, panaderia_id: PAN, codigo: 'MP-002', nombre: 'Levadura', activa: true, controla_inventario: true, criterio_rotacion: 'FEFO', unidad_base_id: 'u' },
+    { id: MP_AJENA, panaderia_id: OTRA, codigo: 'MP-001', nombre: 'Ajena', activa: true, controla_inventario: true, criterio_rotacion: null, unidad_base_id: 'u' },
   ];
   presentaciones = [
     { id: PRES, panaderia_id: PAN, materia_prima_id: MP_HARINA, nombre: 'Bulto 50 kg', contenido: 50000, activa: true },
@@ -432,5 +433,38 @@ describe('GET /inventario/opciones-entrada', () => {
       console.error = silencio;
       prismaFalso.materia_prima.findMany = original;
     }
+  });
+});
+
+describe('insumos que no se controlan en inventario (agua)', () => {
+  const conAgua = () =>
+    materias.push({ id: MP_AGUA, panaderia_id: PAN, codigo: 'MP-008', nombre: 'Agua', activa: true, controla_inventario: false, criterio_rotacion: null, unidad_base_id: 'u' });
+
+  const get = async (ruta: string) => ({ status: (await fetch(`${base}/inventario${ruta}`)).status });
+  const json = async (ruta: string) => (await (await fetch(`${base}/inventario${ruta}`)).json()) as any;
+
+  test('no aparecen en las existencias', async () => {
+    conAgua();
+    const r = await json('');
+    expect(r.items.map((i: any) => i.codigo)).toEqual(['MP-001', 'MP-002']);
+  });
+
+  test('no se ofrecen en el formulario de entrada', async () => {
+    conAgua();
+    const r = await json('/opciones-entrada');
+    expect(r.materias.map((m: any) => m.codigo)).toEqual(['MP-001', 'MP-002']);
+  });
+
+  test('no se registran entradas: 409 y no se crea nada', async () => {
+    conAgua();
+    const r = await fetch(`${base}/inventario/entradas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ materia_prima_id: MP_AGUA, presentacion_id: PRES, cantidad: 1 }),
+    });
+    expect(r.status).toBe(409);
+    expect(((await r.json()) as any).error).toMatch(/no se controla/);
+    expect(compras).toHaveLength(0);
+    expect(lotes).toHaveLength(0);
   });
 });

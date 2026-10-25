@@ -9,9 +9,6 @@ import { clasificarAbc, LIMITE_A, LIMITE_B, redondear } from '../utils/abc';
 const SEMANAS_AL_ANIO = 52;
 const LOTES_POR_DEFECTO = 6;
 
-// Insumos que no se compran ni se almacenan (no entran al ABC)
-const CODIGOS_EXCLUIDOS = new Set(['MP-008']); // Agua
-
 // Se lee en cada petición para que los cambios al JSON apliquen sin reiniciar
 function leerFrecuencias(): Record<string, number> {
   try {
@@ -69,6 +66,7 @@ export function crearRouterAbc(prisma: PrismaClient) {
           const mp = costos.get(id);
           const costoG = mp?.costo ?? 0;
           return {
+            controla: mp?.controla_inventario !== false,
             codigo: mp?.codigo ?? '',
             nombre: mp?.nombre ?? 'Sin identificar',
             demanda_anual_g: demandaG,
@@ -76,7 +74,8 @@ export function crearRouterAbc(prisma: PrismaClient) {
             valor_anual: demandaG * costoG,
           };
         })
-        .filter((f) => !CODIGOS_EXCLUIDOS.has(f.codigo));
+        // Los insumos que no se compran ni se guardan (agua) no entran al ABC
+        .filter((f) => f.controla);
 
       const { total, items, resumen } = clasificarAbc(filas);
 

@@ -87,3 +87,37 @@ export interface EntradaRegistrada {
     costo_unitario?: number;
   };
 }
+
+// ---- Producción (consumo de insumos) ----
+export interface LoteConsumo {
+  lote_id: string;
+  codigo_lote: string | null;
+  fecha_vencimiento: string | null;
+  cantidad: number;
+}
+
+export interface ItemConsumo {
+  materia_prima_id: string;
+  codigo: string;
+  nombre: string;
+  unidad: string;
+  // false (agua): se muestra en el plan pero no se descuenta ni exige existencias
+  controla_inventario: boolean;
+  necesario: number;
+  faltante: number;
+  // Existencias que no se usan porque el lote ya venció
+  vencido_omitido: number;
+  lotes: LoteConsumo[];
+}
+
+export interface PlanConsumo {
+  formulacion: { id: string; producto: string; version: number };
+  lotes: number;
+  completo: boolean;
+  items: ItemConsumo[];
+}
+
+export interface ProduccionRegistrada {
+  produccion_id: string;
+  plan: PlanConsumo;
+}

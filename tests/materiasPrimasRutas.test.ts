@@ -16,6 +16,7 @@ type Fila = Record<string, any>;
 let materias: Fila[];
 let usos: { materia: string; panaderia: string; producto: string; activa: boolean }[];
 let creadas: Fila[];
+let lotesConStock: Set<string>;
 let fallarCreacionConUnico = false;
 
 const coincideNombre = (filtro: any, valor: string) =>
@@ -42,6 +43,9 @@ const prismaFalso: any = {
         )
         .map((u) => ({ formulacion: { producto: { nombre: u.producto } } })),
   },
+  lote: {
+    count: async ({ where }: any) => (lotesConStock.has(where.materia_prima_id) ? 1 : 0),
+  },
   materia_prima: {
     findMany: async ({ where }: any) =>
       materias
@@ -61,7 +65,7 @@ const prismaFalso: any = {
       }) ?? null,
     create: async ({ data }: any) => {
       if (fallarCreacionConUnico) throw Object.assign(new Error('unico'), { code: 'P2002' });
-      const fila = { id: 'nuevo-id', activa: true, ...data };
+      const fila = { id: 'nuevo-id', activa: true, controla_inventario: true, ...data };
       creadas.push(fila);
       materias.push(fila);
       return fila;
@@ -100,11 +104,12 @@ afterAll(() => {
 beforeEach(() => {
   fallarCreacionConUnico = false;
   creadas = [];
+  lotesConStock = new Set();
   usos = [];
   materias = [
-    { id: ID_HARINA, panaderia_id: PAN_A, codigo: 'MP-001', nombre: 'Harina de trigo', activa: true, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null },
-    { id: ID_SAL, panaderia_id: PAN_A, codigo: 'MP-041', nombre: 'Sal', activa: false, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null },
-    { id: ID_AJENA, panaderia_id: PAN_B, codigo: 'MP-001', nombre: 'Azúcar', activa: true, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null },
+    { id: ID_HARINA, panaderia_id: PAN_A, codigo: 'MP-001', nombre: 'Harina de trigo', activa: true, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null, controla_inventario: true },
+    { id: ID_SAL, panaderia_id: PAN_A, codigo: 'MP-041', nombre: 'Sal', activa: false, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null, controla_inventario: true },
+    { id: ID_AJENA, panaderia_id: PAN_B, codigo: 'MP-001', nombre: 'Azúcar', activa: true, categoria_id: null, unidad_base_id: UNIDAD_G, criterio_rotacion: null, lead_time_dias: null, variabilidad_peso_unitario: null, controla_inventario: true },
   ];
 });
 
@@ -275,5 +280,46 @@ describe('PATCH /materias-primas/:id', () => {
     const r = await llamar('PATCH', `/materias-primas/${ID_SAL}`, 'administrador', { activa: true });
     expect(r.status).toBe(200);
     expect(materias[1].activa).toBe(true);
+  });
+});
+
+describe('controla_inventario', () => {
+  test('el listado informa si el insumo se controla', async () => {
+    materias[0].controla_inventario = false;
+    const r = await llamar('GET', '/materias-primas', 'administrador');
+    expect(r.cuerpo[0].controla_inventario).toBe(false);
+  });
+
+  test('al crear, por defecto se controla; se puede crear sin control y no admite valores raros', async () => {
+    const datos = { nombre: 'Agua tratada', unidad_base_id: UNIDAD_G };
+    expect((await llamar('POST', '/materias-primas', 'administrador', datos)).status).toBe(201);
+    expect(creadas[0].controla_inventario).toBe(true);
+    expect((await llamar('POST', '/materias-primas', 'administrador', { ...datos, nombre: 'Hielo', controla_inventario: false })).status).toBe(201);
+    expect(creadas[1].controla_inventario).toBe(false);
+    const mala = await llamar('POST', '/materias-primas', 'administrador', { ...datos, nombre: 'Otra', controla_inventario: 'no' });
+    expect(mala.status).toBe(400);
+    expect(creadas).toHaveLength(2);
+  });
+
+  test('se puede dejar de controlar un insumo sin existencias y volver a controlarlo', async () => {
+    const off = await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { controla_inventario: false });
+    expect(off.status).toBe(200);
+    expect(off.cuerpo.controla_inventario).toBe(false);
+    const on = await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { controla_inventario: true });
+    expect(on.status).toBe(200);
+    expect(materias[0].controla_inventario).toBe(true);
+  });
+
+  test('no se deja de controlar un insumo con existencias (409) y no cambia nada', async () => {
+    lotesConStock.add(ID_HARINA);
+    const r = await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { controla_inventario: false });
+    expect(r.status).toBe(409);
+    expect(r.cuerpo.error).toMatch(/existencias/);
+    expect(materias[0].controla_inventario).toBe(true);
+  });
+
+  test('el operario no puede cambiarlo y el valor debe ser booleano', async () => {
+    expect((await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'operario', { controla_inventario: false })).status).toBe(403);
+    expect((await llamar('PATCH', `/materias-primas/${ID_HARINA}`, 'administrador', { controla_inventario: 'si' })).status).toBe(400);
   });
 });

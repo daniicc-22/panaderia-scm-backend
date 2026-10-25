@@ -11,7 +11,7 @@ import {
   validarEntrada,
   verificarVencimiento,
 } from '../utils/entradas';
-import { ordenarLotes, resumirStock, type LoteVista } from '../utils/inventario';
+import { alertasDeLotes, ordenarLotes, resumirStock, validarDiasAlerta, type LoteVista } from '../utils/inventario';
 
 const fechaTexto = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
@@ -35,7 +35,7 @@ export function crearRouterInventario(prisma: PrismaClient) {
     const panaderiaId = req.panaderiaId!;
     try {
       const materias = await prisma.materia_prima.findMany({
-        where: { panaderia_id: panaderiaId, activa: true },
+        where: { panaderia_id: panaderiaId, activa: true, controla_inventario: true },
         include: {
           unidad_medida: true,
           presentacion: {
@@ -86,7 +86,7 @@ export function crearRouterInventario(prisma: PrismaClient) {
     try {
       const [materias, lotes] = await Promise.all([
         prisma.materia_prima.findMany({
-          where: { panaderia_id: panaderiaId, activa: true },
+          where: { panaderia_id: panaderiaId, activa: true, controla_inventario: true },
           include: { unidad_medida: true },
           orderBy: { nombre: 'asc' },
         }),
@@ -122,6 +122,56 @@ export function crearRouterInventario(prisma: PrismaClient) {
     } catch (error) {
       console.error('Error al consultar el inventario:', error);
       res.status(500).json({ error: 'Error al consultar el inventario' });
+    }
+  });
+
+  // Alertas de vencimiento: lotes con existencias vencidos o por vencer (todos los roles; el dinero solo gestión)
+  router.get('/alertas', async (req, res) => {
+    const dias = validarDiasAlerta(req.query.dias);
+    if (!dias.ok) return res.status(400).json({ error: dias.error });
+    const panaderiaId = req.panaderiaId!;
+    const conCostos = puedeVerCostos(req.usuario?.rol);
+    try {
+      const [materias, filas] = await Promise.all([
+        prisma.materia_prima.findMany({
+          where: { panaderia_id: panaderiaId, activa: true, controla_inventario: true },
+          include: { unidad_medida: true },
+        }),
+        prisma.lote.findMany({
+          where: { panaderia_id: panaderiaId, materia_prima_id: { not: null }, cantidad_disponible: { gt: 0 } },
+        }),
+      ]);
+      const porMateria = new Map(materias.map((m) => [m.id, m]));
+      const hoy = hoyColombia();
+      const alertas = alertasDeLotes(
+        filas.filter((l) => porMateria.has(l.materia_prima_id!)).map((l) => ({ ...aVista(l), materia_prima_id: l.materia_prima_id! })),
+        hoy,
+        dias.dias,
+      );
+      const items = alertas.map((a) => {
+        const m = porMateria.get(a.materia_prima_id)!;
+        const { valor, ...resto } = a;
+        return { ...resto, codigo: m.codigo, nombre: m.nombre, unidad: m.unidad_medida.codigo, ...(conCostos ? { valor } : {}) };
+      });
+      const vencidos = items.filter((i) => i.estado === 'vencido');
+      res.json({
+        fecha: hoy,
+        dias_alerta: dias.dias,
+        resumen: {
+          vencidos: vencidos.length,
+          por_vencer: items.length - vencidos.length,
+          ...(conCostos
+            ? {
+                valor_vencido: Math.round(alertas.filter((a) => a.estado === 'vencido').reduce((s, a) => s + a.valor, 0) * 100) / 100,
+                valor_por_vencer: Math.round(alertas.filter((a) => a.estado === 'por_vencer').reduce((s, a) => s + a.valor, 0) * 100) / 100,
+              }
+            : {}),
+        },
+        items,
+      });
+    } catch (error) {
+      console.error('Error al consultar las alertas de vencimiento:', error);
+      res.status(500).json({ error: 'Error al consultar las alertas de vencimiento' });
     }
   });
 
@@ -177,6 +227,9 @@ export function crearRouterInventario(prisma: PrismaClient) {
         include: { unidad_medida: true },
       });
       if (!materia) return res.status(404).json({ error: 'Materia prima no encontrada.' });
+      if (materia.controla_inventario === false) {
+        return res.status(409).json({ error: `${materia.nombre} no se controla en inventario: no se registran entradas.` });
+      }
 
       const presentacion = await prisma.presentacion.findFirst({
         where: { id: d.presentacion_id, materia_prima_id: materia.id, panaderia_id: panaderiaId, activa: true },

@@ -51,6 +51,9 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
           {!m.activa && (
             <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactiva</span>
           )}
+          {!m.controla_inventario && (
+            <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-normal text-blue-700">Sin inventario</span>
+          )}
         </span>
       ),
     },

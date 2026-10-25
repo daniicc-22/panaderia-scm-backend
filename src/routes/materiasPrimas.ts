@@ -41,6 +41,7 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
           codigo: m.codigo,
           nombre: m.nombre,
           activa: m.activa,
+          controla_inventario: m.controla_inventario,
           categoria_id: m.categoria_id,
           categoria: m.categoria_materia_prima?.nombre ?? null,
           unidad_base_id: m.unidad_base_id,
@@ -128,6 +129,7 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
           criterio_rotacion: d.criterio_rotacion,
           lead_time_dias: d.lead_time_dias,
           variabilidad_peso_unitario: d.variabilidad_peso_unitario,
+          controla_inventario: d.controla_inventario,
         },
       });
       res.status(201).json({ id: creada.id, codigo: creada.codigo, nombre: creada.nombre });
@@ -185,11 +187,29 @@ export function crearRouterMateriasPrimas(prisma: PrismaClient) {
         }
       }
 
+      // Un insumo con existencias no puede dejar de controlarse: su stock quedaría invisible
+      if (cambios.controla_inventario === false && actual.controla_inventario) {
+        const conStock = await prisma.lote.count({
+          where: { panaderia_id: panaderiaId, materia_prima_id: id, cantidad_disponible: { gt: 0 } },
+        });
+        if (conStock > 0) {
+          return res.status(409).json({
+            error: 'No se puede dejar de controlar el inventario: este insumo tiene existencias. Ajusta el stock a cero primero.',
+          });
+        }
+      }
+
       const actualizada = await prisma.materia_prima.update({
         where: { id },
         data: { ...cambios, updated_at: new Date() },
       });
-      res.json({ id: actualizada.id, codigo: actualizada.codigo, nombre: actualizada.nombre, activa: actualizada.activa });
+      res.json({
+        id: actualizada.id,
+        codigo: actualizada.codigo,
+        nombre: actualizada.nombre,
+        activa: actualizada.activa,
+        controla_inventario: actualizada.controla_inventario,
+      });
     } catch (error) {
       console.error('Error al editar la materia prima:', error);
       res.status(500).json({ error: 'Error al editar la materia prima' });

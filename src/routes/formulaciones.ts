@@ -27,7 +27,7 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
     },
   });
 
-  const mapa = new Map<string, { codigo: string; nombre: string; costo: number | null }>();
+  const mapa = new Map<string, { codigo: string; nombre: string; costo: number | null; controla_inventario: boolean }>();
   for (const m of materias) {
     const elegido = elegirPrecio(
       m.presentacion.map((p) => ({
@@ -42,7 +42,12 @@ export async function costosPorUnidadBase(prisma: PrismaClient, panaderiaId: str
         })),
       })),
     );
-    mapa.set(m.id, { codigo: m.codigo, nombre: m.nombre, costo: elegido ? elegido.costo_por_unidad_base : null });
+    mapa.set(m.id, {
+      codigo: m.codigo,
+      nombre: m.nombre,
+      costo: elegido ? elegido.costo_por_unidad_base : null,
+      controla_inventario: m.controla_inventario,
+    });
   }
   return mapa;
 }

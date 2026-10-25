@@ -122,3 +122,22 @@ describe('GET /abc con productos intermedios', () => {
     expect(r.intermedios_sin_receta).toEqual([{ id: 'masa', nombre: 'ZZ Masa' }]);
   });
 });
+
+describe('GET /abc con insumos que no se controlan', () => {
+  test('el agua (controla_inventario=false) no entra al ABC aunque lleve demanda; con control sí entra', async () => {
+    const AGUA = '33333333-3333-4333-8333-333333333388';
+    const fila: any = { id: AGUA, codigo: 'MP-008', nombre: 'Agua', controla_inventario: false };
+    materias.push(fila);
+    formulaciones[0].detalle_formulacion.push({ materia_prima_id: AGUA, cantidad_estandar: 400 });
+    try {
+      let r = (await (await fetch(`${base}/abc`)).json()) as any;
+      expect(r.items.some((i: any) => i.codigo === 'MP-008')).toBe(false);
+      expect(r.items.some((i: any) => i.codigo === 'MP-001')).toBe(true);
+      fila.controla_inventario = true;
+      r = (await (await fetch(`${base}/abc`)).json()) as any;
+      expect(r.items.some((i: any) => i.codigo === 'MP-008')).toBe(true);
+    } finally {
+      materias.pop();
+    }
+  });
+});

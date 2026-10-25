@@ -125,6 +125,7 @@
    "codigo": "MP-008",
    "nombre": "Agua",
    "categoria": "Otros",
+   "controla_inventario": false,
    "presentaciones": [
     {
      "gramos": 1000.0,

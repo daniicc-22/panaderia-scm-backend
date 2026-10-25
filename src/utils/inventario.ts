@@ -78,3 +78,56 @@ export function resumirStock(lotes: LoteVista[], hoy: string, diasAlerta = DIAS_
     valor: redondear(activos.reduce((s, l) => s + l.cantidad_disponible * l.costo_unitario, 0), 2),
   };
 }
+
+// ---- Alertas de vencimiento (HU-15) ----
+export const DIAS_ALERTA_MAX = 60;
+
+/** Días de aviso pedidos por el usuario: entero de 1 a 60; sin valor se usa el predeterminado. */
+export function validarDiasAlerta(valor: unknown): { ok: true; dias: number } | { ok: false; error: string } {
+  if (valor === undefined) return { ok: true, dias: DIAS_ALERTA };
+  const texto = typeof valor === 'string' ? valor.trim() : '';
+  if (!/^\d{1,3}$/.test(texto) || Number(texto) < 1 || Number(texto) > DIAS_ALERTA_MAX) {
+    return { ok: false, error: `Los días de aviso deben ser un número entero entre 1 y ${DIAS_ALERTA_MAX}.` };
+  }
+  return { ok: true, dias: Number(texto) };
+}
+
+export interface AlertaLote {
+  lote_id: string;
+  materia_prima_id: string;
+  codigo_lote: string | null;
+  cantidad_disponible: number;
+  fecha_vencimiento: string;
+  dias: number; // negativo si ya venció
+  estado: 'vencido' | 'por_vencer';
+  valor: number;
+}
+
+/** Lotes con existencias que ya vencieron o vencen pronto, del que vence antes al que vence después. */
+export function alertasDeLotes(
+  lotes: readonly (LoteVista & { materia_prima_id: string })[],
+  hoy: string,
+  diasAlerta = DIAS_ALERTA,
+): AlertaLote[] {
+  const alertas: AlertaLote[] = [];
+  for (const l of lotes) {
+    if (l.cantidad_disponible <= 0 || l.fecha_vencimiento === null) continue;
+    const estado = estadoLote(l.fecha_vencimiento, hoy, diasAlerta);
+    if (estado === 'ok') continue;
+    alertas.push({
+      lote_id: l.id,
+      materia_prima_id: l.materia_prima_id,
+      codigo_lote: l.codigo_lote,
+      cantidad_disponible: l.cantidad_disponible,
+      fecha_vencimiento: l.fecha_vencimiento,
+      dias: diasHasta(hoy, l.fecha_vencimiento),
+      estado,
+      valor: redondear(l.cantidad_disponible * l.costo_unitario, 2),
+    });
+  }
+  return alertas.sort((a, b) =>
+    a.fecha_vencimiento !== b.fecha_vencimiento
+      ? a.fecha_vencimiento < b.fecha_vencimiento ? -1 : 1
+      : a.lote_id < b.lote_id ? -1 : a.lote_id > b.lote_id ? 1 : 0,
+  );
+}

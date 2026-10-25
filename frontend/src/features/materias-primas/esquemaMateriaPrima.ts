@@ -32,6 +32,7 @@ export function crearEsquema(modoEdicion: boolean) {
       .string()
       .refine(esLeadTimeValido, `Escribe un número de días entre 0 y ${LEAD_TIME_MAX}, o déjalo vacío.`),
     variabilidad_peso_unitario: z.enum(['', 'si', 'no']),
+    controla_inventario: z.enum(['si', 'no']),
   });
 }
 
@@ -44,6 +45,7 @@ export const valoresVacios: ValoresFormulario = {
   criterio_rotacion: '',
   lead_time_dias: '',
   variabilidad_peso_unitario: '',
+  controla_inventario: 'si',
 };
 
 export function valoresDesdeMateria(m: MateriaPrima): ValoresFormulario {
@@ -54,6 +56,7 @@ export function valoresDesdeMateria(m: MateriaPrima): ValoresFormulario {
     criterio_rotacion: m.criterio_rotacion ?? '',
     lead_time_dias: m.lead_time_dias === null ? '' : String(m.lead_time_dias),
     variabilidad_peso_unitario: m.variabilidad_peso_unitario === null ? '' : m.variabilidad_peso_unitario ? 'si' : 'no',
+    controla_inventario: m.controla_inventario ? 'si' : 'no',
   };
 }
 
@@ -66,6 +69,7 @@ export function aCambios(v: Validados): CambiosMateriaPrima {
     criterio_rotacion: v.criterio_rotacion === '' ? null : v.criterio_rotacion,
     lead_time_dias: v.lead_time_dias.trim() === '' ? null : aNumero(v.lead_time_dias),
     variabilidad_peso_unitario: v.variabilidad_peso_unitario === '' ? null : v.variabilidad_peso_unitario === 'si',
+    controla_inventario: v.controla_inventario === 'si',
   };
 }
 

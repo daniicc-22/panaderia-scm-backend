@@ -116,3 +116,22 @@ describe('siguienteCodigo', () => {
     expect(siguienteCodigo(['MP-999'])).toBe('MP-1000');
   });
 });
+
+describe('controla_inventario (validación)', () => {
+  const base = { nombre: 'Agua', unidad_base_id: '11111111-1111-4111-8111-111111111111' };
+
+  test('al crear: por defecto verdadero; acepta false; rechaza lo que no es booleano', () => {
+    const a = validarCrear(base);
+    expect(a.ok && a.datos.controla_inventario).toBe(true);
+    const b = validarCrear({ ...base, controla_inventario: false });
+    expect(b.ok && b.datos.controla_inventario).toBe(false);
+    for (const malo of ['false', 0, null]) expect(validarCrear({ ...base, controla_inventario: malo }).ok).toBe(false);
+  });
+
+  test('al editar: es un campo editable y booleano', () => {
+    const a = validarEditar({ controla_inventario: false });
+    expect(a.ok && a.datos).toEqual({ controla_inventario: false });
+    expect(validarEditar({ controla_inventario: 'si' }).ok).toBe(false);
+    expect(validarEditar({ controla_inventario: null }).ok).toBe(false);
+  });
+});

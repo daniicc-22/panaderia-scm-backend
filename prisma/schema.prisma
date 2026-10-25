@@ -242,6 +242,7 @@ model materia_prima {
   lead_time_dias             Decimal?                 @db.Decimal(6, 2)
   variabilidad_peso_unitario Boolean?
   activa                     Boolean                  @default(true)
+  controla_inventario        Boolean                  @default(true)
   created_at                 DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                 @default(now()) @db.Timestamptz(6)
   analisis_eoq               analisis_eoq[]

@@ -16,6 +16,8 @@ export interface DatosMateria {
   criterio_rotacion: CriterioRotacion | null;
   lead_time_dias: number | null;
   variabilidad_peso_unitario: boolean | null;
+  // false para insumos que no se compran ni se guardan (p. ej. el agua): no tienen lotes ni existencias
+  controla_inventario: boolean;
 }
 
 export type CambiosMateria = Partial<Omit<DatosMateria, 'unidad_base_id'>> & { activa?: boolean };
@@ -76,6 +78,15 @@ function validarBooleanoOpcional(valor: unknown, etiqueta: string, errores: stri
   return valor;
 }
 
+function validarControla(valor: unknown, errores: string[]): boolean | undefined {
+  if (valor === undefined) return undefined;
+  if (typeof valor !== 'boolean') {
+    errores.push('Controla inventario debe ser verdadero o falso.');
+    return undefined;
+  }
+  return valor;
+}
+
 export function validarCrear(cuerpo: unknown): Resultado<DatosMateria> {
   if (!esObjeto(cuerpo)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
   const errores: string[] = [];
@@ -98,6 +109,8 @@ export function validarCrear(cuerpo: unknown): Resultado<DatosMateria> {
     errores,
   );
 
+  const controla_inventario = validarControla(cuerpo.controla_inventario, errores);
+
   if (errores.length > 0 || nombre === undefined) return { ok: false, errores };
   return {
     ok: true,
@@ -108,6 +121,7 @@ export function validarCrear(cuerpo: unknown): Resultado<DatosMateria> {
       criterio_rotacion,
       lead_time_dias,
       variabilidad_peso_unitario,
+      controla_inventario: controla_inventario ?? true,
     },
   };
 }
@@ -121,6 +135,7 @@ const CAMPOS_EDITABLES = [
   'lead_time_dias',
   'variabilidad_peso_unitario',
   'activa',
+  'controla_inventario',
 ] as const;
 
 export function validarEditar(cuerpo: unknown): Resultado<CambiosMateria> {
@@ -153,6 +168,10 @@ export function validarEditar(cuerpo: unknown): Resultado<CambiosMateria> {
       'La variabilidad de peso',
       errores,
     );
+  }
+  if ('controla_inventario' in cuerpo) {
+    const v = validarControla(cuerpo.controla_inventario, errores);
+    if (v !== undefined) cambios.controla_inventario = v;
   }
   if ('activa' in cuerpo) {
     if (typeof cuerpo.activa !== 'boolean') errores.push('El estado activa debe ser verdadero o falso.');

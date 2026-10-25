@@ -20,6 +20,8 @@ export interface MateriaPrima {
   criterio_rotacion: CriterioRotacion | null;
   lead_time_dias: number | null;
   variabilidad_peso_unitario: boolean | null;
+  // false: insumo que no se compra ni se guarda (agua); no tiene existencias ni se descuenta al producir
+  controla_inventario: boolean;
   presentaciones: PresentacionMateriaPrima[];
 }
 
@@ -48,6 +50,7 @@ export interface DatosNuevaMateriaPrima {
   criterio_rotacion: CriterioRotacion | null;
   lead_time_dias: number | null;
   variabilidad_peso_unitario: boolean | null;
+  controla_inventario: boolean;
 }
 
 // Lo que se puede cambiar después: ni el código ni la unidad base

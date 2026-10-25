@@ -11,6 +11,7 @@ import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 import { ProveedoresPage } from '../../pages/ProveedoresPage';
 import { InventarioPage } from '../../pages/InventarioPage';
+import { ProduccionPage } from '../../pages/ProduccionPage';
 
 export function AppRouter() {
   return (
@@ -24,6 +25,7 @@ export function AppRouter() {
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/materias-primas" element={<MateriasPrimasPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
+          <Route path="/produccion" element={<ProduccionPage />} />
           <Route path="/formulaciones" element={<FormulacionesPage />} />
           <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
           <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />
