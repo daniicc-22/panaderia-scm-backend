@@ -1,6 +1,7 @@
 import { httpClient } from './httpClient';
 import type { PlanConsumo, ProduccionRegistrada } from '../types/inventario.types';
 import type {
+  BalanceMasas,
   EstadoProduccion,
   PesoRealEnvio,
   ProduccionDetalle,
@@ -37,5 +38,10 @@ export async function getProduccion(id: string): Promise<ProduccionDetalle> {
 
 export async function finalizarProduccion(id: string, cantidad_producida: number): Promise<ProduccionFinalizada> {
   const { data } = await httpClient.post<ProduccionFinalizada>(`/produccion/${id}/finalizar`, { cantidad_producida });
+  return data;
+}
+
+export async function getBalanceMasas(id: string): Promise<BalanceMasas> {
+  const { data } = await httpClient.get<BalanceMasas>(`/produccion/${id}/balance`);
   return data;
 }

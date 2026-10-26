@@ -4,6 +4,7 @@ import { LoadingState } from '../../components/feedback/LoadingState';
 import { Badge } from '../../components/ui/Badge';
 import { formatoCantidad, formatoFecha } from '../inventario/formatos';
 import { getProduccion } from '../../services/produccionService';
+import { BalanceDeMasas } from './BalanceDeMasas';
 import { colorDesviacion, textoDesviacion } from './pesos';
 
 // Qué se usó de cada insumo en una producción: receta, peso real, desviación y lotes
@@ -14,7 +15,9 @@ export function DetalleProduccion({ id }: { id: string }) {
   if (detalle.isError || !detalle.data) return <ErrorState onReintentar={() => detalle.refetch()} />;
 
   return (
-    <ul className="mt-3 flex flex-col gap-2">
+    <div className="mt-3 flex flex-col gap-3">
+      <BalanceDeMasas id={id} />
+      <ul className="flex flex-col gap-2">
       {detalle.data.insumos.map((i) => (
         <li key={i.materia_prima_id} className="rounded-md border border-gray-200 bg-white p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -43,6 +46,7 @@ export function DetalleProduccion({ id }: { id: string }) {
             ))}
         </li>
       ))}
-    </ul>
+      </ul>
+    </div>
   );
 }

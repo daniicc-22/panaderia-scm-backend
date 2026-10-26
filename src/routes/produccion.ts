@@ -13,6 +13,7 @@ import {
 import { hoyColombia } from '../utils/entradas';
 import { resumirNombres } from '../utils/texto';
 import { UUID } from '../utils/materiaPrima';
+import { calcularBalance } from '../utils/balance';
 import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
 import type { LoteVista } from '../utils/inventario';
 
@@ -415,6 +416,83 @@ export function crearRouterProduccion(prisma: PrismaClient) {
     } catch (error) {
       console.error('Error al consultar la producción:', error);
       res.status(500).json({ error: 'Error al consultar la producción' });
+    }
+  });
+
+  // Balance de masas de una producción (HU-18): insumos usados (con agua), merma registrada y rendimiento.
+  // No incluye dinero. La masa del producto terminado queda pendiente: el catálogo no tiene peso por unidad.
+  router.get('/:id/balance', async (req, res) => {
+    const id = req.params.id;
+    if (!UUID.test(id)) return res.status(404).json({ error: 'Producción no encontrada.' });
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const f = await prisma.produccion.findFirst({
+        where: { id, panaderia_id: panaderiaId },
+        include: { producto: { select: { nombre: true } } },
+      });
+      if (!f) return res.status(404).json({ error: 'Producción no encontrada.' });
+      const pesajes = await prisma.pesaje_produccion.findMany({ where: { produccion_id: id, panaderia_id: panaderiaId } });
+      const consumos = await prisma.consumo_produccion.findMany({
+        where: { produccion_id: id, panaderia_id: panaderiaId },
+        include: { lote: { select: { materia_prima_id: true } } },
+      });
+      const mermas = await prisma.desperdicio.findMany({
+        where: { produccion_id: id, panaderia_id: panaderiaId },
+        include: {
+          causa_desperdicio: { select: { nombre: true } },
+          lote: { select: { materia_prima_id: true } },
+        },
+      });
+
+      // Producciones anteriores a HU-16 no tienen pesajes: se arman con lo consumido de cada lote
+      const conPesaje = pesajes.length > 0;
+      const usado = new Map<string, number>();
+      if (conPesaje) for (const x of pesajes) usado.set(x.materia_prima_id, Number(x.peso_real));
+      else for (const c of consumos) {
+        const mid = c.lote.materia_prima_id;
+        if (mid) usado.set(mid, (usado.get(mid) ?? 0) + Number(c.cantidad_consumida));
+      }
+      const materiaIds = [...new Set([...usado.keys(), ...mermas.flatMap((m) => (m.lote?.materia_prima_id ? [m.lote.materia_prima_id] : []))])];
+      const materias = await prisma.materia_prima.findMany({
+        where: { id: { in: materiaIds }, panaderia_id: panaderiaId },
+        include: { unidad_medida: true },
+      });
+      const porId = new Map(materias.map((m) => [m.id, m]));
+
+      const planificada = num(f.cantidad_planificada);
+      const producida = num(f.cantidad_producida);
+      const balance = calcularBalance({
+        insumos: [...usado].map(([mid, peso]) => ({
+          materia_prima_id: mid,
+          nombre: porId.get(mid)?.nombre ?? 'Insumo desconocido',
+          unidad: porId.get(mid)?.unidad_medida.codigo ?? null,
+          peso_real: peso,
+        })),
+        mermas: mermas.map((m) => {
+          const mid = m.lote?.materia_prima_id ?? null;
+          return {
+            cantidad: Number(m.cantidad),
+            unidad: mid ? (porId.get(mid)?.unidad_medida.codigo ?? null) : 'g',
+            con_lote: m.lote_id !== null,
+            causa: m.causa_desperdicio.nombre,
+          };
+        }),
+        producida,
+        planificada,
+      });
+      res.json({
+        produccion_id: f.id,
+        producto: f.producto.nombre,
+        estado: f.estado,
+        con_pesaje: conPesaje,
+        cantidad_planificada: planificada,
+        cantidad_producida: producida,
+        masa_producto_terminado_g: null, // pendiente de campo: pesar una unidad de cada producto
+        ...balance,
+      });
+    } catch (error) {
+      console.error('Error al calcular el balance de masas:', error);
+      res.status(500).json({ error: 'Error al calcular el balance de masas' });
     }
   });
 

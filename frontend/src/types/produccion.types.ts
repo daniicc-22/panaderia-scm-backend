@@ -61,3 +61,23 @@ export interface ProduccionFinalizada {
   rendimiento_pct: number | null;
   aviso: string | null;
 }
+
+export interface BalanceMasas {
+  produccion_id: string;
+  producto: string;
+  estado: EstadoProduccion;
+  // false en producciones anteriores al peso real: se armó con lo consumido de los lotes
+  con_pesaje: boolean;
+  cantidad_planificada: number | null;
+  cantidad_producida: number | null;
+  masa_producto_terminado_g: number | null;
+  insumos_g: number;
+  insumos: { materia_prima_id: string; nombre: string; gramos: number; porcentaje: number }[];
+  sin_masa: string[];
+  merma_masa_g: number;
+  merma_insumo_g: number;
+  merma_total_g: number;
+  merma_pct: number | null;
+  por_causa: { causa: string; gramos: number }[];
+  rendimiento_pct: number | null;
+}

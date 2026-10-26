@@ -66,6 +66,7 @@ export function RegistrarMerma() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['inventario'] }),
         queryClient.invalidateQueries({ queryKey: ['mermas'] }),
+        queryClient.invalidateQueries({ queryKey: ['produccion'] }),
       ]);
       setExito(`Merma registrada: ${formatoCantidad(cantidad, unidadFinal)}.${tipo === 'insumo' ? ' Ya se descontó del lote.' : ''}`);
       setCantidadTexto('');
@@ -139,6 +140,10 @@ export function RegistrarMerma() {
                 </option>
               ))}
             </select>
+            {inventario.isError && <span className="text-xs text-red-600">No se pudo cargar el inventario. Recarga la página.</span>}
+            {inventario.isSuccess && insumos.length === 0 && (
+              <span className="text-xs text-gray-500">No hay insumos con existencias para registrar una merma.</span>
+            )}
           </div>
           {materiaId !== '' && (
             <div className="flex flex-col gap-1">
