@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { ErrorState } from '../../components/feedback/ErrorState';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { getLotesMateria } from '../../services/inventarioService';
+import { useAuth } from '../auth/useAuth';
+import { CorregirLoteForm } from './CorregirLoteForm';
+import { CorregirVencimientoForm } from './CorregirVencimientoForm';
 import { COLOR_ESTADO, ETIQUETA_ESTADO, formatoCantidad, formatoCosto, formatoDinero, formatoFecha, formatoFechaIso, textoVencimiento } from './formatos';
 
 interface Props {
@@ -17,6 +22,11 @@ const ROTACION: Record<string, string> = {
 };
 
 export function LotesPanel({ materiaId, hoy }: Props) {
+  const { usuario } = useAuth();
+  const esGestion = usuario?.rol === 'administrador' || usuario?.rol === 'superadministrador';
+  // Qué lote se está corrigiendo y qué se corrige de él; el aviso confirma el último cambio hecho
+  const [corrigiendo, setCorrigiendo] = useState<{ id: string; que: 'cantidad' | 'fecha' } | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventario', 'lotes', materiaId],
     queryFn: () => getLotesMateria(materiaId),
@@ -27,9 +37,50 @@ export function LotesPanel({ materiaId, hoy }: Props) {
 
   const { materia, resumen, lotes, criterio_rotacion } = data;
   const unidad = materia.unidad;
+  const loteACorregir = lotes.find((l) => l.id === corrigiendo?.id);
+
+  if (loteACorregir && corrigiendo?.que === 'fecha') {
+    return (
+      <CorregirVencimientoForm
+        loteId={loteACorregir.id}
+        codigoLote={loteACorregir.codigo_lote ?? null}
+        nombre={materia.nombre}
+        fechaActual={loteACorregir.fecha_vencimiento}
+        onTerminar={(hecho) => {
+          setCorrigiendo(null);
+          if (hecho) {
+            setAviso(
+              `Lote ${hecho.codigo_lote ?? 'sin código'}: ${hecho.fecha_nueva ? `ahora vence el ${formatoFecha(hecho.fecha_nueva)}` : 'quedó sin fecha de vencimiento'}.`,
+            );
+          }
+        }}
+      />
+    );
+  }
+
+  if (loteACorregir) {
+    return (
+      <CorregirLoteForm
+        loteId={loteACorregir.id}
+        codigoLote={loteACorregir.codigo_lote ?? null}
+        nombre={materia.nombre}
+        unidad={unidad}
+        cantidadActual={loteACorregir.cantidad_disponible}
+        onTerminar={(hecho) => {
+          setCorrigiendo(null);
+          if (hecho) {
+            setAviso(
+              `Lote ${hecho.codigo_lote ?? 'sin código'} corregido: de ${formatoCantidad(hecho.cantidad_anterior, unidad)} a ${formatoCantidad(hecho.cantidad_nueva, unidad)}.`,
+            );
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      {aviso && <Alert variant="success">{aviso}</Alert>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
         <span>
           Existencias: <span className="font-semibold text-gray-900">{formatoCantidad(resumen.stock, unidad)}</span>
@@ -64,6 +115,30 @@ export function LotesPanel({ materiaId, hoy }: Props) {
                 {textoVencimiento(hoy, l.fecha_vencimiento)}
                 {l.costo_unitario !== undefined && ` · ${formatoCosto(l.costo_unitario)} por ${unidad}`}
               </p>
+              {esGestion && (
+                <div className="mt-1 flex flex-wrap gap-x-4">
+                  <button
+                    type="button"
+                    className="min-h-11 text-sm font-medium text-blue-600 hover:underline"
+                    onClick={() => {
+                      setAviso(null);
+                      setCorrigiendo({ id: l.id, que: 'cantidad' });
+                    }}
+                  >
+                    Corregir existencias
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 text-sm font-medium text-blue-600 hover:underline"
+                    onClick={() => {
+                      setAviso(null);
+                      setCorrigiendo({ id: l.id, que: 'fecha' });
+                    }}
+                  >
+                    Cambiar vencimiento
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ol>

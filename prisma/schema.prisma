@@ -220,6 +220,7 @@ model lote {
   created_at            DateTime                @default(now()) @db.Timestamptz(6)
   consumo_produccion    consumo_produccion[]
   desperdicio           desperdicio[]
+  detalle_conteo        detalle_conteo[]
   detalle_recepcion     detalle_recepcion?      @relation(fields: [detalle_recepcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   panaderia             panaderia               @relation(fields: [panaderia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   produccion            produccion?             @relation(fields: [produccion_origen_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
@@ -270,6 +271,7 @@ model movimiento_inventario {
   usuario_id                 String                     @db.Uuid
   fecha                      DateTime                   @default(now()) @db.Timestamptz(6)
   observaciones              String?
+  detalle_conteo             detalle_conteo[]
   consumo_produccion         consumo_produccion?        @relation(fields: [consumo_produccion_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   desperdicio                desperdicio?               @relation(fields: [desperdicio_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   lote                       lote                       @relation(fields: [lote_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
@@ -301,6 +303,8 @@ model panaderia {
   detalle_compra         detalle_compra[]
   detalle_recepcion      detalle_recepcion[]
   formulacion            formulacion[]
+  conteo_fisico          conteo_fisico[]
+  detalle_conteo         detalle_conteo[]
   lote                   lote[]
   materia_prima          materia_prima[]
   movimiento_inventario  movimiento_inventario[]
@@ -482,6 +486,9 @@ model usuario_panaderia {
   fecha_asignacion      DateTime                @default(dbgenerated("CURRENT_DATE")) @db.Date
   activo                Boolean                 @default(true)
   compra                compra[]
+  conteo_creado         conteo_fisico[]         @relation("conteo_creador")
+  conteo_resuelto       conteo_fisico[]         @relation("conteo_resolutor")
+  detalle_conteo        detalle_conteo[]
   desperdicio           desperdicio[]
   detalle_recepcion     detalle_recepcion[]
   movimiento_inventario movimiento_inventario[]
@@ -491,6 +498,59 @@ model usuario_panaderia {
 
   @@id([usuario_id, panaderia_id])
   @@index([panaderia_id], map: "idx_usuario_panaderia_panaderia")
+}
+
+/// Conteo físico de inventario (HU-14). Estados: en_curso → enviado → aplicado o descartado.
+model conteo_fisico {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  panaderia_id      String             @db.Uuid
+  numero            Int
+  estado            estado_conteo_enum @default(en_curso)
+  creado_por        String             @db.Uuid
+  observaciones     String?
+  created_at        DateTime           @default(now()) @db.Timestamptz(6)
+  enviado_at        DateTime?          @db.Timestamptz(6)
+  resuelto_por      String?            @db.Uuid
+  resuelto_at       DateTime?          @db.Timestamptz(6)
+  panaderia         panaderia          @relation(fields: [panaderia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  creador           usuario_panaderia  @relation("conteo_creador", fields: [creado_por, panaderia_id], references: [usuario_id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  resolutor         usuario_panaderia? @relation("conteo_resolutor", fields: [resuelto_por, panaderia_id], references: [usuario_id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  detalle_conteo    detalle_conteo[]
+
+  @@unique([id, panaderia_id])
+  @@unique([panaderia_id, numero])
+  @@index([panaderia_id, created_at(sort: Desc)], map: "idx_conteo_fisico_panaderia")
+}
+
+/// Una línea por lote contado; cantidad_sistema es lo que decía el sistema al contar.
+model detalle_conteo {
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  panaderia_id     String                 @db.Uuid
+  conteo_id        String                 @db.Uuid
+  lote_id          String                 @db.Uuid
+  cantidad_sistema Decimal                @db.Decimal(12, 3)
+  cantidad_contada Decimal                @db.Decimal(12, 3)
+  motivo           String?
+  observaciones    String?
+  contado_por      String                 @db.Uuid
+  contado_at       DateTime               @default(now()) @db.Timestamptz(6)
+  movimiento_id    String?                @db.Uuid
+  panaderia        panaderia              @relation(fields: [panaderia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conteo           conteo_fisico          @relation(fields: [conteo_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  lote             lote                   @relation(fields: [lote_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  usuario          usuario_panaderia      @relation(fields: [contado_por, panaderia_id], references: [usuario_id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  movimiento       movimiento_inventario? @relation(fields: [movimiento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([conteo_id, lote_id])
+  @@index([conteo_id], map: "idx_detalle_conteo_conteo")
+  @@index([lote_id], map: "idx_detalle_conteo_lote")
+}
+
+enum estado_conteo_enum {
+  en_curso
+  enviado
+  aplicado
+  descartado
 }
 
 enum clase_abc_enum {

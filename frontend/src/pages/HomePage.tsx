@@ -4,6 +4,8 @@ import { useAuth } from '../features/auth/useAuth';
 import { getMateriasPrimas } from '../services/materiasPrimasService';
 import { getFormulaciones } from '../services/formulacionesService';
 import { getClasificacionAbc } from '../services/abcService';
+import { ExactitudInventario } from '../features/conteos/ExactitudInventario';
+import { AlertasVencimiento } from '../features/inventario/AlertasVencimiento';
 import type { ClaseAbc } from '../types/abc.types';
 
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
@@ -77,10 +79,14 @@ export function HomePage() {
         )}
       </div>
 
+      <AlertasVencimiento compacto />
+
+      <ExactitudInventario />
+
       {!verCostos && (
         <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
           Consulta las recetas estandarizadas en <Link to="/formulaciones" className="font-medium text-blue-600 hover:underline">Formulaciones</Link>.
-          Próximamente: registro de producción y mermas.
+          Registra lo que produces en <Link to="/produccion" className="font-medium text-blue-600 hover:underline">Producir</Link> y las entradas en <Link to="/inventario" className="font-medium text-blue-600 hover:underline">Inventario</Link>.
         </div>
       )}
 

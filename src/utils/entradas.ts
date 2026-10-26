@@ -123,3 +123,30 @@ export const costoUnitario = (precio: number, contenido: number): number => redo
 /** Código de lote generado cuando el operario no escribe uno: L-AAAAMMDD-NNN. */
 export const codigoGenerado = (hoy: string, secuencia: number): string =>
   `L-${hoy.replace(/-/g, '')}-${String(secuencia).padStart(3, '0')}`;
+
+export const VENCIMIENTO_DESDE_MIN = '2020-01-01';
+
+/**
+ * Corrección de la fecha de vencimiento de un lote ya registrado. A diferencia de una entrada, admite una fecha
+ * pasada (el lote pudo vencerse de verdad), pero no una absurda; FEFO sigue exigiendo fecha.
+ */
+export function validarNuevoVencimiento(
+  body: unknown,
+  hoy: string,
+  criterio: CriterioRotacion | null,
+): { ok: true; fecha: string | null } | { ok: false; errores: string[] } {
+  if (!esObjeto(body)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
+  const f = body.fecha_vencimiento;
+  if (f === undefined) return { ok: false, errores: ['Indica la fecha de vencimiento.'] };
+  if (f === null || f === '') {
+    return criterio === 'FEFO'
+      ? { ok: false, errores: ['Este insumo se maneja por vencimiento (FEFO): indique la fecha de vencimiento.'] }
+      : { ok: true, fecha: null };
+  }
+  if (typeof f !== 'string' || !fechaValida(f)) return { ok: false, errores: ['La fecha de vencimiento no es válida (use AAAA-MM-DD).'] };
+  const errores: string[] = [];
+  if (f < VENCIMIENTO_DESDE_MIN) errores.push('La fecha de vencimiento es demasiado antigua.');
+  const limite = `${Number(hoy.slice(0, 4)) + VENCIMIENTO_ANIOS_MAX}${hoy.slice(4)}`;
+  if (f > limite) errores.push(`La fecha de vencimiento no puede superar ${VENCIMIENTO_ANIOS_MAX} años.`);
+  return errores.length > 0 ? { ok: false, errores } : { ok: true, fecha: f };
+}

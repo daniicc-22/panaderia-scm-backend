@@ -325,7 +325,7 @@ test('producción: la aplicación confía en el proxy del hosting; en desarrollo
 
 // ---------- guardas de las rutas ----------
 
-const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/inventario', '/produccion', '/abc'];
+const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/inventario', '/produccion', '/conteos', '/abc'];
 
 test('todas las rutas protegidas responden 401 sin token y con un token inválido', async () => {
   await conServidor(baseFalsa(), {}, async (base) => {

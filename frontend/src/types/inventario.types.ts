@@ -121,3 +121,50 @@ export interface ProduccionRegistrada {
   produccion_id: string;
   plan: PlanConsumo;
 }
+
+// ---- Alertas de vencimiento ----
+export interface CorreccionLote {
+  lote_id: string;
+  codigo_lote: string | null;
+  nombre: string;
+  unidad: string;
+  cantidad_anterior: number;
+  cantidad_nueva: number;
+  diferencia: number;
+}
+
+export interface VencimientoCorregido {
+  lote_id: string;
+  codigo_lote: string | null;
+  nombre: string;
+  fecha_anterior: string | null;
+  fecha_nueva: string | null;
+}
+
+export interface AlertaVencimiento {
+  lote_id: string;
+  materia_prima_id: string;
+  codigo: string;
+  nombre: string;
+  unidad: string;
+  codigo_lote: string | null;
+  cantidad_disponible: number;
+  fecha_vencimiento: string;
+  // Negativo si ya venció
+  dias: number;
+  estado: 'vencido' | 'por_vencer';
+  // Solo lo envía el servidor a administradores
+  valor?: number;
+}
+
+export interface AlertasVencimiento {
+  fecha: string;
+  dias_alerta: number;
+  resumen: {
+    vencidos: number;
+    por_vencer: number;
+    valor_vencido?: number;
+    valor_por_vencer?: number;
+  };
+  items: AlertaVencimiento[];
+}

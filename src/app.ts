@@ -13,6 +13,7 @@ import { crearRouterMateriasPrimas } from './routes/materiasPrimas';
 import { crearRouterProveedores } from './routes/proveedores';
 import { crearRouterPrecios } from './routes/precios';
 import { crearRouterInventario } from './routes/inventario';
+import { crearRouterConteos } from './routes/conteos';
 import { crearRouterProduccion } from './routes/produccion';
 
 interface CredencialesLogin {
@@ -132,6 +133,8 @@ export function crearApp(prisma: PrismaClient): Express {
   app.use('/inventario', verificarToken, resolverPanaderia(prisma), crearRouterInventario(prisma));
 
   app.use('/produccion', verificarToken, resolverPanaderia(prisma), crearRouterProduccion(prisma));
+
+  app.use('/conteos', verificarToken, resolverPanaderia(prisma), crearRouterConteos(prisma));
 
   app.use('/formulaciones', verificarToken, resolverPanaderia(prisma), crearRouterFormulaciones(prisma));
 

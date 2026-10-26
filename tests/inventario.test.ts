@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { diasHasta, estadoLote, ordenarLotes, resumirStock, type LoteVista } from '../src/utils/inventario';
+import {
+  alertasDeLotes,
+  diasHasta,
+  estadoLote,
+  ordenarLotes,
+  resumirStock,
+  validarDiasAlerta,
+  type LoteVista,
+} from '../src/utils/inventario';
 
 const lote = (id: string, extra: Partial<LoteVista> = {}): LoteVista => ({
   id,
@@ -91,5 +99,68 @@ describe('resumirStock', () => {
     );
     expect(r.proximo_vencimiento).toBe('2026-11-05');
     expect(resumirStock([lote('a')], HOY).proximo_vencimiento).toBeNull();
+  });
+});
+
+describe('validarDiasAlerta', () => {
+  test('sin valor usa 7; acepta enteros de 1 a 60', () => {
+    expect(validarDiasAlerta(undefined)).toEqual({ ok: true, dias: 7 });
+    expect(validarDiasAlerta('1')).toEqual({ ok: true, dias: 1 });
+    expect(validarDiasAlerta(' 30 ')).toEqual({ ok: true, dias: 30 });
+    expect(validarDiasAlerta('60')).toEqual({ ok: true, dias: 60 });
+  });
+
+  test('rechaza 0, 61, decimales, negativos, texto, vacío y valores repetidos (arreglo)', () => {
+    for (const malo of ['0', '61', '2.5', '-3', 'abc', '', '1e1', ['5', '6'], { a: 1 }]) {
+      expect(validarDiasAlerta(malo).ok).toBe(false);
+    }
+  });
+});
+
+describe('alertasDeLotes', () => {
+  const con = (id: string, materia: string, extra: Partial<LoteVista> = {}) => ({ ...lote(id, extra), materia_prima_id: materia });
+
+  test('incluye vencidos y por vencer, deja fuera los que están al día, sin fecha o agotados', () => {
+    const r = alertasDeLotes(
+      [
+        con('vencido', 'm1', { fecha_vencimiento: '2026-10-20' }),
+        con('hoy', 'm1', { fecha_vencimiento: '2026-10-24' }),
+        con('limite', 'm2', { fecha_vencimiento: '2026-10-31' }),
+        con('lejos', 'm2', { fecha_vencimiento: '2026-11-01' }),
+        con('sin-fecha', 'm2'),
+        con('agotado', 'm2', { fecha_vencimiento: '2026-10-20', cantidad_disponible: 0 }),
+      ],
+      HOY,
+    );
+    expect(r.map((a) => [a.lote_id, a.estado, a.dias])).toEqual([
+      ['vencido', 'vencido', -4],
+      ['hoy', 'por_vencer', 0],
+      ['limite', 'por_vencer', 7],
+    ]);
+  });
+
+  test('ordena del que vence antes al que vence después y desempata por id', () => {
+    const r = alertasDeLotes(
+      [
+        con('b', 'm1', { fecha_vencimiento: '2026-10-26' }),
+        con('z', 'm1', { fecha_vencimiento: '2026-10-25' }),
+        con('a', 'm1', { fecha_vencimiento: '2026-10-25' }),
+        con('muy-vencido', 'm1', { fecha_vencimiento: '2026-09-01' }),
+      ],
+      HOY,
+    );
+    expect(r.map((a) => a.lote_id)).toEqual(['muy-vencido', 'a', 'z', 'b']);
+  });
+
+  test('respeta los días de aviso pedidos y calcula el valor del lote', () => {
+    const lotes = [con('x', 'm1', { fecha_vencimiento: '2026-11-10', cantidad_disponible: 500, costo_unitario: 1.5 })];
+    expect(alertasDeLotes(lotes, HOY)).toEqual([]);
+    const r = alertasDeLotes(lotes, HOY, 30);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ estado: 'por_vencer', dias: 17, valor: 750, cantidad_disponible: 500, materia_prima_id: 'm1' });
+  });
+
+  test('sin lotes no hay alertas', () => {
+    expect(alertasDeLotes([], HOY)).toEqual([]);
   });
 });

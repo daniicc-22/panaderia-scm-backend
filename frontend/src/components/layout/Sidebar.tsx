@@ -14,6 +14,7 @@ const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Proveedores', ruta: '/proveedores', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Inventario', ruta: '/inventario' },
   { etiqueta: 'Producir', ruta: '/produccion' },
+  { etiqueta: 'Conteo físico', ruta: '/conteos' },
   { etiqueta: 'Formulaciones', ruta: '/formulaciones' },
   { etiqueta: 'Clasificación ABC', ruta: '/clasificacion-abc', rolesPermitidos: ['administrador', 'superadministrador'] },
 ];

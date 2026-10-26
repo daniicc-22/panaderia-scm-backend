@@ -7,6 +7,7 @@ import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { AlertasVencimiento } from '../features/inventario/AlertasVencimiento';
 import { EntradaForm } from '../features/inventario/EntradaForm';
 import { LotesPanel } from '../features/inventario/LotesPanel';
 import {
@@ -111,6 +112,8 @@ export function InventarioPage() {
           <span className="font-medium">{registrada.lote.codigo_lote}</span>.
         </Alert>
       )}
+
+      <AlertasVencimiento />
 
       {items && (
         <div className={`grid grid-cols-2 gap-3 ${verValor ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>

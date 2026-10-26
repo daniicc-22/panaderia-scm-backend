@@ -26,6 +26,8 @@ let asignado: boolean;
 let fallarEnLote: boolean;
 let contador = 0;
 let rol = 'administrador';
+let movimientos: Fila[] = [];
+let conteoAbierto: { numero: number } | null = null;
 
 const OPERADORES = ['not', 'equals', 'gt', 'startsWith'];
 function coincide(fila: Fila, where: any): boolean {
@@ -79,6 +81,11 @@ const prismaFalso: any = {
   lote: {
     findFirst: async ({ where }: any) => lotes.find((l) => coincide(l, where)) ?? null,
     findMany: async ({ where }: any) => lotes.filter((l) => coincide(l, where)),
+    updateMany: async ({ where, data }: any) => {
+      const hallados = lotes.filter((l) => coincide(l, where));
+      hallados.forEach((l) => Object.assign(l, data));
+      return { count: hallados.length };
+    },
     count: async ({ where }: any) => lotes.filter((l) => coincide(l, where)).length,
     create: async ({ data }: any) => {
       if (fallarEnLote) throw new Error('falla simulada');
@@ -87,6 +94,18 @@ const prismaFalso: any = {
       return fila;
     },
   },
+  $queryRaw: async () => [],
+  tipo_movimiento_inventario: { findFirst: async ({ where }: any) => ({ id: `tipo-${where.codigo}`, codigo: where.codigo }) },
+  movimiento_inventario: {
+    // Imita el trigger de la base: aplica el efecto sobre el lote
+    create: async ({ data }: any) => {
+      const lote = lotes.find((l) => l.id === data.lote_id)!;
+      lote.cantidad_disponible += data.tipo_movimiento_id === 'tipo-ajuste_entrada' ? data.cantidad : -data.cantidad;
+      movimientos.push(data);
+      return data;
+    },
+  },
+  detalle_conteo: { findFirst: async () => (conteoAbierto ? { conteo: conteoAbierto } : null) },
   compra: {
     create: async ({ data }: any) => {
       const f = { id: `compra-${++contador}`, ...data };
@@ -144,6 +163,8 @@ afterAll(() => new Promise<void>((ok) => servidor.close(() => ok())));
 
 beforeEach(() => {
   rol = 'administrador';
+  movimientos = [];
+  conteoAbierto = null;
   asignado = true;
   fallarEnLote = false;
   materias = [
@@ -466,5 +487,191 @@ describe('insumos que no se controlan en inventario (agua)', () => {
     expect(((await r.json()) as any).error).toMatch(/no se controla/);
     expect(compras).toHaveLength(0);
     expect(lotes).toHaveLength(0);
+  });
+});
+
+describe('GET /inventario/alertas', () => {
+  const lote = (id: string, materia: string, disp: number, dias: number | null, extra: Record<string, unknown> = {}) => ({
+    id, panaderia_id: PAN, materia_prima_id: materia, cantidad_inicial: disp, cantidad_disponible: disp, costo_unitario: 2,
+    fecha_vencimiento: dias === null ? null : new Date(`${fechaMas(dias)}T00:00:00Z`), codigo_lote: id, created_at: new Date('2026-10-01T10:00:00Z'), ...extra,
+  });
+  const sembrar = () =>
+    lotes.push(
+      lote('venc', MP_LEVADURA, 100, -2),
+      lote('pronto', MP_HARINA, 1000, 3),
+      lote('lejos', MP_HARINA, 1000, 40),
+      lote('sin-fecha', MP_HARINA, 1000, null),
+      lote('agotado', MP_HARINA, 0, -5),
+      lote('ajeno', MP_AJENA, 50, -1, { panaderia_id: OTRA }),
+    );
+
+  test('lista vencidos y por vencer con datos del insumo, en orden de vencimiento, y resume con valor para gestión', async () => {
+    sembrar();
+    const r = await get('/alertas');
+    expect(r.status).toBe(200);
+    expect(r.body.dias_alerta).toBe(7);
+    expect(r.body.fecha).toBe(hoy());
+    expect(r.body.items.map((i: any) => [i.lote_id, i.estado, i.dias])).toEqual([['venc', 'vencido', -2], ['pronto', 'por_vencer', 3]]);
+    expect(r.body.items[0]).toMatchObject({ nombre: 'Levadura', codigo: 'MP-002', unidad: 'g', cantidad_disponible: 100, valor: 200, fecha_vencimiento: fechaMas(-2) });
+    expect(r.body.resumen).toEqual({ vencidos: 1, por_vencer: 1, valor_vencido: 200, valor_por_vencer: 2000 });
+  });
+
+  test('el operario ve las alertas sin ningún valor', async () => {
+    sembrar();
+    rol = 'operario';
+    const r = await get('/alertas');
+    expect(r.status).toBe(200);
+    expect(r.body.items).toHaveLength(2);
+    for (const it of r.body.items) expect(it).not.toHaveProperty('valor');
+    expect(r.body.resumen).toEqual({ vencidos: 1, por_vencer: 1 });
+  });
+
+  test('acepta días de aviso y rechaza valores no válidos con 400', async () => {
+    sembrar();
+    expect((await get('/alertas?dias=60')).body.items.map((i: any) => i.lote_id)).toEqual(['venc', 'pronto', 'lejos']); // 'lejos' vence en 40 días
+    expect((await get('/alertas?dias=1')).body.items.map((i: any) => i.lote_id)).toEqual(['venc']);
+    for (const malo of ['0', '61', 'x', '']) expect((await get(`/alertas?dias=${malo}`)).status).toBe(400);
+  });
+
+  test('un insumo sin control de inventario no genera alertas aunque tenga un lote antiguo', async () => {
+    materias.push({ id: MP_AGUA, panaderia_id: PAN, codigo: 'MP-008', nombre: 'Agua', activa: true, controla_inventario: false, criterio_rotacion: null, unidad_base_id: 'u' });
+    lotes.push(lote('agua-vieja', MP_AGUA, 500, -10));
+    expect((await get('/alertas')).body.items).toEqual([]);
+  });
+
+  test('un insumo desactivado tampoco genera alertas y sin lotes la respuesta es vacía', async () => {
+    expect((await get('/alertas')).body.resumen).toEqual({ vencidos: 0, por_vencer: 0, valor_vencido: 0, valor_por_vencer: 0 });
+    sembrar();
+    materias.find((m) => m.id === MP_LEVADURA)!.activa = false;
+    expect((await get('/alertas')).body.items.map((i: any) => i.lote_id)).toEqual(['pronto']);
+  });
+});
+
+describe('POST /inventario/lotes/:id/correccion', () => {
+  const LOTE = '55555555-5555-4555-8555-555555555551';
+  const corregir = async (id: string, cuerpo: unknown) => {
+    const r = await fetch(`${base}/inventario/lotes/${id}/correccion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo),
+    });
+    return { status: r.status, body: (await r.json()) as any };
+  };
+  beforeEach(() => {
+    lotes = [{ id: LOTE, panaderia_id: PAN, materia_prima_id: MP_HARINA, codigo_lote: 'L-1', cantidad_inicial: 4999900, cantidad_disponible: 4999900, costo_unitario: 2, fecha_vencimiento: null, created_at: new Date() }];
+  });
+
+  test('registra un ajuste de salida con su motivo y deja el lote en lo que realmente hay', async () => {
+    const r = await corregir(LOTE, { cantidad_nueva: 49000, motivo: 'error_registro', observaciones: 'Se digitó mal el peso' });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ cantidad_anterior: 4999900, cantidad_nueva: 49000, diferencia: -4950900, unidad: 'g', nombre: 'Harina', codigo_lote: 'L-1' });
+    expect(movimientos).toHaveLength(1);
+    expect(movimientos[0]).toMatchObject({ lote_id: LOTE, tipo_movimiento_id: 'tipo-ajuste_salida', cantidad: 4950900, usuario_id: USU, panaderia_id: PAN });
+    expect(movimientos[0].observaciones).toBe('Corrección de existencias: Error de registro (entrada o salida mal anotada) (Se digitó mal el peso)');
+    expect(lotes[0].cantidad_disponible).toBe(49000);
+  });
+  test('si faltaba producto registra un ajuste de entrada', async () => {
+    lotes[0].cantidad_disponible = 900;
+    await corregir(LOTE, { cantidad_nueva: 1000, motivo: 'error_registro' });
+    expect(movimientos[0]).toMatchObject({ tipo_movimiento_id: 'tipo-ajuste_entrada', cantidad: 100 });
+    expect(lotes[0].cantidad_disponible).toBe(1000);
+  });
+  test('solo gestión puede corregir', async () => {
+    rol = 'operario';
+    expect((await corregir(LOTE, { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(403);
+    expect(movimientos).toHaveLength(0);
+    expect(lotes[0].cantidad_disponible).toBe(4999900);
+  });
+  test('exige usuario asignado', async () => {
+    asignado = false;
+    expect((await corregir(LOTE, { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(403);
+    expect(movimientos).toHaveLength(0);
+  });
+  test('valida identificador, cantidad y motivo', async () => {
+    expect((await corregir('xx', { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(400);
+    expect((await corregir(LOTE, { cantidad_nueva: -1, motivo: 'error_registro' })).status).toBe(400);
+    expect((await corregir(LOTE, { cantidad_nueva: 1 })).status).toBe(400);
+    expect((await corregir(LOTE, { cantidad_nueva: 1, motivo: 'otro' })).status).toBe(400); // "otro" pide explicación
+    lotes[0].cantidad_disponible = 800;
+    expect((await corregir(LOTE, { cantidad_nueva: 900, motivo: 'vencimiento' })).status).toBe(400); // vencimiento no sirve para sobrantes
+    expect(movimientos).toHaveLength(0);
+  });
+  test('no corrige si la cantidad es la misma', async () => {
+    lotes[0].cantidad_disponible = 800;
+    const r = await corregir(LOTE, { cantidad_nueva: 800, motivo: 'error_registro' });
+    expect(r.status).toBe(409);
+    expect(movimientos).toHaveLength(0);
+  });
+  test('no encuentra lotes ajenos ni de insumos que no se controlan', async () => {
+    lotes[0].panaderia_id = OTRA;
+    expect((await corregir(LOTE, { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(404);
+    lotes[0].panaderia_id = PAN;
+    materias[0].controla_inventario = false;
+    expect((await corregir(LOTE, { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(409);
+    materias[0].controla_inventario = true;
+    expect((await corregir('55555555-5555-4555-8555-5555555555aa', { cantidad_nueva: 1, motivo: 'error_registro' })).status).toBe(404);
+    expect(movimientos).toHaveLength(0);
+  });
+  test('no corrige un lote que está en un conteo abierto', async () => {
+    conteoAbierto = { numero: 3 };
+    const r = await corregir(LOTE, { cantidad_nueva: 1, motivo: 'error_registro' });
+    expect(r.status).toBe(409);
+    expect(r.body.error).toMatch(/conteo n\.º 3/);
+    expect(movimientos).toHaveLength(0);
+    expect(lotes[0].cantidad_disponible).toBe(4999900);
+  });
+});
+
+describe('PATCH /inventario/lotes/:id/vencimiento', () => {
+  const LOTE = '55555555-5555-4555-8555-555555555551';
+  const cambiar = async (id: string, cuerpo: unknown) => {
+    const r = await fetch(`${base}/inventario/lotes/${id}/vencimiento`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo),
+    });
+    return { status: r.status, body: (await r.json()) as any };
+  };
+  beforeEach(() => {
+    lotes = [{ id: LOTE, panaderia_id: PAN, materia_prima_id: MP_HARINA, codigo_lote: 'L-1', cantidad_inicial: 500, cantidad_disponible: 500, costo_unitario: 2, fecha_vencimiento: new Date('2026-10-24T00:00:00Z'), created_at: new Date() }];
+  });
+
+  test('cambia la fecha y responde con la anterior y la nueva', async () => {
+    const r = await cambiar(LOTE, { fecha_vencimiento: fechaMas(30) });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ lote_id: LOTE, codigo_lote: 'L-1', nombre: 'Harina', fecha_anterior: '2026-10-24', fecha_nueva: fechaMas(30) });
+    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe(fechaMas(30));
+  });
+  test('admite una fecha pasada (el lote pudo vencerse de verdad)', async () => {
+    expect((await cambiar(LOTE, { fecha_vencimiento: fechaMas(-3) })).status).toBe(200);
+  });
+  test('un insumo sin FEFO puede quedar sin fecha; uno FEFO no', async () => {
+    expect((await cambiar(LOTE, { fecha_vencimiento: null })).status).toBe(200);
+    expect(lotes[0].fecha_vencimiento).toBeNull();
+    materias[0].criterio_rotacion = 'FEFO';
+    lotes[0].fecha_vencimiento = new Date('2026-10-24T00:00:00Z');
+    const r = await cambiar(LOTE, { fecha_vencimiento: null });
+    expect(r.status).toBe(400);
+    expect(lotes[0].fecha_vencimiento === null).toBe(false);
+  });
+  test('rechaza fechas inválidas, absurdas o ausentes', async () => {
+    for (const f of ['2026-02-30', 'mañana', 20261231, '2019-12-31', `${Number(hoy().slice(0, 4)) + 11}-01-01`]) {
+      expect((await cambiar(LOTE, { fecha_vencimiento: f })).status, String(f)).toBe(400);
+    }
+    expect((await cambiar(LOTE, {})).status).toBe(400);
+    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe('2026-10-24');
+  });
+  test('la misma fecha responde 409', async () => {
+    expect((await cambiar(LOTE, { fecha_vencimiento: '2026-10-24' })).status).toBe(409);
+  });
+  test('solo gestión; no toca lotes ajenos ni inexistentes', async () => {
+    rol = 'operario';
+    expect((await cambiar(LOTE, { fecha_vencimiento: fechaMas(5) })).status).toBe(403);
+    rol = 'administrador';
+    expect((await cambiar('xx', { fecha_vencimiento: fechaMas(5) })).status).toBe(400);
+    expect((await cambiar('55555555-5555-4555-8555-5555555555aa', { fecha_vencimiento: fechaMas(5) })).status).toBe(404);
+    lotes[0].panaderia_id = OTRA;
+    expect((await cambiar(LOTE, { fecha_vencimiento: fechaMas(5) })).status).toBe(404);
+    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe('2026-10-24');
   });
 });

@@ -6,6 +6,7 @@ import {
   fechaValida,
   hoyColombia,
   validarEntrada,
+  validarNuevoVencimiento,
   verificarVencimiento,
 } from '../src/utils/entradas';
 
@@ -121,5 +122,27 @@ describe('cálculos', () => {
   test('codigoGenerado: fecha sin guiones y secuencia con ceros', () => {
     expect(codigoGenerado('2026-10-24', 7)).toBe('L-20261024-007');
     expect(codigoGenerado('2026-10-24', 1234)).toBe('L-20261024-1234');
+  });
+});
+
+describe('validarNuevoVencimiento', () => {
+  const HOY = '2026-10-25';
+  test('acepta fechas válidas, pasadas o futuras', () => {
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2026-12-01' }, HOY, null)).toEqual({ ok: true, fecha: '2026-12-01' });
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2026-10-01' }, HOY, 'FEFO')).toEqual({ ok: true, fecha: '2026-10-01' });
+  });
+  test('sin fecha solo si el insumo no es FEFO', () => {
+    expect(validarNuevoVencimiento({ fecha_vencimiento: null }, HOY, null)).toEqual({ ok: true, fecha: null });
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '' }, HOY, 'FIFO')).toEqual({ ok: true, fecha: null });
+    expect(validarNuevoVencimiento({ fecha_vencimiento: null }, HOY, 'FEFO').ok).toBe(false);
+  });
+  test('rechaza lo no válido', () => {
+    expect(validarNuevoVencimiento(null, HOY, null).ok).toBe(false);
+    expect(validarNuevoVencimiento({}, HOY, null).ok).toBe(false);
+    expect(validarNuevoVencimiento({ fecha_vencimiento: 5 }, HOY, null).ok).toBe(false);
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2026-02-30' }, HOY, null).ok).toBe(false);
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2019-12-31' }, HOY, null).ok).toBe(false);
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2036-10-25' }, HOY, null).ok).toBe(true); // límite: 10 años
+    expect(validarNuevoVencimiento({ fecha_vencimiento: '2036-10-26' }, HOY, null).ok).toBe(false);
   });
 });
