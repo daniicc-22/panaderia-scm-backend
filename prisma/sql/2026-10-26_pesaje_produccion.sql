@@ -2,6 +2,8 @@
 -- Se puede ejecutar más de una vez sin dañar nada.
 -- Local:     psql -U postgres -d panaderia_db -f prisma/sql/2026-10-26_pesaje_produccion.sql
 -- Supabase:  psql "$cadena" -f prisma/sql/2026-10-26_pesaje_produccion.sql
+-- El archivo está en UTF-8: evita que psql en Windows lo lea como cp1252 (tildes rotas en el mensaje del disparador).
+\encoding UTF8
 BEGIN;
 
 -- Una fila por insumo de cada producción: lo que pedía la receta (estándar), lo que se usó (real) y si

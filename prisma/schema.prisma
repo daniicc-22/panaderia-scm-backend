@@ -109,6 +109,7 @@ model desperdicio {
   id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   panaderia_id          String                  @db.Uuid
   lote_id               String?                 @db.Uuid
+  produccion_id         String?                 @db.Uuid
   causa_id              String                  @db.Uuid
   usuario_id            String                  @db.Uuid
   cantidad              Decimal                 @db.Decimal(12, 3)
@@ -117,12 +118,14 @@ model desperdicio {
   fecha                 DateTime                @default(now()) @db.Timestamptz(6)
   causa_desperdicio     causa_desperdicio       @relation(fields: [causa_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   lote                  lote?                   @relation(fields: [lote_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
+  produccion            produccion?             @relation(fields: [produccion_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   panaderia             panaderia               @relation(fields: [panaderia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuario_panaderia     usuario_panaderia       @relation(fields: [usuario_id, panaderia_id], references: [usuario_id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   movimiento_inventario movimiento_inventario[]
 
   @@unique([id, panaderia_id])
   @@index([lote_id], map: "idx_desperdicio_lote")
+  @@index([produccion_id], map: "idx_desperdicio_produccion")
   @@index([panaderia_id], map: "idx_desperdicio_panaderia")
 }
 
@@ -388,6 +391,7 @@ model produccion {
   cantidad_producida   Decimal?                   @db.Decimal(12, 3)
   consumo_produccion   consumo_produccion[]
   pesaje_produccion    pesaje_produccion[]
+  desperdicio          desperdicio[]
   lote                 lote[]
   formulacion          formulacion                @relation(fields: [formulacion_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)
   panaderia            panaderia                  @relation(fields: [panaderia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
