@@ -24,7 +24,7 @@ const TIPO = '77777777-7777-4777-8777-777777777777';
 
 type Fila = Record<string, any>;
 let materias: Fila[], formulaciones: Fila[], productos: Fila[], lotes: Fila[];
-let producciones: Fila[], consumos: Fila[], movimientos: Fila[];
+let producciones: Fila[], consumos: Fila[], movimientos: Fila[], pesajes: Fila[];
 let asignado: boolean, hayTipo: boolean;
 let fallarEnConsumo: boolean;
 let contador = 0;
@@ -47,6 +47,18 @@ const hoy = () => hoyColombia();
 const fechaMas = (dias: number) => new Date(Date.parse(`${hoy()}T00:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
 const linea = (extra: Fila) => ({ materia_prima_id: null, producto_intermedio_id: null, unidad_id: U_G, ...extra });
 
+// Imita los `include` que usan las consultas de producción
+const conRelaciones = (f: Fila) => ({
+  ...f,
+  producto: { nombre: productos.find((p) => p.id === f.producto_id)?.nombre ?? '?' },
+  formulacion: (() => {
+    const fo = formulaciones.find((x) => x.id === f.formulacion_id);
+    return { version: fo?.version ?? 1, rendimiento_esperado: fo?.rendimiento_esperado ?? null };
+  })(),
+  usuario_panaderia: { usuario: { nombre: 'Ana Operaria' } },
+  pesaje_produccion: pesajes.filter((x) => x.produccion_id === f.id).map((x) => ({ pesado: x.pesado })),
+});
+
 const prismaFalso: any = {
   usuario_panaderia: { findFirst: async () => (asignado ? { usuario_id: USU } : null) },
   formulacion: {
@@ -62,10 +74,34 @@ const prismaFalso: any = {
   tipo_movimiento_inventario: { findUnique: async () => (hayTipo ? { id: TIPO, codigo: 'salida_produccion' } : null) },
   produccion: {
     create: async ({ data }: any) => {
-      const f = { id: `prod-${++contador}`, ...data };
+      const f = { id: `00000000-0000-4000-8000-${String(++contador).padStart(12, '0')}`, fecha: new Date(Date.UTC(2026, 9, 25, 12, 0, contador)), ...data };
       producciones.push(f);
       return f;
     },
+    findFirst: async ({ where }: any) => {
+      const f = producciones.find((x) => coincide(x, where));
+      return f ? conRelaciones(f) : null;
+    },
+    findMany: async ({ where, take }: any) =>
+      producciones
+        .filter((x) => coincide(x, where))
+        .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
+        .slice(0, take ?? 1000)
+        .map(conRelaciones),
+    // Imita el disparador de la base: una producción cerrada no se modifica
+    update: async ({ where, data }: any) => {
+      const f = producciones.find((x) => x.id === where.id)!;
+      if (f.estado === 'finalizada' || f.estado === 'cancelada') throw new Error(`La producción ${f.id} ya está cerrada y no se puede modificar`);
+      Object.assign(f, data);
+      return f;
+    },
+  },
+  pesaje_produccion: {
+    createMany: async ({ data }: any) => {
+      for (const d of data) pesajes.push({ id: `pes-${++contador}`, ...d });
+      return { count: data.length };
+    },
+    findMany: async ({ where }: any) => pesajes.filter((x) => coincide(x, where)),
   },
   consumo_produccion: {
     create: async ({ data }: any) => {
@@ -74,6 +110,13 @@ const prismaFalso: any = {
       consumos.push(f);
       return f;
     },
+    findMany: async ({ where }: any) =>
+      consumos
+        .filter((c) => coincide(c, where))
+        .map((c) => {
+          const l = lotes.find((x) => x.id === c.lote_id)!;
+          return { ...c, lote: { materia_prima_id: l.materia_prima_id, codigo_lote: l.codigo_lote, fecha_vencimiento: l.fecha_vencimiento } };
+        }),
   },
   // Imita el disparador de la base: descuenta del lote y rechaza dejarlo en negativo
   movimiento_inventario: {
@@ -89,7 +132,7 @@ const prismaFalso: any = {
   },
   $queryRaw: async () => [],
   $transaction: async (fn: any) => {
-    const copia = JSON.stringify({ lotes, producciones, consumos, movimientos });
+    const copia = JSON.stringify({ lotes, producciones, consumos, movimientos, pesajes });
     try {
       return await fn(prismaFalso);
     } catch (e) {
@@ -97,11 +140,13 @@ const prismaFalso: any = {
       lotes.length = 0;
       lotes.push(...d.lotes.map((l: Fila) => ({ ...l, created_at: new Date(l.created_at), fecha_vencimiento: l.fecha_vencimiento ? new Date(l.fecha_vencimiento) : null })));
       producciones.length = 0;
-      producciones.push(...d.producciones);
+      producciones.push(...d.producciones.map((x: Fila) => ({ ...x, fecha: new Date(x.fecha) })));
       consumos.length = 0;
       consumos.push(...d.consumos);
       movimientos.length = 0;
       movimientos.push(...d.movimientos);
+      pesajes.length = 0;
+      pesajes.push(...d.pesajes);
       throw e;
     }
   },
@@ -173,6 +218,7 @@ beforeEach(() => {
   producciones = [];
   consumos = [];
   movimientos = [];
+  pesajes = [];
 });
 
 const enviar = async (ruta: string, cuerpo: unknown) => {
@@ -422,6 +468,7 @@ describe('insumos que no se controlan en inventario (agua)', () => {
     const agua = r.body.items.find((i: any) => i.nombre === 'Agua');
     expect(agua).toEqual({
       materia_prima_id: AGUA, codigo: 'MP-008', nombre: 'Agua', unidad: 'g', controla_inventario: false,
+      peso_estandar: 500, pesado: false, desviacion_pct: 0,
       necesario: 500, faltante: 0, vencido_omitido: 0, lotes: [],
     });
     // el resto sigue el cálculo normal (azúcar sí falta con 2 lotes) y marca controla_inventario=true
@@ -468,5 +515,305 @@ describe('insumos que no se controlan en inventario (agua)', () => {
     expect(r.status).toBe(409);
     expect(r.body.plan.items.find((i: any) => i.nombre === 'Agua')).toMatchObject({ faltante: 250 });
     expect(producciones).toHaveLength(0);
+  });
+});
+
+// ---------- HU-16: peso real de los insumos, cierre de la producción e historial ----------
+
+const conPesos = (pesos: unknown, lotes = 1) => ({ ...pan(lotes), pesos_reales: pesos });
+const idPesos = (id: string, peso: number | null) => ({ materia_prima_id: id, peso_real: peso });
+const obtener = async (ruta: string) => {
+  const r = await fetch(`${base}/produccion${ruta}`);
+  return { status: r.status, body: (await r.json()) as any };
+};
+// Existencias de sobra para producir varias veces seguidas
+const abastecer = () => lotes.forEach((l) => (l.cantidad_disponible = 100_000));
+const finalizar = (id: string, cuerpo: unknown) => enviar(`/${id}/finalizar`, cuerpo);
+const porNombre = (items: any[], nombre: string) => items.find((i) => i.nombre === nombre);
+
+describe('peso real de los insumos', () => {
+  test('simular: usa el peso real, muestra el estándar y la desviación; lo que no se pesó queda como estándar', async () => {
+    const r = await simular(conPesos([idPesos(HARINA, 330), idPesos(AZUCAR, null)]));
+    expect(r.status).toBe(200);
+    const harina = porNombre(r.body.items, 'Harina');
+    expect(harina).toMatchObject({ necesario: 330, peso_estandar: 300, pesado: true, desviacion_pct: 10 });
+    const azucar = porNombre(r.body.items, 'Azúcar');
+    expect(azucar).toMatchObject({ necesario: 300, peso_estandar: 300, pesado: false, desviacion_pct: 0 });
+    expect(producciones).toHaveLength(0);
+    expect(pesajes).toHaveLength(0);
+  });
+
+  test('registrar: el inventario descuenta el peso real y se guarda el pesaje de cada insumo', async () => {
+    const r = await producir(conPesos([idPesos(HARINA, 330), idPesos(AZUCAR, 290)]));
+    expect(r.status).toBe(201);
+    expect(disponible('h1')).toBe(670);
+    expect(disponible('a1')).toBe(210);
+    expect(consumos.map((c) => Number(c.cantidad_consumida)).sort()).toEqual([290, 330]);
+    expect(pesajes).toHaveLength(2);
+    const h = pesajes.find((x) => x.materia_prima_id === HARINA)!;
+    expect(h).toMatchObject({ panaderia_id: PAN, produccion_id: producciones[0].id, peso_estandar: 300, peso_real: 330, pesado: true });
+    const a = pesajes.find((x) => x.materia_prima_id === AZUCAR)!;
+    expect(a).toMatchObject({ peso_estandar: 300, peso_real: 290, pesado: true });
+  });
+
+  test('sin pesos reales todo es «al ojo»: se descuenta el estándar y real = estándar', async () => {
+    const r = await producir(pan(1));
+    expect(r.status).toBe(201);
+    expect(disponible('h1')).toBe(700);
+    expect(pesajes).toHaveLength(2);
+    expect(pesajes.every((x) => x.pesado === false && x.peso_real === x.peso_estandar)).toBe(true);
+  });
+
+  test('un peso nulo es un insumo al ojo; un peso igual al estándar cuenta como pesado', async () => {
+    await producir(conPesos([idPesos(HARINA, null), idPesos(AZUCAR, 300)]));
+    expect(pesajes.find((x) => x.materia_prima_id === HARINA)!.pesado).toBe(false);
+    expect(pesajes.find((x) => x.materia_prima_id === AZUCAR)!.pesado).toBe(true);
+  });
+
+  test('los pesos escalan con los lotes: se escriben para toda la producción', async () => {
+    lotes.find((l) => l.id === 'a1')!.cantidad_disponible = 1000;
+    const r = await producir(conPesos([idPesos(HARINA, 650)], 2));
+    expect(r.status).toBe(201);
+    expect(pesajes.find((x) => x.materia_prima_id === HARINA)).toMatchObject({ peso_estandar: 600, peso_real: 650 });
+    expect(disponible('h1')).toBe(350);
+  });
+
+  for (const [nombre, valor] of [
+    ['cero', 0],
+    ['negativo', -5],
+    ['texto', '300'],
+    ['demasiado grande', 1_000_001],
+    ['verdadero', true],
+  ] as [string, unknown][]) {
+    test(`400 con un peso ${nombre}, sin escribir nada`, async () => {
+      const r = await producir(conPesos([{ materia_prima_id: HARINA, peso_real: valor }]));
+      expect(r.status).toBe(400);
+      expect(producciones).toHaveLength(0);
+      expect(pesajes).toHaveLength(0);
+      expect(disponible('h1')).toBe(1000);
+    });
+  }
+
+  test('400 si los pesos no son una lista, traen un id inválido o repiten un insumo', async () => {
+    expect((await producir(conPesos({ [HARINA]: 300 }))).status).toBe(400);
+    expect((await producir(conPesos([{ materia_prima_id: 'no-es-uuid', peso_real: 5 }]))).status).toBe(400);
+    expect((await producir(conPesos([idPesos(HARINA, 300), idPesos(HARINA, 310)]))).status).toBe(400);
+    expect((await producir(conPesos([idPesos(HARINA, null), idPesos(HARINA, 310)]))).status).toBe(400);
+    expect((await producir(conPesos(['x']))).status).toBe(400);
+    expect((await producir(conPesos(new Array(201).fill(idPesos(HARINA, 1))))).status).toBe(400);
+    expect(producciones).toHaveLength(0);
+  });
+
+  test('400 si se pesa un insumo que no está en la receta, también al simular', async () => {
+    const a = await producir(conPesos([idPesos(LEVADURA, 5)]));
+    expect(a.status).toBe(400);
+    expect(a.body.error).toMatch(/no están en la receta/);
+    expect((await simular(conPesos([idPesos(LEVADURA, 5)]))).status).toBe(400);
+    expect(producciones).toHaveLength(0);
+    expect(pesajes).toHaveLength(0);
+  });
+
+  test('si con el peso real no alcanzan las existencias: 409 con el plan y sin escribir', async () => {
+    const r = await producir(conPesos([idPesos(HARINA, 1500)]));
+    expect(r.status).toBe(409);
+    expect(porNombre(r.body.plan.items, 'Harina')).toMatchObject({ necesario: 1500, faltante: 500 });
+    expect(disponible('h1')).toBe(1000);
+    expect(producciones).toHaveLength(0);
+    expect(pesajes).toHaveLength(0);
+  });
+
+  test('el agua también se pesa: queda en el pesaje pero no se descuenta de ningún lote', async () => {
+    formulaciones[0].detalle_formulacion.push(linea({ materia_prima_id: AGUA, cantidad_estandar: 200 }));
+    materias.push({ id: AGUA, panaderia_id: PAN, codigo: 'MP-008', nombre: 'Agua', activa: true, controla_inventario: false, criterio_rotacion: null, unidad_base_id: U_G });
+    const r = await producir(conPesos([idPesos(AGUA, 230)]));
+    expect(r.status).toBe(201);
+    expect(pesajes.find((x) => x.materia_prima_id === AGUA)).toMatchObject({ peso_estandar: 200, peso_real: 230, pesado: true });
+    expect(consumos.every((c) => c.lote_id !== undefined)).toBe(true);
+    expect(movimientos).toHaveLength(2);
+  });
+
+  test('un fallo a mitad del registro deshace también los pesajes', async () => {
+    fallarEnConsumo = true;
+    const r = await producir(conPesos([idPesos(HARINA, 330)]));
+    expect(r.status).toBe(500);
+    expect(pesajes).toHaveLength(0);
+    expect(producciones).toHaveLength(0);
+    expect(disponible('h1')).toBe(1000);
+  });
+});
+
+describe('POST /produccion/:id/finalizar', () => {
+  const crearEnCurso = async () => {
+    await producir(pan(1)); // rendimiento 40 × 1 lote = 40 planificadas
+    return producciones[0].id as string;
+  };
+
+  test('cierra la producción con lo producido y calcula el rendimiento', async () => {
+    const id = await crearEnCurso();
+    const r = await finalizar(id, { cantidad_producida: 38 });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ id, estado: 'finalizada', cantidad_planificada: 40, cantidad_producida: 38, rendimiento_pct: 95, aviso: null });
+    expect(producciones[0]).toMatchObject({ estado: 'finalizada', cantidad_producida: 38 });
+  });
+
+  test('avisa (sin bloquear) cuando lo producido se aleja mucho de lo planificado', async () => {
+    const id = await crearEnCurso();
+    const r = await finalizar(id, { cantidad_producida: 5 });
+    expect(r.status).toBe(200);
+    expect(r.body.rendimiento_pct).toBe(12.5);
+    expect(r.body.aviso).toMatch(/12,5 %/);
+    expect(producciones[0].estado).toBe('finalizada');
+  });
+
+  test('sin rendimiento planificado no hay porcentaje ni aviso', async () => {
+    const id = await crearEnCurso();
+    producciones[0].cantidad_planificada = null;
+    const r = await finalizar(id, { cantidad_producida: 3 });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ cantidad_planificada: null, rendimiento_pct: null, aviso: null });
+  });
+
+  test('409 si ya estaba finalizada y no cambia lo producido', async () => {
+    const id = await crearEnCurso();
+    await finalizar(id, { cantidad_producida: 38 });
+    const r = await finalizar(id, { cantidad_producida: 10 });
+    expect(r.status).toBe(409);
+    expect(r.body.error).toMatch(/finalizada/);
+    expect(producciones[0].cantidad_producida).toBe(38);
+  });
+
+  test('409 si está cancelada o sin iniciar', async () => {
+    const id = await crearEnCurso();
+    producciones[0].estado = 'cancelada';
+    expect((await finalizar(id, { cantidad_producida: 3 })).status).toBe(409);
+    producciones[0].estado = 'planificada';
+    const r = await finalizar(id, { cantidad_producida: 3 });
+    expect(r.status).toBe(409);
+    expect(r.body.error).toMatch(/sin iniciar/);
+    expect(producciones[0].cantidad_producida).toBeUndefined();
+  });
+
+  test('404 si no existe, es de otra panadería o el id está mal formado', async () => {
+    const id = await crearEnCurso();
+    producciones[0].panaderia_id = OTRA;
+    expect((await finalizar(id, { cantidad_producida: 3 })).status).toBe(404);
+    expect((await finalizar('99999999-9999-4999-8999-999999999990', { cantidad_producida: 3 })).status).toBe(404);
+    expect((await finalizar('no-es-uuid', { cantidad_producida: 3 })).status).toBe(404);
+    expect(producciones[0].estado).toBe('en_curso');
+  });
+
+  for (const [nombre, cuerpo] of [
+    ['cero', { cantidad_producida: 0 }],
+    ['negativa', { cantidad_producida: -4 }],
+    ['texto', { cantidad_producida: '38' }],
+    ['ausente', {}],
+    ['enorme', { cantidad_producida: 10_000_001 }],
+    ['lista en vez de objeto', []],
+  ] as [string, unknown][]) {
+    test(`400 con cantidad ${nombre} y la producción sigue en curso`, async () => {
+      const id = await crearEnCurso();
+      const r = await finalizar(id, cuerpo);
+      expect(r.status).toBe(400);
+      expect(producciones[0].estado).toBe('en_curso');
+    });
+  }
+
+  test('el operario y el administrador pueden cerrar; la respuesta no trae dinero', async () => {
+    abastecer();
+    const id = await crearEnCurso();
+    const a = await finalizar(id, { cantidad_producida: 40 });
+    expect(a.status).toBe(200);
+    expect(JSON.stringify(a.body)).not.toMatch(/costo|precio|valor/i);
+    rol = 'administrador';
+    await producir(pan(1));
+    expect((await finalizar(producciones[1].id, { cantidad_producida: 40 })).status).toBe(200);
+  });
+
+  test('una producción cerrada no se puede modificar: el disparador de la base rechaza el cambio y responde 500', async () => {
+    const id = await crearEnCurso();
+    producciones[0].estado = 'en_curso';
+    // Simula una carrera: otra petición la cerró entre la lectura y el cambio
+    const original = prismaFalso.produccion.update;
+    prismaFalso.produccion.update = async (a: any) => {
+      producciones[0].estado = 'finalizada';
+      return original(a);
+    };
+    const r = await finalizar(id, { cantidad_producida: 20 });
+    prismaFalso.produccion.update = original;
+    expect(r.status).toBe(500);
+    expect(producciones[0].cantidad_producida).toBeUndefined();
+  });
+});
+
+describe('GET /produccion y GET /produccion/:id', () => {
+  test('lista vacía cuando no hay producciones', async () => {
+    const r = await obtener('');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual([]);
+  });
+
+  test('lista las de la panadería, la más reciente primero, con pesados y rendimiento', async () => {
+    abastecer();
+    await producir(conPesos([idPesos(HARINA, 310)]));
+    await producir(pan(1));
+    await finalizar(producciones[0].id, { cantidad_producida: 38 });
+    producciones.push({ ...producciones[0], id: 'ajena', panaderia_id: OTRA });
+    const r = await obtener('');
+    expect(r.status).toBe(200);
+    expect(r.body).toHaveLength(2);
+    expect(r.body[0].id).toBe(producciones[1].id);
+    const primera = r.body[1];
+    expect(primera).toMatchObject({
+      estado: 'finalizada',
+      producto: 'Pan dulce',
+      version: 2,
+      usuario: 'Ana Operaria',
+      lotes: 1,
+      cantidad_planificada: 40,
+      cantidad_producida: 38,
+      rendimiento_pct: 95,
+      insumos_total: 2,
+      insumos_pesados: 1,
+    });
+    expect(r.body[0]).toMatchObject({ estado: 'en_curso', cantidad_producida: null, rendimiento_pct: null, insumos_pesados: 0 });
+  });
+
+  test('filtra por estado y rechaza un estado inválido', async () => {
+    abastecer();
+    await producir(pan(1));
+    await producir(pan(1));
+    await finalizar(producciones[0].id, { cantidad_producida: 38 });
+    expect((await obtener('?estado=finalizada')).body).toHaveLength(1);
+    expect((await obtener('?estado=en_curso')).body).toHaveLength(1);
+    expect((await obtener('?estado=inventado')).status).toBe(400);
+  });
+
+  test('detalle: por insumo estándar, real, desviación y lotes usados', async () => {
+    await producir(conPesos([idPesos(HARINA, 330)]));
+    const r = await obtener(`/${producciones[0].id}`);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ producto: 'Pan dulce', estado: 'en_curso', cantidad_planificada: 40, rendimiento_pct: null });
+    const harina = porNombre(r.body.insumos, 'Harina');
+    expect(harina).toMatchObject({ unidad: 'g', peso_estandar: 300, peso_real: 330, pesado: true, desviacion_pct: 10 });
+    expect(harina.lotes).toEqual([{ codigo_lote: 'h1', fecha_vencimiento: null, cantidad: 330 }]);
+    expect(porNombre(r.body.insumos, 'Azúcar')).toMatchObject({ pesado: false, desviacion_pct: 0 });
+    expect(JSON.stringify(r.body)).not.toMatch(/costo|precio|valor/i);
+  });
+
+  test('detalle de una producción anterior a HU-16 (sin pesajes): solo muestra lo consumido', async () => {
+    await producir(pan(1));
+    pesajes.length = 0;
+    const r = await obtener(`/${producciones[0].id}`);
+    expect(r.status).toBe(200);
+    expect(porNombre(r.body.insumos, 'Harina')).toMatchObject({ peso_estandar: null, peso_real: null, pesado: null, desviacion_pct: null });
+    expect(porNombre(r.body.insumos, 'Harina').lotes[0].cantidad).toBe(300);
+  });
+
+  test('detalle: 404 si es de otra panadería, no existe o el id está mal formado', async () => {
+    await producir(pan(1));
+    producciones[0].panaderia_id = OTRA;
+    expect((await obtener(`/${producciones[0].id}`)).status).toBe(404);
+    expect((await obtener('/99999999-9999-4999-8999-999999999990')).status).toBe(404);
+    expect((await obtener('/xyz')).status).toBe(404);
   });
 });

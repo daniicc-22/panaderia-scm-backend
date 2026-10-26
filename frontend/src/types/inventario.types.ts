@@ -103,6 +103,11 @@ export interface ItemConsumo {
   unidad: string;
   // false (agua): se muestra en el plan pero no se descuenta ni exige existencias
   controla_inventario: boolean;
+  // Lo que pide la receta y si el operario escribió el peso real (si no, se usa el estándar)
+  peso_estandar: number;
+  pesado: boolean;
+  desviacion_pct: number | null;
+  // Lo que se usará: el peso real si se pesó y, si no, el estándar
   necesario: number;
   faltante: number;
   // Existencias que no se usan porque el lote ya venció

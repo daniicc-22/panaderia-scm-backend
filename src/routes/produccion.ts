@@ -12,19 +12,25 @@ import {
 } from '../utils/consumo';
 import { hoyColombia } from '../utils/entradas';
 import { resumirNombres } from '../utils/texto';
+import { UUID } from '../utils/materiaPrima';
+import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
 import type { LoteVista } from '../utils/inventario';
 
 type Db = Prisma.TransactionClient;
+
+const LIMITE_LISTA = 50;
+const ESTADOS = ['planificada', 'en_curso', 'finalizada', 'cancelada'] as const;
+const num = (d: unknown) => (d === null || d === undefined ? null : Number(d));
 
 const fechaTexto = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
 // Resultado de preparar una producción: o un plan listo, o un motivo por el que no se puede
 type Preparada =
-  | { ok: true; formulacion: { id: string; producto_id: string; producto: string; version: number; rendimiento: number | null }; plan: Plan; sin_control: Map<string, number>; materias: Map<string, { codigo: string; nombre: string; unidad: string }>; lotes: Map<string, LoteVista> }
+  | { ok: true; formulacion: { id: string; producto_id: string; producto: string; version: number; rendimiento: number | null }; plan: Plan; pesaje: Map<string, LineaPesaje>; sin_control: Map<string, number>; materias: Map<string, { codigo: string; nombre: string; unidad: string }>; lotes: Map<string, LoteVista> }
   | { ok: false; estado: number; error: string };
 
 // Calcula lo que pide producir `lotes` veces una receta y de qué lotes saldría cada insumo
-async function preparar(db: Db, panaderiaId: string, formulacionId: string, lotes: number): Promise<Preparada> {
+async function preparar(db: Db, panaderiaId: string, formulacionId: string, lotes: number, pesos: ReadonlyMap<string, number>): Promise<Preparada> {
   const f = await db.formulacion.findFirst({
     where: { id: formulacionId, panaderia_id: panaderiaId, activa: true, producto: { activo: true } },
     include: { producto: true, detalle_formulacion: true },
@@ -54,6 +60,11 @@ async function preparar(db: Db, panaderiaId: string, formulacionId: string, lote
   }
   if (need.materias.size === 0) return { ok: false, estado: 409, error: 'La receta no tiene insumos para descontar.' };
 
+  // Lo que se usará de cada insumo: el peso real si se pesó y, si no, el estándar de la receta
+  const aplicado = aplicarPesos(need.materias, pesos);
+  if (aplicado.ajenos.length > 0) {
+    return { ok: false, estado: 400, error: 'Hay pesos de insumos que no están en la receta.' };
+  }
   const ids = [...need.materias.keys()];
   const materias = await db.materia_prima.findMany({
     where: { id: { in: ids }, panaderia_id: panaderiaId },
@@ -86,7 +97,7 @@ async function preparar(db: Db, panaderiaId: string, formulacionId: string, lote
 
   // Insumos que no se compran ni se guardan (agua): se muestran en el plan pero no se descuentan
   const sinControl = new Set(materias.filter((m) => m.controla_inventario === false).map((m) => m.id));
-  const { controladas, no_controladas } = separarControlados(need.materias, sinControl);
+  const { controladas, no_controladas } = separarControlados(aplicado.efectivas, sinControl);
   if (controladas.size === 0) {
     return { ok: false, estado: 409, error: 'La receta no tiene insumos con inventario para descontar.' };
   }
@@ -124,6 +135,7 @@ async function preparar(db: Db, panaderiaId: string, formulacionId: string, lote
       rendimiento: f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado),
     },
     plan,
+    pesaje: new Map(aplicado.lineas.map((l) => [l.materia_prima_id, l])),
     sin_control: no_controladas,
     materias: new Map(materias.map((m) => [m.id, { codigo: m.codigo, nombre: m.nombre, unidad: m.unidad_medida.codigo }])),
     lotes: lotesPorId,
@@ -149,12 +161,16 @@ function presentarPlan(p: Extract<Preparada, { ok: true }>, lotes: number) {
     ]
       .map((i) => {
         const m = p.materias.get(i.materia_prima_id)!;
+        const ps = p.pesaje.get(i.materia_prima_id)!;
         return {
           materia_prima_id: i.materia_prima_id,
           codigo: m.codigo,
           nombre: m.nombre,
           unidad: m.unidad,
           controla_inventario: i.controla_inventario,
+          peso_estandar: ps.peso_estandar,
+          pesado: ps.pesado,
+          desviacion_pct: desviacionPct(ps.peso_real, ps.peso_estandar),
           necesario: i.necesario,
           faltante: i.faltante,
           vencido_omitido: i.vencido_omitido,
@@ -185,10 +201,12 @@ export function crearRouterProduccion(prisma: PrismaClient) {
   // Vista previa: de qué lotes saldría cada insumo, sin escribir nada
   router.post('/simular', async (req, res) => {
     const validado = validarProduccion(req.body);
-    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const pesos = validarPesos((req.body as Record<string, unknown> | null)?.pesos_reales);
+    const errores = [...(validado.ok ? [] : validado.errores), ...(pesos.ok ? [] : pesos.errores)];
+    if (!validado.ok || !pesos.ok) return res.status(400).json({ error: errores.join(' '), errores });
     const { formulacion_id, lotes } = validado.datos;
     try {
-      const r = await preparar(prisma, req.panaderiaId!, formulacion_id, lotes);
+      const r = await preparar(prisma, req.panaderiaId!, formulacion_id, lotes, pesos.datos);
       if (!r.ok) return res.status(r.estado).json({ error: r.error });
       res.json(presentarPlan(r, lotes));
     } catch (error) {
@@ -200,7 +218,9 @@ export function crearRouterProduccion(prisma: PrismaClient) {
   // Registrar la producción: descuenta los insumos de sus lotes, todo o nada
   router.post('/', async (req, res) => {
     const validado = validarProduccion(req.body);
-    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const pesos = validarPesos((req.body as Record<string, unknown> | null)?.pesos_reales);
+    const errores = [...(validado.ok ? [] : validado.errores), ...(pesos.ok ? [] : pesos.errores)];
+    if (!validado.ok || !pesos.ok) return res.status(400).json({ error: errores.join(' '), errores });
     const { formulacion_id, lotes } = validado.datos;
     const panaderiaId = req.panaderiaId!;
     const usuarioId = req.usuario!.id;
@@ -216,7 +236,7 @@ export function crearRouterProduccion(prisma: PrismaClient) {
         // Bloquea los lotes con existencias para que dos producciones simultáneas no gasten lo mismo
         await tx.$queryRaw`SELECT id FROM lote WHERE panaderia_id = ${panaderiaId}::uuid AND cantidad_disponible > 0 FOR UPDATE`;
 
-        const r = await preparar(tx, panaderiaId, formulacion_id, lotes);
+        const r = await preparar(tx, panaderiaId, formulacion_id, lotes, pesos.datos);
         if (!r.ok) return { fallo: { estado: r.estado, error: r.error } };
         const plan = presentarPlan(r, lotes);
         if (!r.plan.completo) return { fallo: { estado: 409, error: textoFaltantes(plan), plan } };
@@ -234,6 +254,17 @@ export function crearRouterProduccion(prisma: PrismaClient) {
             origen_planificacion: 'sin_registro',
             cantidad_planificada: r.formulacion.rendimiento == null ? null : Math.round(r.formulacion.rendimiento * lotes * 1000) / 1000,
           },
+        });
+        // Peso estándar, peso real y si se pesó, por insumo (base de la desviación de pesaje)
+        await tx.pesaje_produccion.createMany({
+          data: [...r.pesaje.values()].map((l) => ({
+            panaderia_id: panaderiaId,
+            produccion_id: produccion.id,
+            materia_prima_id: l.materia_prima_id,
+            peso_estandar: l.peso_estandar,
+            peso_real: l.peso_real,
+            pesado: l.pesado,
+          })),
         });
         for (const item of r.plan.items) {
           for (const a of item.asignaciones) {
@@ -267,6 +298,159 @@ export function crearRouterProduccion(prisma: PrismaClient) {
       }
       console.error('Error al registrar la producción:', error);
       res.status(500).json({ error: 'Error al registrar la producción' });
+    }
+  });
+
+  // Historial de producciones, de la más reciente a la más antigua
+  router.get('/', async (req, res) => {
+    const estado = typeof req.query.estado === 'string' ? req.query.estado : undefined;
+    if (estado !== undefined && !(ESTADOS as readonly string[]).includes(estado)) {
+      return res.status(400).json({ error: 'El estado no es válido.' });
+    }
+    try {
+      const filas = await prisma.produccion.findMany({
+        where: { panaderia_id: req.panaderiaId!, ...(estado ? { estado: estado as (typeof ESTADOS)[number] } : {}) },
+        orderBy: { fecha: 'desc' },
+        take: LIMITE_LISTA,
+        include: {
+          producto: { select: { nombre: true } },
+          formulacion: { select: { version: true, rendimiento_esperado: true } },
+          pesaje_produccion: { select: { pesado: true } },
+          usuario_panaderia: { select: { usuario: { select: { nombre: true } } } },
+        },
+      });
+      res.json(
+        filas.map((f) => {
+          const planificada = num(f.cantidad_planificada);
+          const producida = num(f.cantidad_producida);
+          const rend = num(f.formulacion.rendimiento_esperado);
+          return {
+            id: f.id,
+            fecha: f.fecha.toISOString(),
+            estado: f.estado,
+            producto: f.producto.nombre,
+            version: f.formulacion.version,
+            usuario: f.usuario_panaderia.usuario.nombre,
+            lotes: planificada !== null && rend ? Math.round((planificada / rend) * 1000) / 1000 : null,
+            cantidad_planificada: planificada,
+            cantidad_producida: producida,
+            rendimiento_pct: rendimientoPct(producida, planificada),
+            insumos_total: f.pesaje_produccion.length,
+            insumos_pesados: f.pesaje_produccion.filter((x) => x.pesado).length,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('Error al listar las producciones:', error);
+      res.status(500).json({ error: 'Error al consultar las producciones' });
+    }
+  });
+
+  // Detalle: qué se usó de cada insumo (estándar, real y lotes) y cómo cerró
+  router.get('/:id', async (req, res) => {
+    const id = req.params.id;
+    if (!UUID.test(id)) return res.status(404).json({ error: 'Producción no encontrada.' });
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const f = await prisma.produccion.findFirst({
+        where: { id, panaderia_id: panaderiaId },
+        include: {
+          producto: { select: { nombre: true } },
+          formulacion: { select: { version: true, rendimiento_esperado: true } },
+          usuario_panaderia: { select: { usuario: { select: { nombre: true } } } },
+        },
+      });
+      if (!f) return res.status(404).json({ error: 'Producción no encontrada.' });
+      const pesajes = await prisma.pesaje_produccion.findMany({ where: { produccion_id: id, panaderia_id: panaderiaId } });
+      const consumos = await prisma.consumo_produccion.findMany({
+        where: { produccion_id: id, panaderia_id: panaderiaId },
+        include: { lote: { select: { materia_prima_id: true, codigo_lote: true, fecha_vencimiento: true } } },
+      });
+      const materiaIds = [...new Set([...pesajes.map((x) => x.materia_prima_id), ...consumos.map((c) => c.lote.materia_prima_id!)])];
+      const materias = await prisma.materia_prima.findMany({
+        where: { id: { in: materiaIds }, panaderia_id: panaderiaId },
+        include: { unidad_medida: true },
+      });
+      const porMateria = new Map(materias.map((m) => [m.id, m]));
+      const lotesDe = (mid: string) =>
+        consumos
+          .filter((c) => c.lote.materia_prima_id === mid)
+          .map((c) => ({ codigo_lote: c.lote.codigo_lote ?? null, fecha_vencimiento: fechaTexto(c.lote.fecha_vencimiento), cantidad: Number(c.cantidad_consumida) }));
+      // Producciones anteriores a HU-16 no tienen pesajes: se muestran solo con lo consumido
+      const pesajePorMateria = new Map(pesajes.map((x) => [x.materia_prima_id, x]));
+      const insumos = materiaIds
+        .map((mid) => {
+          const m = porMateria.get(mid);
+          const ps = pesajePorMateria.get(mid);
+          const est = ps ? Number(ps.peso_estandar) : null;
+          const real = ps ? Number(ps.peso_real) : null;
+          return {
+            materia_prima_id: mid,
+            codigo: m?.codigo ?? null,
+            nombre: m?.nombre ?? 'Insumo desconocido',
+            unidad: m?.unidad_medida.codigo ?? null,
+            controla_inventario: m ? m.controla_inventario !== false : true,
+            peso_estandar: est,
+            peso_real: real,
+            pesado: ps ? ps.pesado : null,
+            desviacion_pct: est !== null && real !== null ? desviacionPct(real, est) : null,
+            lotes: lotesDe(mid),
+          };
+        })
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      const planificada = num(f.cantidad_planificada);
+      const producida = num(f.cantidad_producida);
+      res.json({
+        id: f.id,
+        fecha: f.fecha.toISOString(),
+        estado: f.estado,
+        producto: f.producto.nombre,
+        version: f.formulacion.version,
+        usuario: f.usuario_panaderia.usuario.nombre,
+        cantidad_planificada: planificada,
+        cantidad_producida: producida,
+        rendimiento_pct: rendimientoPct(producida, planificada),
+        insumos,
+      });
+    } catch (error) {
+      console.error('Error al consultar la producción:', error);
+      res.status(500).json({ error: 'Error al consultar la producción' });
+    }
+  });
+
+  // Cerrar la producción con lo que realmente salió. Una vez finalizada ya no se modifica (lo exige la base).
+  router.post('/:id/finalizar', async (req, res) => {
+    const id = req.params.id;
+    if (!UUID.test(id)) return res.status(404).json({ error: 'Producción no encontrada.' });
+    const validado = validarFinalizacion(req.body);
+    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const { cantidad_producida } = validado.datos;
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const salida = await prisma.$transaction(async (tx) => {
+        // Bloquea la fila: dos personas cerrando a la vez no se pisan
+        await tx.$queryRaw`SELECT id FROM produccion WHERE id = ${id}::uuid AND panaderia_id = ${panaderiaId}::uuid FOR UPDATE`;
+        const p = await tx.produccion.findFirst({ where: { id, panaderia_id: panaderiaId } });
+        if (!p) return { ok: false, estado: 404, error: 'Producción no encontrada.' } as const;
+        if (p.estado !== 'en_curso') {
+          const ya = p.estado === 'finalizada' ? 'finalizada' : p.estado === 'cancelada' ? 'cancelada' : 'sin iniciar';
+          return { ok: false, estado: 409, error: `Esta producción está ${ya}; solo se cierra una producción en curso.` } as const;
+        }
+        const cerrada = await tx.produccion.update({ where: { id }, data: { estado: 'finalizada', cantidad_producida } });
+        return { ok: true, cerrada, planificada: num(p.cantidad_planificada) } as const;
+      });
+      if (!salida.ok) return res.status(salida.estado).json({ error: salida.error });
+      res.json({
+        id,
+        estado: 'finalizada',
+        cantidad_planificada: salida.planificada,
+        cantidad_producida,
+        rendimiento_pct: rendimientoPct(cantidad_producida, salida.planificada),
+        aviso: avisoRendimiento(cantidad_producida, salida.planificada),
+      });
+    } catch (error) {
+      console.error('Error al finalizar la producción:', error);
+      res.status(500).json({ error: 'Error al finalizar la producción' });
     }
   });
 
