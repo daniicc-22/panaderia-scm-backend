@@ -9,6 +9,7 @@ import { PasswordInput } from '../../components/ui/PasswordInput';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { Card } from '../../components/ui/Card';
+import { env } from '../../app/config/env';
 
 const esquemaLogin = z.object({
   email: z.string().min(1, 'El correo es obligatorio').email('Correo inválido'),
@@ -82,12 +83,14 @@ export function LoginPage() {
           </form>
         </Card>
 
-        <div className="mt-4 rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-500">
-          <p className="mb-1 font-medium text-gray-600">Usuarios de prueba:</p>
-          <p>superadmin@demo.local — Demo123!</p>
-          <p>admin@demo.local — Demo123!</p>
-          <p>operario@demo.local — Demo123!</p>
-        </div>
+        {env.apiMode === 'mock' && (
+          <div className="mt-4 rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-500">
+            <p className="mb-1 font-medium text-gray-600">Usuarios de prueba:</p>
+            <p>superadmin@demo.local — Demo123!</p>
+            <p>admin@demo.local — Demo123!</p>
+            <p>operario@demo.local — Demo123!</p>
+          </div>
+        )}
       </div>
     </div>
   );
