@@ -106,3 +106,17 @@ export interface DesviacionesPesaje {
   };
   insumos: DesviacionInsumo[];
 }
+
+export interface TableroProduccion {
+  fecha: string;
+  desde: string;
+  semana: {
+    producciones: number;
+    rendimiento_prom_pct: number | null;
+    insumos_pesados_pct: number | null;
+    mermas_registradas: number;
+    causas_frecuentes: { causa: string; veces: number }[];
+  };
+  pendientes: ProduccionResumen[];
+  recientes: ProduccionResumen[];
+}

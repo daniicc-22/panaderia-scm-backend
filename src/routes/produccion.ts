@@ -15,6 +15,7 @@ import { resumirNombres } from '../utils/texto';
 import { UUID } from '../utils/materiaPrima';
 import { calcularBalance } from '../utils/balance';
 import { resumirDesviaciones, validarRango } from '../utils/desviaciones';
+import { causasFrecuentes, resumirSemana, ventanaSemana } from '../utils/tablero';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
 import type { LoteVista } from '../utils/inventario';
@@ -26,6 +27,36 @@ const ESTADOS = ['planificada', 'en_curso', 'finalizada', 'cancelada'] as const;
 const num = (d: unknown) => (d === null || d === undefined ? null : Number(d));
 
 const fechaTexto = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+
+// Lo que se necesita de una producción para mostrarla en una lista
+const INCLUIR_RESUMEN = {
+  producto: { select: { nombre: true } },
+  formulacion: { select: { version: true, rendimiento_esperado: true } },
+  pesaje_produccion: { select: { pesado: true } },
+  usuario_panaderia: { select: { usuario: { select: { nombre: true } } } },
+} satisfies Prisma.produccionInclude;
+
+type FilaResumen = Prisma.produccionGetPayload<{ include: typeof INCLUIR_RESUMEN }>;
+
+function aResumen(f: FilaResumen) {
+  const planificada = num(f.cantidad_planificada);
+  const producida = num(f.cantidad_producida);
+  const rend = num(f.formulacion.rendimiento_esperado);
+  return {
+    id: f.id,
+    fecha: f.fecha.toISOString(),
+    estado: f.estado,
+    producto: f.producto.nombre,
+    version: f.formulacion.version,
+    usuario: f.usuario_panaderia.usuario.nombre,
+    lotes: planificada !== null && rend ? Math.round((planificada / rend) * 1000) / 1000 : null,
+    cantidad_planificada: planificada,
+    cantidad_producida: producida,
+    rendimiento_pct: rendimientoPct(producida, planificada),
+    insumos_total: f.pesaje_produccion.length,
+    insumos_pesados: f.pesaje_produccion.filter((x) => x.pesado).length,
+  };
+}
 
 // Resultado de preparar una producción: o un plan listo, o un motivo por el que no se puede
 type Preparada =
@@ -342,6 +373,51 @@ export function crearRouterProduccion(prisma: PrismaClient) {
     }
   });
 
+  // Tablero de Inicio: lo pendiente, lo último y cómo va la semana (sin dinero; lo ven todos los roles)
+  router.get('/tablero', async (req, res) => {
+    const panaderiaId = req.panaderiaId!;
+    const hoy = hoyColombia();
+    const { desde, hasta, desde_texto } = ventanaSemana(hoy);
+    try {
+      const [pendientes, recientes, semana, mermas] = await Promise.all([
+        prisma.produccion.findMany({
+          where: { panaderia_id: panaderiaId, estado: { in: ['planificada', 'en_curso'] } },
+          orderBy: { fecha: 'asc' },
+          take: 20,
+          include: INCLUIR_RESUMEN,
+        }),
+        prisma.produccion.findMany({
+          where: { panaderia_id: panaderiaId, estado: 'finalizada' },
+          orderBy: { fecha: 'desc' },
+          take: 5,
+          include: INCLUIR_RESUMEN,
+        }),
+        prisma.produccion.findMany({
+          where: { panaderia_id: panaderiaId, estado: 'finalizada', fecha: { gte: desde, lt: hasta } },
+          include: INCLUIR_RESUMEN,
+        }),
+        prisma.desperdicio.findMany({
+          where: { panaderia_id: panaderiaId, fecha: { gte: desde, lt: hasta } },
+          select: { causa_desperdicio: { select: { nombre: true } } },
+        }),
+      ]);
+      res.json({
+        fecha: hoy,
+        desde: desde_texto,
+        semana: {
+          ...resumirSemana(semana.map(aResumen)),
+          mermas_registradas: mermas.length,
+          causas_frecuentes: causasFrecuentes(mermas.map((m) => m.causa_desperdicio.nombre)),
+        },
+        pendientes: pendientes.map(aResumen),
+        recientes: recientes.map(aResumen),
+      });
+    } catch (error) {
+      console.error('Error al armar el tablero:', error);
+      res.status(500).json({ error: 'Error al consultar el tablero' });
+    }
+  });
+
   // Historial de producciones, de la más reciente a la más antigua
   router.get('/', async (req, res) => {
     const estado = typeof req.query.estado === 'string' ? req.query.estado : undefined;
@@ -353,34 +429,9 @@ export function crearRouterProduccion(prisma: PrismaClient) {
         where: { panaderia_id: req.panaderiaId!, ...(estado ? { estado: estado as (typeof ESTADOS)[number] } : {}) },
         orderBy: { fecha: 'desc' },
         take: LIMITE_LISTA,
-        include: {
-          producto: { select: { nombre: true } },
-          formulacion: { select: { version: true, rendimiento_esperado: true } },
-          pesaje_produccion: { select: { pesado: true } },
-          usuario_panaderia: { select: { usuario: { select: { nombre: true } } } },
-        },
+        include: INCLUIR_RESUMEN,
       });
-      res.json(
-        filas.map((f) => {
-          const planificada = num(f.cantidad_planificada);
-          const producida = num(f.cantidad_producida);
-          const rend = num(f.formulacion.rendimiento_esperado);
-          return {
-            id: f.id,
-            fecha: f.fecha.toISOString(),
-            estado: f.estado,
-            producto: f.producto.nombre,
-            version: f.formulacion.version,
-            usuario: f.usuario_panaderia.usuario.nombre,
-            lotes: planificada !== null && rend ? Math.round((planificada / rend) * 1000) / 1000 : null,
-            cantidad_planificada: planificada,
-            cantidad_producida: producida,
-            rendimiento_pct: rendimientoPct(producida, planificada),
-            insumos_total: f.pesaje_produccion.length,
-            insumos_pesados: f.pesaje_produccion.filter((x) => x.pesado).length,
-          };
-        }),
-      );
+      res.json(filas.map(aResumen));
     } catch (error) {
       console.error('Error al listar las producciones:', error);
       res.status(500).json({ error: 'Error al consultar las producciones' });

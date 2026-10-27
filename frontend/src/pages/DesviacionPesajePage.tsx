@@ -78,7 +78,7 @@ export function DesviacionPesajePage() {
               <dd className="text-xs text-gray-500">{g?.pesados} de {g?.pesajes}</dd>
             </div>
             <div className="col-span-2 rounded-lg border border-gray-200 bg-white p-3">
-              <dt className="text-xs text-gray-500">Desviación típica (sin signo)</dt>
+              <dt className="text-xs text-gray-500">Desvío promedio (sin signo)</dt>
               <dd className="text-xl font-semibold text-gray-900">{pct(g?.desviacion_abs_media_pct ?? null)}</dd>
               <dd className="text-xs text-gray-500">Promedio de cuánto se aleja cada pesaje de la receta, para arriba o para abajo.</dd>
             </div>
@@ -92,7 +92,7 @@ export function DesviacionPesajePage() {
                   {i.desviacion_abs_media_pct === null ? (
                     <Badge color="gray">Nunca se pesó</Badge>
                   ) : (
-                    <Badge color={colorDesviacion(i.desviacion_abs_media_pct)}>Error típico {pct(i.desviacion_abs_media_pct)}</Badge>
+                    <Badge color={colorDesviacion(i.desviacion_abs_media_pct)}>Desvío medio {pct(i.desviacion_abs_media_pct)}</Badge>
                   )}
                 </div>
                 <p className="mt-1 text-sm text-gray-700">

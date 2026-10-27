@@ -6,6 +6,7 @@ import { getFormulaciones } from '../services/formulacionesService';
 import { getClasificacionAbc } from '../services/abcService';
 import { ExactitudInventario } from '../features/conteos/ExactitudInventario';
 import { AlertasVencimiento } from '../features/inventario/AlertasVencimiento';
+import { TableroProduccion } from '../features/produccion/TableroProduccion';
 import type { ClaseAbc } from '../types/abc.types';
 
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
@@ -78,6 +79,8 @@ export function HomePage() {
           </>
         )}
       </div>
+
+      <TableroProduccion />
 
       <AlertasVencimiento compacto />
 

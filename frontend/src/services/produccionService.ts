@@ -8,6 +8,7 @@ import type {
   ProduccionDetalle,
   ProduccionFinalizada,
   ProduccionResumen,
+  TableroProduccion,
 } from '../types/produccion.types';
 
 export interface DatosProduccion {
@@ -52,5 +53,10 @@ export async function getDesviacionesPesaje(desde?: string, hasta?: string): Pro
   if (desde) params.desde = desde;
   if (hasta) params.hasta = hasta;
   const { data } = await httpClient.get<DesviacionesPesaje>('/produccion/desviaciones', { params });
+  return data;
+}
+
+export async function getTableroProduccion(): Promise<TableroProduccion> {
+  const { data } = await httpClient.get<TableroProduccion>('/produccion/tablero');
   return data;
 }
