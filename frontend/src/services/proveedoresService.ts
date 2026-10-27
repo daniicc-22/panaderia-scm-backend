@@ -1,5 +1,5 @@
 import { httpClient } from './httpClient';
-import type { CambiosProveedor, DatosProveedor, Proveedor } from '../types/proveedor.types';
+import type { CambiosProveedor, DatosProveedor, OfertasProveedor, Proveedor } from '../types/proveedor.types';
 
 export async function getProveedores(): Promise<Proveedor[]> {
   const { data } = await httpClient.get<Proveedor[]>('/proveedores');
@@ -16,5 +16,10 @@ export async function editarProveedor(id: string, cambios: CambiosProveedor) {
     `/proveedores/${id}`,
     cambios,
   );
+  return data;
+}
+
+export async function getOfertasProveedor(id: string): Promise<OfertasProveedor> {
+  const { data } = await httpClient.get<OfertasProveedor>(`/proveedores/${id}/ofertas`);
   return data;
 }

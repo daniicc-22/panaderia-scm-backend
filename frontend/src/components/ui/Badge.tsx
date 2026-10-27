@@ -16,7 +16,7 @@ const COLOR_CLASSES: Record<string, string> = {
 export function Badge({ children, color = 'gray' }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${COLOR_CLASSES[color]}`}
+      className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${COLOR_CLASSES[color]}`}
     >
       {children}
     </span>

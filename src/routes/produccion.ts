@@ -15,7 +15,7 @@ import { resumirNombres } from '../utils/texto';
 import { UUID } from '../utils/materiaPrima';
 import { calcularBalance } from '../utils/balance';
 import { resumirDesviaciones, validarRango } from '../utils/desviaciones';
-import { causasFrecuentes, resumirSemana, ventanaSemana } from '../utils/tablero';
+import { causasFrecuentes, resumirSemana, serieDiaria, ventanaSemana } from '../utils/tablero';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
 import type { LoteVista } from '../utils/inventario';
@@ -409,6 +409,10 @@ export function crearRouterProduccion(prisma: PrismaClient) {
           mermas_registradas: mermas.length,
           causas_frecuentes: causasFrecuentes(mermas.map((m) => m.causa_desperdicio.nombre)),
         },
+        por_dia: serieDiaria(
+          semana.map((p) => ({ fecha: p.fecha, estado: p.estado, cantidad_producida: num(p.cantidad_producida) })),
+          hoy,
+        ),
         pendientes: pendientes.map(aResumen),
         recientes: recientes.map(aResumen),
       });

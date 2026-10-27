@@ -633,13 +633,13 @@ describe('PATCH /inventario/lotes/:id/vencimiento', () => {
     return { status: r.status, body: (await r.json()) as any };
   };
   beforeEach(() => {
-    lotes = [{ id: LOTE, panaderia_id: PAN, materia_prima_id: MP_HARINA, codigo_lote: 'L-1', cantidad_inicial: 500, cantidad_disponible: 500, costo_unitario: 2, fecha_vencimiento: new Date('2026-10-24T00:00:00Z'), created_at: new Date() }];
+    lotes = [{ id: LOTE, panaderia_id: PAN, materia_prima_id: MP_HARINA, codigo_lote: 'L-1', cantidad_inicial: 500, cantidad_disponible: 500, costo_unitario: 2, fecha_vencimiento: new Date(`${fechaMas(-10)}T00:00:00Z`), created_at: new Date() }];
   });
 
   test('cambia la fecha y responde con la anterior y la nueva', async () => {
     const r = await cambiar(LOTE, { fecha_vencimiento: fechaMas(30) });
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ lote_id: LOTE, codigo_lote: 'L-1', nombre: 'Harina', fecha_anterior: '2026-10-24', fecha_nueva: fechaMas(30) });
+    expect(r.body).toMatchObject({ lote_id: LOTE, codigo_lote: 'L-1', nombre: 'Harina', fecha_anterior: fechaMas(-10), fecha_nueva: fechaMas(30) });
     expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe(fechaMas(30));
   });
   test('admite una fecha pasada (el lote pudo vencerse de verdad)', async () => {
@@ -649,7 +649,7 @@ describe('PATCH /inventario/lotes/:id/vencimiento', () => {
     expect((await cambiar(LOTE, { fecha_vencimiento: null })).status).toBe(200);
     expect(lotes[0].fecha_vencimiento).toBeNull();
     materias[0].criterio_rotacion = 'FEFO';
-    lotes[0].fecha_vencimiento = new Date('2026-10-24T00:00:00Z');
+    lotes[0].fecha_vencimiento = new Date(`${fechaMas(-10)}T00:00:00Z`);
     const r = await cambiar(LOTE, { fecha_vencimiento: null });
     expect(r.status).toBe(400);
     expect(lotes[0].fecha_vencimiento === null).toBe(false);
@@ -659,10 +659,10 @@ describe('PATCH /inventario/lotes/:id/vencimiento', () => {
       expect((await cambiar(LOTE, { fecha_vencimiento: f })).status, String(f)).toBe(400);
     }
     expect((await cambiar(LOTE, {})).status).toBe(400);
-    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe('2026-10-24');
+    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe(fechaMas(-10));
   });
   test('la misma fecha responde 409', async () => {
-    expect((await cambiar(LOTE, { fecha_vencimiento: '2026-10-24' })).status).toBe(409);
+    expect((await cambiar(LOTE, { fecha_vencimiento: fechaMas(-10) })).status).toBe(409);
   });
   test('solo gestión; no toca lotes ajenos ni inexistentes', async () => {
     rol = 'operario';
@@ -672,6 +672,6 @@ describe('PATCH /inventario/lotes/:id/vencimiento', () => {
     expect((await cambiar('55555555-5555-4555-8555-5555555555aa', { fecha_vencimiento: fechaMas(5) })).status).toBe(404);
     lotes[0].panaderia_id = OTRA;
     expect((await cambiar(LOTE, { fecha_vencimiento: fechaMas(5) })).status).toBe(404);
-    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe('2026-10-24');
+    expect(lotes[0].fecha_vencimiento.toISOString().slice(0, 10)).toBe(fechaMas(-10));
   });
 });

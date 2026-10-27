@@ -117,6 +117,8 @@ export interface TableroProduccion {
     mermas_registradas: number;
     causas_frecuentes: { causa: string; veces: number }[];
   };
+  // Un registro por cada día de la ventana, con ceros donde no hubo producción
+  por_dia: { fecha: string; producciones: number; producidas: number }[];
   pendientes: ProduccionResumen[];
   recientes: ProduccionResumen[];
 }

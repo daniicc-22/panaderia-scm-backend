@@ -161,6 +161,13 @@ describe('GET /produccion/tablero', () => {
     ]);
   });
 
+  test('por_dia trae un registro por cada uno de los 7 días y suma lo producido', async () => {
+    const { cuerpo } = await pedir();
+    expect(cuerpo.por_dia.length).toBe(7);
+    expect(cuerpo.por_dia.reduce((s: number, d: Fila) => s + d.producciones, 0)).toBe(2);
+    expect(cuerpo.por_dia.reduce((s: number, d: Fila) => s + d.producidas, 0)).toBe(15);
+  });
+
   test('informa la fecha de hoy y desde cuándo mira', async () => {
     const { cuerpo } = await pedir();
     expect(cuerpo.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -175,6 +182,7 @@ describe('GET /produccion/tablero', () => {
     expect(cuerpo.pendientes).toEqual([]);
     expect(cuerpo.recientes).toEqual([]);
     expect(cuerpo.semana).toEqual({ producciones: 0, rendimiento_prom_pct: null, insumos_pesados_pct: null, mermas_registradas: 0, causas_frecuentes: [] });
+    expect(cuerpo.por_dia.every((d: Fila) => d.producciones === 0 && d.producidas === 0)).toBe(true);
   });
 
   test('no expone dinero', async () => {

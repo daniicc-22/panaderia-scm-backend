@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { causasFrecuentes, resumirSemana, ventanaSemana } from '../src/utils/tablero';
+import { causasFrecuentes, resumirSemana, serieDiaria, ventanaSemana } from '../src/utils/tablero';
 
 const fila = (estado: string, planificada: number | null, producida: number | null, total = 3, pesados = 3) => ({
   estado,
@@ -85,5 +85,45 @@ describe('causasFrecuentes', () => {
   test('respeta el máximo pedido', () => {
     expect(causasFrecuentes(['a', 'b', 'c', 'd'], 2).length).toBe(2);
     expect(causasFrecuentes(['a', 'b', 'c', 'd']).length).toBe(3);
+  });
+});
+
+describe('serieDiaria', () => {
+  const f = (iso: string, producida: number | null, estado = 'finalizada') => ({ fecha: new Date(iso), estado, cantidad_producida: producida });
+
+  test('devuelve un registro por día, del más antiguo a hoy, con ceros donde no hubo producción', () => {
+    const r = serieDiaria([], '2026-10-26');
+    expect(r.length).toBe(7);
+    expect(r[0]).toEqual({ fecha: '2026-10-20', producciones: 0, producidas: 0 });
+    expect(r[6]).toEqual({ fecha: '2026-10-26', producciones: 0, producidas: 0 });
+  });
+
+  test('suma producciones y unidades del mismo día', () => {
+    const r = serieDiaria([f('2026-10-26T15:00:00Z', 10), f('2026-10-26T18:00:00Z', 5.5)], '2026-10-26');
+    expect(r[6]).toEqual({ fecha: '2026-10-26', producciones: 2, producidas: 15.5 });
+  });
+
+  test('cuenta el día en hora de Colombia: las 11:38 p. m. siguen siendo de ese día', () => {
+    // 2026-10-27T04:38Z = 26 de octubre, 11:38 p. m. en Colombia
+    const r = serieDiaria([f('2026-10-27T04:38:00Z', 1)], '2026-10-26');
+    expect(r[6].producciones).toBe(1);
+    // 2026-10-27T05:00Z ya es el 27 en Colombia y queda fuera de la ventana que termina el 26
+    expect(serieDiaria([f('2026-10-27T05:00:00Z', 1)], '2026-10-26').reduce((s, x) => s + x.producciones, 0)).toBe(0);
+  });
+
+  test('ignora las no finalizadas y las fuera de la ventana', () => {
+    const r = serieDiaria([f('2026-10-26T15:00:00Z', 10, 'en_curso'), f('2026-10-19T15:00:00Z', 10), f('2026-10-20T15:00:00Z', 4)], '2026-10-26');
+    expect(r.reduce((s, x) => s + x.producciones, 0)).toBe(1);
+    expect(r[0].producidas).toBe(4);
+  });
+
+  test('una producción sin cantidad cuenta como producción pero suma cero unidades', () => {
+    const r = serieDiaria([f('2026-10-26T15:00:00Z', null)], '2026-10-26');
+    expect(r[6]).toEqual({ fecha: '2026-10-26', producciones: 1, producidas: 0 });
+  });
+
+  test('cruza el fin de mes', () => {
+    const r = serieDiaria([], '2026-03-02');
+    expect(r[0].fecha).toBe('2026-02-24');
   });
 });

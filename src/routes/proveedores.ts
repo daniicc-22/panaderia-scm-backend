@@ -4,6 +4,7 @@ import { autorizarRoles } from '../middleware/autenticacion';
 import { alcanceProveedores } from '../utils/alcance';
 import { UUID } from '../utils/materiaPrima';
 import { validarProveedorCrear, validarProveedorEditar } from '../utils/proveedor';
+import { armarOfertasProveedor } from '../utils/ofertasProveedor';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 
@@ -37,6 +38,68 @@ export function crearRouterProveedores(prisma: PrismaClient) {
     } catch (error) {
       console.error('Error al consultar proveedores:', error);
       res.status(500).json({ error: 'Error al consultar los proveedores' });
+    }
+  });
+
+  // Lo que ofrece un proveedor: cada presentación con su precio, comparada con los demás proveedores del insumo
+  router.get('/:id/ofertas', async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido.' });
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const proveedor = await prisma.proveedor.findFirst({ where: { id, OR: await alcanceVisible(panaderiaId) } });
+      if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado.' });
+
+      // Solo las ofertas de esta panadería (un proveedor del grupo puede tener ofertas de otras)
+      const propias = await prisma.presentacion_proveedor.findMany({
+        where: { proveedor_id: id, panaderia_id: panaderiaId },
+        select: { presentacion: { select: { materia_prima_id: true } } },
+      });
+      const materiaIds = [...new Set(propias.map((o) => o.presentacion.materia_prima_id))];
+
+      const presentaciones = materiaIds.length
+        ? await prisma.presentacion.findMany({
+            where: { panaderia_id: panaderiaId, materia_prima_id: { in: materiaIds } },
+            include: {
+              materia_prima: { select: { id: true, codigo: true, nombre: true, unidad_medida: { select: { codigo: true } } } },
+              presentacion_proveedor: { include: { proveedor: { select: { activo: true } } } },
+            },
+          })
+        : [];
+
+      const materias = new Map(
+        presentaciones.map((p) => [
+          p.materia_prima.id,
+          { id: p.materia_prima.id, codigo: p.materia_prima.codigo, nombre: p.materia_prima.nombre, unidad: p.materia_prima.unidad_medida.codigo },
+        ]),
+      );
+      const { items, resumen } = armarOfertasProveedor(
+        id,
+        [...materias.values()],
+        presentaciones.map((p) => ({
+          id: p.id,
+          materia_prima_id: p.materia_prima_id,
+          nombre: p.nombre,
+          contenido: Number(p.contenido),
+          activa: p.activa,
+          ofertas: p.presentacion_proveedor.map((o) => ({
+            id: o.id,
+            proveedor_id: o.proveedor_id,
+            precio: Number(o.precio_referencia),
+            vigente: o.vigente,
+            proveedor_activo: o.proveedor.activo,
+            tiempo_entrega_dias: o.tiempo_entrega_dias === null ? null : Number(o.tiempo_entrega_dias),
+          })),
+        })),
+      );
+      res.json({
+        proveedor: { id: proveedor.id, nombre: proveedor.nombre, activo: proveedor.activo, alcance: proveedor.panaderia_id ? 'panaderia' : 'grupo' },
+        resumen,
+        items,
+      });
+    } catch (error) {
+      console.error('Error al consultar las ofertas del proveedor:', error);
+      res.status(500).json({ error: 'Error al consultar las ofertas del proveedor' });
     }
   });
 

@@ -4,6 +4,7 @@ import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { OfertasProveedor } from '../features/proveedores/OfertasProveedor';
 import { ProveedorForm } from '../features/proveedores/ProveedorForm';
 import { editarProveedor, getProveedores } from '../services/proveedoresService';
 import { mensajeDeError } from '../services/errores';
@@ -12,6 +13,7 @@ import type { Proveedor } from '../types/proveedor.types';
 const textoPrecios = (n: number) => (n === 1 ? '1 precio vigente' : `${n} precios vigentes`);
 
 interface Acciones {
+  onVerOferta: (p: Proveedor) => void;
   onEditar: (p: Proveedor) => void;
   onDesactivar: (p: Proveedor) => void;
   onReactivar: (p: Proveedor) => void;
@@ -38,7 +40,19 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
     { key: 'contacto', encabezado: 'Contacto', render: (p) => p.contacto ?? '—' },
     { key: 'telefono', encabezado: 'Teléfono', render: (p) => p.telefono ?? '—' },
     { key: 'direccion', encabezado: 'Dirección', render: (p) => p.direccion ?? '—' },
-    { key: 'precios', encabezado: 'Precios', render: (p) => textoPrecios(p.ofertas_vigentes) },
+    {
+      key: 'precios',
+      encabezado: 'Oferta y precios',
+      render: (p) => (
+        <button
+          type="button"
+          className="whitespace-nowrap font-medium text-blue-600 hover:underline"
+          onClick={() => acciones.onVerOferta(p)}
+        >
+          {p.ofertas_vigentes === 0 ? 'Ver oferta' : `Ver oferta (${p.ofertas_vigentes})`}
+        </button>
+      ),
+    },
     {
       key: 'acciones',
       encabezado: 'Acciones',
@@ -87,6 +101,7 @@ export function ProveedoresPage() {
   // 'nuevo' abre el formulario vacío; un proveedor lo abre para editarlo
   const [formulario, setFormulario] = useState<'nuevo' | Proveedor | null>(null);
   const [porDesactivar, setPorDesactivar] = useState<Proveedor | null>(null);
+  const [verOferta, setVerOferta] = useState<Proveedor | null>(null);
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores });
@@ -141,6 +156,7 @@ export function ProveedoresPage() {
   const columnas = useMemo(
     () =>
       crearColumnas({
+        onVerOferta: (p) => setVerOferta(p),
         onEditar: (p) => {
           setAviso(null);
           setFormulario(p);
@@ -217,6 +233,10 @@ export function ProveedoresPage() {
             onTerminar={() => setFormulario(null)}
           />
         )}
+      </Modal>
+
+      <Modal isOpen={verOferta !== null} onClose={() => setVerOferta(null)} title={verOferta ? `Oferta de ${verOferta.nombre}` : 'Oferta'} size="lg">
+        {verOferta !== null && <OfertasProveedor key={verOferta.id} proveedorId={verOferta.id} />}
       </Modal>
 
       <Modal isOpen={porDesactivar !== null} onClose={() => setPorDesactivar(null)} title="Desactivar proveedor">
