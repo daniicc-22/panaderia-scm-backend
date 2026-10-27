@@ -13,6 +13,7 @@ import { ProveedoresPage } from '../../pages/ProveedoresPage';
 import { InventarioPage } from '../../pages/InventarioPage';
 import { ProduccionPage } from '../../pages/ProduccionPage';
 import { MermasPage } from '../../pages/MermasPage';
+import { DesviacionPesajePage } from '../../pages/DesviacionPesajePage';
 import { ConteosPage } from '../../pages/ConteosPage';
 import { ConteoDetallePage } from '../../pages/ConteoDetallePage';
 
@@ -42,6 +43,7 @@ export function AppRouter() {
       <Route element={<ProtectedRoute rolesPermitidos={['administrador', 'superadministrador']} />}>
         <Route element={<AppLayout />}>
           <Route path="/proveedores" element={<ProveedoresPage />} />
+          <Route path="/desviacion-pesaje" element={<DesviacionPesajePage />} />
         </Route>
       </Route>
 

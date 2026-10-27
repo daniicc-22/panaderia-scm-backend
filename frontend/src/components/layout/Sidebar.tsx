@@ -15,6 +15,7 @@ const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Inventario', ruta: '/inventario' },
   { etiqueta: 'Producir', ruta: '/produccion' },
   { etiqueta: 'Mermas', ruta: '/mermas' },
+  { etiqueta: 'Desviación de pesaje', ruta: '/desviacion-pesaje', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Conteo físico', ruta: '/conteos' },
   { etiqueta: 'Formulaciones', ruta: '/formulaciones' },
   { etiqueta: 'Clasificación ABC', ruta: '/clasificacion-abc', rolesPermitidos: ['administrador', 'superadministrador'] },

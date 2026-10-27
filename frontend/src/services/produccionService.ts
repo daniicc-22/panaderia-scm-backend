@@ -2,6 +2,7 @@ import { httpClient } from './httpClient';
 import type { PlanConsumo, ProduccionRegistrada } from '../types/inventario.types';
 import type {
   BalanceMasas,
+  DesviacionesPesaje,
   EstadoProduccion,
   PesoRealEnvio,
   ProduccionDetalle,
@@ -43,5 +44,13 @@ export async function finalizarProduccion(id: string, cantidad_producida: number
 
 export async function getBalanceMasas(id: string): Promise<BalanceMasas> {
   const { data } = await httpClient.get<BalanceMasas>(`/produccion/${id}/balance`);
+  return data;
+}
+
+export async function getDesviacionesPesaje(desde?: string, hasta?: string): Promise<DesviacionesPesaje> {
+  const params: Record<string, string> = {};
+  if (desde) params.desde = desde;
+  if (hasta) params.hasta = hasta;
+  const { data } = await httpClient.get<DesviacionesPesaje>('/produccion/desviaciones', { params });
   return data;
 }

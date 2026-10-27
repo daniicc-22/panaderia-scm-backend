@@ -14,6 +14,8 @@ import { hoyColombia } from '../utils/entradas';
 import { resumirNombres } from '../utils/texto';
 import { UUID } from '../utils/materiaPrima';
 import { calcularBalance } from '../utils/balance';
+import { resumirDesviaciones, validarRango } from '../utils/desviaciones';
+import { autorizarRoles } from '../middleware/autenticacion';
 import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
 import type { LoteVista } from '../utils/inventario';
 
@@ -299,6 +301,44 @@ export function crearRouterProduccion(prisma: PrismaClient) {
       }
       console.error('Error al registrar la producción:', error);
       res.status(500).json({ error: 'Error al registrar la producción' });
+    }
+  });
+
+  // Desviación de pesaje por insumo (HU-11): solo gestión. Va antes de «/:id» para que no se lea como un id.
+  router.get('/desviaciones', autorizarRoles('administrador', 'superadministrador'), async (req, res) => {
+    const rango = validarRango(req.query.desde, req.query.hasta);
+    if (!rango.ok) return res.status(400).json({ error: rango.errores.join(' '), errores: rango.errores });
+    const panaderiaId = req.panaderiaId!;
+    const { desde, hasta } = rango.datos;
+    try {
+      const pesajes = await prisma.pesaje_produccion.findMany({
+        where: {
+          panaderia_id: panaderiaId,
+          produccion: { estado: { not: 'cancelada' }, ...(desde || hasta ? { fecha: { ...(desde ? { gte: desde } : {}), ...(hasta ? { lt: hasta } : {}) } } : {}) },
+        },
+      });
+      const materias = await prisma.materia_prima.findMany({
+        where: { id: { in: [...new Set(pesajes.map((x) => x.materia_prima_id))] }, panaderia_id: panaderiaId },
+      });
+      const nombre = new Map(materias.map((m) => [m.id, m.nombre]));
+      const resumen = resumirDesviaciones(
+        pesajes.map((x) => ({
+          produccion_id: x.produccion_id,
+          materia_prima_id: x.materia_prima_id,
+          nombre: nombre.get(x.materia_prima_id) ?? 'Insumo desconocido',
+          peso_estandar: Number(x.peso_estandar),
+          peso_real: Number(x.peso_real),
+          pesado: x.pesado,
+        })),
+      );
+      res.json({
+        desde: typeof req.query.desde === 'string' ? req.query.desde : null,
+        hasta: typeof req.query.hasta === 'string' ? req.query.hasta : null,
+        ...resumen,
+      });
+    } catch (error) {
+      console.error('Error al calcular la desviación de pesaje:', error);
+      res.status(500).json({ error: 'Error al calcular la desviación de pesaje' });
     }
   });
 

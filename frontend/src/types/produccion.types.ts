@@ -81,3 +81,28 @@ export interface BalanceMasas {
   por_causa: { causa: string; gramos: number }[];
   rendimiento_pct: number | null;
 }
+
+export interface DesviacionInsumo {
+  materia_prima_id: string;
+  nombre: string;
+  producciones: number;
+  pesadas: number;
+  pct_pesado: number;
+  // Positivo: se pone de más que la receta. Negativo: de menos. Nulos si nunca se pesó.
+  desviacion_media_pct: number | null;
+  desviacion_abs_media_pct: number | null;
+  desviacion_max_pct: number | null;
+}
+
+export interface DesviacionesPesaje {
+  desde: string | null;
+  hasta: string | null;
+  global: {
+    producciones: number;
+    pesajes: number;
+    pesados: number;
+    pct_pesado: number | null;
+    desviacion_abs_media_pct: number | null;
+  };
+  insumos: DesviacionInsumo[];
+}
