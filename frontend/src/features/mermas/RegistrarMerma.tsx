@@ -39,7 +39,7 @@ export function RegistrarMerma() {
     queryFn: () => getLotesMateria(materiaId),
     enabled: tipo === 'insumo' && materiaId !== '',
   });
-  const producciones = useQuery({ queryKey: ['produccion', 'lista'], queryFn: () => getProducciones(), enabled: tipo === 'produccion' });
+  const producciones = useQuery({ queryKey: ['produccion', 'lista'], queryFn: () => getProducciones(), enabled: tipo === 'produccion' || (tipo === 'insumo' && etapa === 'produccion') });
 
   const insumos = (inventario.data?.items ?? []).filter((i) => i.stock > 0);
   const lotesConStock = (lotes.data?.lotes ?? []).filter((l) => l.cantidad_disponible > 0);
@@ -60,7 +60,7 @@ export function RegistrarMerma() {
         causa_id: causaId,
         etapa: tipo === 'produccion' ? 'produccion' : etapa,
         cantidad: Math.round(cantidad * 1000) / 1000,
-        ...(tipo === 'insumo' ? { lote_id: loteId } : { produccion_id: produccionId }),
+        ...(tipo === 'insumo' ? { lote_id: loteId, ...(etapa === 'produccion' && produccionId ? { produccion_id: produccionId } : {}) } : { produccion_id: produccionId }),
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -170,12 +170,43 @@ export function RegistrarMerma() {
           )}
           <div className="flex flex-col gap-1">
             <label htmlFor="mm-etapa" className="text-sm font-medium text-gray-700">¿En qué etapa se perdió?</label>
-            <select id="mm-etapa" className={CAMPO} value={etapa} onChange={(e) => setEtapa(e.target.value as EtapaMerma)}>
+            <select
+              id="mm-etapa"
+              className={CAMPO}
+              value={etapa}
+              onChange={(e) => {
+                setEtapa(e.target.value as EtapaMerma);
+                setProduccionId('');
+              }}
+            >
               {ETAPAS.map((e) => (
                 <option key={e} value={e}>{ETIQUETA_ETAPA[e]}</option>
               ))}
             </select>
           </div>
+          {etapa === 'produccion' && (
+            <div className="flex flex-col gap-1">
+              <label htmlFor="mm-prod-insumo" className="text-sm font-medium text-gray-700">¿De qué producción? (opcional)</label>
+              <select
+                id="mm-prod-insumo"
+                className={CAMPO}
+                value={produccionId}
+                onChange={(e) => {
+                  setProduccionId(e.target.value);
+                  setErrorForm(null);
+                }}
+              >
+                <option value="">{producciones.isLoading ? 'Cargando...' : 'Sin producción'}</option>
+                {produccionesValidas.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.producto} · {new Date(p.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} {hora(p.fecha)}
+                    {p.estado === 'en_curso' ? ' (en curso)' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-gray-500">Si la eliges, la merma entra al balance de masas de esa producción. Debe ser una producción que usó este lote.</span>
+            </div>
+          )}
         </>
       ) : (
         <div className="flex flex-col gap-1">
