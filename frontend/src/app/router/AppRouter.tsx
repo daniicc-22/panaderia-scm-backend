@@ -10,6 +10,8 @@ import { FormulacionesPage } from '../../pages/FormulacionesPage';
 import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 import { ProveedoresPage } from '../../pages/ProveedoresPage';
+import { ReposicionPage } from '../../pages/ReposicionPage';
+import { ParametrosReposicionPage } from '../../pages/ParametrosReposicionPage';
 import { InventarioPage } from '../../pages/InventarioPage';
 import { ProduccionPage } from '../../pages/ProduccionPage';
 import { MermasPage } from '../../pages/MermasPage';
@@ -44,6 +46,8 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/desviacion-pesaje" element={<DesviacionPesajePage />} />
+          <Route path="/reposicion" element={<ReposicionPage />} />
+          <Route path="/reposicion/parametros" element={<ParametrosReposicionPage />} />
         </Route>
       </Route>
 

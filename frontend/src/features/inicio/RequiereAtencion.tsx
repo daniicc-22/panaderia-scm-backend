@@ -5,6 +5,7 @@ import { getConteos } from '../../services/conteosService';
 import { getFormulaciones } from '../../services/formulacionesService';
 import { getAlertasVencimiento } from '../../services/inventarioService';
 import { getTableroProduccion } from '../../services/produccionService';
+import { getExistenciasBajas, getRecomendaciones } from '../../services/reposicionService';
 
 type Nivel = 'rojo' | 'amarillo' | 'azul';
 
@@ -34,8 +35,12 @@ export function RequiereAtencion({ verCostos }: { verCostos: boolean }) {
   const alertas = useQuery({ queryKey: ['inventario', 'alertas'], queryFn: getAlertasVencimiento });
   const conteos = useQuery({ queryKey: ['conteos', 'lista'], queryFn: getConteos });
   const formulaciones = useQuery({ queryKey: ['formulaciones'], queryFn: getFormulaciones, enabled: verCostos });
+  // Existencias bajas no lleva dinero: lo ven todos. El cálculo de pedidos es de gestión.
+  const existencias = useQuery({ queryKey: ['produccion', 'existencias-bajas'], queryFn: getExistenciasBajas });
+  const reposicion = useQuery({ queryKey: ['reposicion', 'recomendaciones'], queryFn: getRecomendaciones, enabled: verCostos });
 
-  const cargando = tablero.isLoading || alertas.isLoading || conteos.isLoading || (verCostos && formulaciones.isLoading);
+  const cargando =
+    tablero.isLoading || alertas.isLoading || conteos.isLoading || existencias.isLoading || (verCostos && (formulaciones.isLoading || reposicion.isLoading));
   if (cargando) return null;
 
   const avisos: Aviso[] = [];
@@ -61,6 +66,83 @@ export function RequiereAtencion({ verCostos }: { verCostos: boolean }) {
       enlace: '/inventario',
       accion: 'Ver inventario',
     });
+  }
+
+  // Insumos que se acabaron o se están acabando
+  const bajas = existencias.data?.items ?? [];
+  const nombres = (nivel: 'agotado' | 'critico' | 'bajo') => {
+    const lista = bajas.filter((i) => i.nivel === nivel).map((i) => i.nombre);
+    return lista.length > 3 ? `${lista.slice(0, 3).join(', ')} y ${lista.length - 3} más` : lista.join(', ');
+  };
+  const agotados = existencias.data?.resumen.agotados ?? 0;
+  const criticos = existencias.data?.resumen.criticos ?? 0;
+  const bajosN = existencias.data?.resumen.bajos ?? 0;
+  const destinoExistencias = verCostos ? '/reposicion' : '/inventario';
+  if (agotados > 0) {
+    avisos.push({
+      clave: 'agotados',
+      nivel: 'rojo',
+      texto: `${plural(agotados, 'insumo agotado', 'insumos agotados')}`,
+      detalle: nombres('agotado'),
+      enlace: destinoExistencias,
+      accion: verCostos ? 'Ver reposición' : 'Ver inventario',
+    });
+  }
+  if (criticos > 0) {
+    avisos.push({
+      clave: 'criticos',
+      nivel: 'rojo',
+      texto: `${plural(criticos, 'insumo se acaba', 'insumos se acaban')} antes de la próxima entrega`,
+      detalle: nombres('critico'),
+      enlace: destinoExistencias,
+      accion: verCostos ? 'Ver reposición' : 'Ver inventario',
+    });
+  }
+  if (bajosN > 0) {
+    avisos.push({
+      clave: 'bajos',
+      nivel: 'amarillo',
+      texto: `${plural(bajosN, 'insumo con existencias bajas', 'insumos con existencias bajas')}`,
+      detalle: nombres('bajo'),
+      enlace: destinoExistencias,
+      accion: verCostos ? 'Ver reposición' : 'Ver inventario',
+    });
+  }
+
+  // Compras (solo gestión: incluyen dinero y proveedores)
+  if (verCostos && reposicion.data) {
+    const r = reposicion.data;
+    if (r.resumen.pedir_hoy > 0) {
+      avisos.push({
+        clave: 'pedir-hoy',
+        nivel: 'rojo',
+        texto: `Hoy es el último día para pedir ${plural(r.resumen.pedir_hoy, 'insumo', 'insumos')}`,
+        detalle: 'Si no se piden hoy, no llegan en la próxima entrega.',
+        enlace: '/reposicion',
+        accion: 'Ver pedidos',
+      });
+    }
+    const sinMinimo = r.pedidos.filter((p) => p.costos.pedido_minimo.cumple === false).length;
+    if (sinMinimo > 0) {
+      avisos.push({
+        clave: 'pedido-minimo',
+        nivel: 'amarillo',
+        texto: `${plural(sinMinimo, 'pedido no llega', 'pedidos no llegan')} al mínimo del proveedor`,
+        detalle: 'Revisa qué se puede completar para no pagar de más ni quedarte corto.',
+        enlace: '/reposicion',
+        accion: 'Ver pedidos',
+      });
+    }
+    if (r.resumen.datos_insuficientes > 0) {
+      avisos.push({
+        clave: 'datos-reposicion',
+        nivel: 'azul',
+        texto: `${plural(r.resumen.datos_insuficientes, 'insumo sin datos', 'insumos sin datos')} para calcular qué pedir`,
+        detalle: 'Faltan parámetros del insumo o el calendario de entrega del proveedor.',
+        enlace: '/reposicion/parametros',
+        accion: 'Completar',
+      });
+    }
   }
 
   const pendientes = tablero.data?.pendientes.length ?? 0;

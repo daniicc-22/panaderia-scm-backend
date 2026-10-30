@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { aNumero } from '../features/inventario/esquemaEntrada';
 import { formatoCantidad, formatoFecha } from '../features/inventario/formatos';
 import { ProduccionesRecientes } from '../features/produccion/ProduccionesRecientes';
+import { QueProducir } from '../features/produccion/QueProducir';
 import { colorDesviacion, leerPesos, textoDesviacion, type PesosTexto } from '../features/produccion/pesos';
 import { getFormulaciones } from '../services/formulacionesService';
 import { mensajeDeError } from '../services/errores';
@@ -255,6 +256,8 @@ export function ProduccionPage() {
           </div>
         </div>
       )}
+
+      <QueProducir />
 
       <ProduccionesRecientes />
     </div>

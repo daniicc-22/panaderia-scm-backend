@@ -5,15 +5,19 @@ import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { OfertasProveedor } from '../features/proveedores/OfertasProveedor';
+import { EntregaProveedorForm } from '../features/proveedores/EntregaProveedorForm';
 import { ProveedorForm } from '../features/proveedores/ProveedorForm';
+import { textoDiasEntrega } from '../features/reposicion/etiquetas';
 import { editarProveedor, getProveedores } from '../services/proveedoresService';
 import { mensajeDeError } from '../services/errores';
 import type { Proveedor } from '../types/proveedor.types';
 
+const pesos = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const textoPrecios = (n: number) => (n === 1 ? '1 precio vigente' : `${n} precios vigentes`);
 
 interface Acciones {
   onVerOferta: (p: Proveedor) => void;
+  onEntrega: (p: Proveedor) => void;
   onEditar: (p: Proveedor) => void;
   onDesactivar: (p: Proveedor) => void;
   onReactivar: (p: Proveedor) => void;
@@ -40,6 +44,18 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
     { key: 'contacto', encabezado: 'Contacto', render: (p) => p.contacto ?? '—' },
     { key: 'telefono', encabezado: 'Teléfono', render: (p) => p.telefono ?? '—' },
     { key: 'direccion', encabezado: 'Dirección', render: (p) => p.direccion ?? '—' },
+    {
+      key: 'entrega',
+      encabezado: 'Entrega',
+      render: (p) => (
+        <span className="text-sm">
+          <span className={p.dias_entrega.length === 0 ? 'text-amber-700' : 'text-gray-700'}>{textoDiasEntrega(p.dias_entrega)}</span>
+          {p.pedido_minimo !== null && (
+            <span className="block text-xs text-gray-500">Mínimo {pesos.format(p.pedido_minimo)}</span>
+          )}
+        </span>
+      ),
+    },
     {
       key: 'precios',
       encabezado: 'Oferta y precios',
@@ -68,6 +84,14 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
               onClick={() => acciones.onEditar(p)}
             >
               Editar
+            </button>
+            <button
+              type="button"
+              className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+              disabled={acciones.ocupado}
+              onClick={() => acciones.onEntrega(p)}
+            >
+              Entrega
             </button>
             {p.activo ? (
               <button
@@ -102,6 +126,7 @@ export function ProveedoresPage() {
   const [formulario, setFormulario] = useState<'nuevo' | Proveedor | null>(null);
   const [porDesactivar, setPorDesactivar] = useState<Proveedor | null>(null);
   const [verOferta, setVerOferta] = useState<Proveedor | null>(null);
+  const [conEntrega, setConEntrega] = useState<Proveedor | null>(null);
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores });
@@ -157,6 +182,10 @@ export function ProveedoresPage() {
     () =>
       crearColumnas({
         onVerOferta: (p) => setVerOferta(p),
+        onEntrega: (p) => {
+          setAviso(null);
+          setConEntrega(p);
+        },
         onEditar: (p) => {
           setAviso(null);
           setFormulario(p);
@@ -237,6 +266,10 @@ export function ProveedoresPage() {
 
       <Modal isOpen={verOferta !== null} onClose={() => setVerOferta(null)} title={verOferta ? `Oferta de ${verOferta.nombre}` : 'Oferta'} size="lg">
         {verOferta !== null && <OfertasProveedor key={verOferta.id} proveedorId={verOferta.id} />}
+      </Modal>
+
+      <Modal isOpen={conEntrega !== null} onClose={() => setConEntrega(null)} title={conEntrega ? `Entrega de ${conEntrega.nombre}` : 'Entrega'}>
+        {conEntrega !== null && <EntregaProveedorForm key={conEntrega.id} proveedor={conEntrega} onTerminar={() => setConEntrega(null)} />}
       </Modal>
 
       <Modal isOpen={porDesactivar !== null} onClose={() => setPorDesactivar(null)} title="Desactivar proveedor">

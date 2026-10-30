@@ -13,6 +13,8 @@ const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Materias primas', ruta: '/materias-primas' },
   { etiqueta: 'Proveedores', ruta: '/proveedores', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Inventario', ruta: '/inventario' },
+  { etiqueta: 'Reposición', ruta: '/reposicion', rolesPermitidos: ['administrador', 'superadministrador'] },
+  { etiqueta: 'Parámetros de reposición', ruta: '/reposicion/parametros', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Producir', ruta: '/produccion' },
   { etiqueta: 'Mermas', ruta: '/mermas' },
   { etiqueta: 'Desviación de pesaje', ruta: '/desviacion-pesaje', rolesPermitidos: ['administrador', 'superadministrador'] },

@@ -8,6 +8,16 @@ export interface Proveedor {
   // 'grupo': compartido con otras panaderías del grupo; solo se puede consultar
   alcance: 'panaderia' | 'grupo';
   ofertas_vigentes: number;
+  // Calendario de entrega: 0 = domingo ... 6 = sábado; lista vacía = sin definir
+  dias_entrega: number[];
+  hora_limite_pedido: string | null;
+  pedido_minimo: number | null;
+}
+
+export interface EntregaProveedor {
+  dias_entrega: number[];
+  hora_limite_pedido: string | null;
+  pedido_minimo: number | null;
 }
 
 export interface DatosProveedor {
