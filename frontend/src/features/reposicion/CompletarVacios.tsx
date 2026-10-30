@@ -20,6 +20,7 @@ export function CompletarVacios({ items, onTerminar }: Props) {
   const [costoPedido, setCostoPedido] = useState('');
   const [plazo, setPlazo] = useState('');
   const [diasSeguridad, setDiasSeguridad] = useState('');
+  const [tasaPct, setTasaPct] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [avance, setAvance] = useState<{ hechos: number; total: number } | null>(null);
   const [resultado, setResultado] = useState<{ ok: number; fallos: string[] } | null>(null);
@@ -27,11 +28,13 @@ export function CompletarVacios({ items, onTerminar }: Props) {
   // Solo insumos que se calculan (no los de compra al uso) y solo donde el campo está vacío
   const candidatos = items.filter((i) => (i.parametros?.modo_reposicion ?? 'periodica') === 'periodica');
 
-  function cambiosPara(i: ItemParametros, v: { s: number | null; plazo: number | null; ds: number | null }): CambiosParametros {
+  function cambiosPara(i: ItemParametros, v: { s: number | null; plazo: number | null; ds: number | null; tasa: number | null }): CambiosParametros {
     const c: CambiosParametros = {};
     if (v.s !== null && i.parametros?.costo_pedido == null) c.costo_ordenar_s = v.s;
     if (v.plazo !== null && i.parametros?.plazo_dias == null && i.oferta?.plazo_dias == null) c.lead_time_dias = v.plazo;
     if (v.ds !== null && i.parametros?.dias_seguridad == null) c.dias_seguridad = v.ds;
+    // Si ya hay un costo de mantener dado directamente, la tasa no hace falta
+    if (v.tasa !== null && i.parametros?.tasa_mantenimiento_anual == null && i.parametros?.costo_mantener_h == null) c.tasa_mantenimiento_anual = v.tasa;
     return c;
   }
 
@@ -39,23 +42,25 @@ export function CompletarVacios({ items, onTerminar }: Props) {
     const s = leerNumero(costoPedido);
     const p = leerNumero(plazo);
     const ds = leerNumero(diasSeguridad);
-    if ([s, p, ds].some((n) => n !== null && Number.isNaN(n))) {
+    const t = leerNumero(tasaPct);
+    if ([s, p, ds, t].some((n) => n !== null && Number.isNaN(n))) {
       setError('Escribe solo números (por ejemplo 5000).');
       return null;
     }
-    if (s === null && p === null && ds === null) {
+    if (s === null && p === null && ds === null && t === null) {
       setError('Escribe al menos un valor.');
       return null;
     }
     setError(null);
-    return { s, plazo: p, ds };
+    return { s, plazo: p, ds, tasa: t === null ? null : Math.round((t / 100) * 10000) / 10000 };
   }
 
   const cuantos = (() => {
     const s = leerNumero(costoPedido);
     const p = leerNumero(plazo);
     const ds = leerNumero(diasSeguridad);
-    const v = { s: Number.isNaN(s) ? null : s, plazo: Number.isNaN(p) ? null : p, ds: Number.isNaN(ds) ? null : ds };
+    const t = leerNumero(tasaPct);
+    const v = { s: Number.isNaN(s) ? null : s, plazo: Number.isNaN(p) ? null : p, ds: Number.isNaN(ds) ? null : ds, tasa: t === null || Number.isNaN(t) ? null : t / 100 };
     return candidatos.filter((i) => Object.keys(cambiosPara(i, v)).length > 0).length;
   })();
 
@@ -123,6 +128,15 @@ export function CompletarVacios({ items, onTerminar }: Props) {
         inputMode="decimal"
         value={diasSeguridad}
         onChange={(e) => setDiasSeguridad(e.target.value)}
+        disabled={ocupado}
+      />
+      <Input
+        id="vac-tasa"
+        label="Costo anual de mantener el inventario, % del valor (opcional)"
+        inputMode="decimal"
+        placeholder="Supuesto del modelo, por ejemplo 25"
+        value={tasaPct}
+        onChange={(e) => setTasaPct(e.target.value)}
         disabled={ocupado}
       />
       <p className="text-xs text-gray-500">Se aplicaría a {cuantos} de {candidatos.length} insumos.</p>

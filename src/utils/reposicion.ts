@@ -269,6 +269,10 @@ export interface ResultadoReposicion {
   ciclos_elegidos: number | null;
   /** Costo anual de pedir y mantener con el ciclo elegido. */
   costo_total_anual: number | null;
+  /** Costo anual de pedir y mantener si se pidiera justo el EOQ (el mínimo teórico, sin calendario). */
+  costo_anual_eoq: number | null;
+  /** Cantidad de cada pedido con el ciclo elegido (d × días que cubre). */
+  cantidad_politica: number | null;
   cobertura_dias: number | null;
   fecha_agotamiento: FechaCivil | null;
   proxima_entrega: FechaCivil | null;
@@ -294,6 +298,8 @@ function resultadoVacio(): ResultadoReposicion {
     ciclo_economico_dias: null,
     ciclos_elegidos: null,
     costo_total_anual: null,
+    costo_anual_eoq: null,
+    cantidad_politica: null,
     cobertura_dias: null,
     fecha_agotamiento: null,
     proxima_entrega: null,
@@ -348,6 +354,12 @@ export function recomendarReposicion(entrada: EntradaReposicion): ResultadoRepos
   r.eoq = resEOQ.eoq;
   if (resEOQ.eoq !== null && demanda) {
     r.ciclo_economico_dias = resEOQ.eoq / demanda.diaria;
+    r.costo_anual_eoq = costoTotalAnual({
+      demandaAnual: demanda.anual,
+      costoPedido: entrada.costoPedido as number,
+      costoMantener: entrada.costoMantener as number,
+      cantidad: resEOQ.eoq,
+    });
   }
   if (resEOQ.eoq === null) {
     if (resEOQ.faltantes.includes('costo_pedido')) r.advertencias.push('sin_eoq_falta_costo_pedido');
@@ -416,6 +428,7 @@ export function recomendarReposicion(entrada: EntradaReposicion): ResultadoRepos
       }
     }
     r.costo_total_anual = mejor;
+    r.cantidad_politica = d * cobertura(k);
   } else {
     r.advertencias.push('ciclo_minimo_por_falta_de_eoq');
   }

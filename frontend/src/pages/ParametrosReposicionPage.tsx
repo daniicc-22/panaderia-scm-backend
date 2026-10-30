@@ -11,6 +11,7 @@ import { Modal } from '../components/ui/Modal';
 import { CompletarVacios } from '../features/reposicion/CompletarVacios';
 import { ESTADOS, etiquetaFaltante } from '../features/reposicion/etiquetas';
 import { ParametroForm } from '../features/reposicion/ParametroForm';
+import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { getParametrosReposicion, getRecomendaciones } from '../services/reposicionService';
 import { getProveedores } from '../services/proveedoresService';
 import type { ItemParametros } from '../types/reposicion.types';
@@ -70,14 +71,13 @@ export function ParametrosReposicionPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/reposicion" className="inline-flex items-center rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300">
-            Ver qué pedir
-          </Link>
           <Button type="button" onClick={() => setCompletando(true)} disabled={items.length === 0}>
             Completar vacíos
           </Button>
         </div>
       </div>
+
+      <NavReposicion />
 
       {sinCalendario.length > 0 && (
         <Alert variant="warning">

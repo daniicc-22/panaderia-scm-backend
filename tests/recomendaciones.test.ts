@@ -298,3 +298,36 @@ describe('armarRecomendaciones: insumos que se compran al uso', () => {
     expect(r.al_uso.map((i) => i.nombre)).toEqual(['Arequipe', 'Queso']);
   });
 });
+
+describe('armarRecomendaciones: datos del modelo EOQ', () => {
+  test('con costos completos trae lo necesario para dibujar la curva', () => {
+    const h = armar([insumo()]).items[0]!;
+    expect(h.modelo).toEqual({
+      demanda_anual: 364000,
+      costo_pedido: 1000,
+      costo_mantener: 2,
+      cantidad_politica: 21000,
+      costo_anual_eoq: Math.round(Math.sqrt(2 * 364000 * 1000 * 2) * 100) / 100,
+    });
+  });
+
+  test('sin costo por pedido no hay modelo (no se inventa)', () => {
+    const base = insumo();
+    const h = armar([insumo({ parametros: { ...base.parametros!, costo_pedido: null } })]).items[0]!;
+    expect(h.modelo).toBeNull();
+    expect(h.eoq).toBeNull();
+  });
+
+  test('sin costo de mantener (ni tasa) no hay modelo', () => {
+    const base = insumo();
+    const h = armar([insumo({ parametros: { ...base.parametros!, costo_mantener_h: null } })]).items[0]!;
+    expect(h.modelo).toBeNull();
+  });
+
+  test('con la tasa de mantenimiento se calcula H con el costo de la oferta', () => {
+    const base = insumo();
+    const p = { ...base.parametros!, costo_mantener_h: null, tasa_mantenimiento_anual: 0.25 };
+    const h = armar([insumo({ parametros: p })]).items[0]!;
+    expect(h.modelo!.costo_mantener).toBe(0.5); // 25 % × costo de 2 por unidad
+  });
+});

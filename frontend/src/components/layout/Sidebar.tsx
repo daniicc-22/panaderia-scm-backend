@@ -14,6 +14,7 @@ const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Proveedores', ruta: '/proveedores', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Inventario', ruta: '/inventario' },
   { etiqueta: 'Reposición', ruta: '/reposicion', rolesPermitidos: ['administrador', 'superadministrador'] },
+  { etiqueta: 'Análisis EOQ', ruta: '/reposicion/eoq', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Parámetros de reposición', ruta: '/reposicion/parametros', rolesPermitidos: ['administrador', 'superadministrador'] },
   { etiqueta: 'Producir', ruta: '/produccion' },
   { etiqueta: 'Mermas', ruta: '/mermas' },

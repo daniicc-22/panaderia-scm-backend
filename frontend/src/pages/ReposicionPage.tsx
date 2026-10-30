@@ -8,6 +8,7 @@ import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ESTADOS, etiquetaAdvertencia, etiquetaFaltante, ORIGEN_DEMANDA } from '../features/reposicion/etiquetas';
 import { formatoCantidad, formatoDinero, formatoFecha } from '../features/inventario/formatos';
+import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { getRecomendaciones } from '../services/reposicionService';
 import type { EstadoReposicion, ItemRecomendacion } from '../types/reposicion.types';
 
@@ -99,10 +100,8 @@ export function ReposicionPage() {
             Qué pedir, cuándo y cuánto{data ? ` · cálculo de hoy, ${formatoFecha(data.fecha)}` : ''}
           </p>
         </div>
-        <Link to="/reposicion/parametros" className="inline-flex items-center rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300">
-          Parámetros
-        </Link>
       </div>
+      <NavReposicion />
 
       {isLoading && <LoadingState mensaje="Calculando..." />}
       {isError && <ErrorState onReintentar={() => refetch()} />}

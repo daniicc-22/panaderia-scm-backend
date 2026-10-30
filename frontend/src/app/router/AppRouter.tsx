@@ -12,6 +12,7 @@ import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 import { ProveedoresPage } from '../../pages/ProveedoresPage';
 import { ReposicionPage } from '../../pages/ReposicionPage';
 import { ParametrosReposicionPage } from '../../pages/ParametrosReposicionPage';
+import { AnalisisEoqPage } from '../../pages/AnalisisEoqPage';
 import { InventarioPage } from '../../pages/InventarioPage';
 import { ProduccionPage } from '../../pages/ProduccionPage';
 import { MermasPage } from '../../pages/MermasPage';
@@ -47,6 +48,7 @@ export function AppRouter() {
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/desviacion-pesaje" element={<DesviacionPesajePage />} />
           <Route path="/reposicion" element={<ReposicionPage />} />
+          <Route path="/reposicion/eoq" element={<AnalisisEoqPage />} />
           <Route path="/reposicion/parametros" element={<ParametrosReposicionPage />} />
         </Route>
       </Route>

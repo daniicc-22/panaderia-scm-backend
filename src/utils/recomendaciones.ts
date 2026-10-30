@@ -94,6 +94,16 @@ export interface ItemRecomendacion {
   eoq: number | null;
   ciclo_economico_dias: number | null;
   ciclos_elegidos: number | null;
+  /** Lo necesario para dibujar la curva de costos del EOQ. Solo existe si el EOQ se pudo calcular. */
+  modelo: {
+    demanda_anual: number;
+    costo_pedido: number;
+    costo_mantener: number;
+    /** Cantidad de cada pedido con el ciclo elegido (adaptado al calendario del proveedor). */
+    cantidad_politica: number | null;
+    /** Costo anual de pedir y mantener pidiendo justo el EOQ. */
+    costo_anual_eoq: number;
+  } | null;
   cantidad_recomendada: number;
   presentacion: string | null;
   presentaciones_a_pedir: number | null;
@@ -268,6 +278,16 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
       eoq: r.eoq === null ? null : redondear(r.eoq),
       ciclo_economico_dias: r.ciclo_economico_dias === null ? null : redondear(r.ciclo_economico_dias, 1),
       ciclos_elegidos: r.ciclos_elegidos,
+      modelo:
+        r.eoq !== null && r.costo_anual_eoq !== null && demanda !== null && par?.costo_pedido != null && costoMantener !== null
+          ? {
+              demanda_anual: redondear(demanda.anual),
+              costo_pedido: par.costo_pedido,
+              costo_mantener: redondear(costoMantener, 4),
+              cantidad_politica: r.cantidad_politica === null ? null : redondear(r.cantidad_politica),
+              costo_anual_eoq: redondear(r.costo_anual_eoq, 2),
+            }
+          : null,
       cantidad_recomendada: redondear(r.cantidad_recomendada),
       presentacion: oferta ? oferta.presentacion : null,
       presentaciones_a_pedir: presentaciones,

@@ -436,3 +436,36 @@ describe('capacidadProduccion', () => {
     expect(capacidadProduccion([{ materiaPrimaId: 'x', cantidad: 0 }], { x: 5 }).lotesPosibles).toBeNull();
   });
 });
+
+describe('recomendarReposicion: comparación con el EOQ', () => {
+  const costos = { costoPedido: 1000, costoMantener: 2 };
+
+  it('da el costo anual del EOQ teórico: √(2·D·S·H)', () => {
+    const r = recomendarReposicion(entrada(costos));
+    expect(r.costo_anual_eoq).toBeCloseTo(Math.sqrt(2 * 364000 * 1000 * 2), 6);
+  });
+
+  it('el costo con el calendario nunca es menor que el del EOQ', () => {
+    for (const extra of [{}, { vidaUtilDias: 14 }, { stockMaximo: 20000 }, { vidaUtilDias: 7 }]) {
+      const r = recomendarReposicion(entrada({ ...costos, ...extra }));
+      expect(r.costo_total_anual!).toBeGreaterThanOrEqual(r.costo_anual_eoq! - 1e-6);
+    }
+  });
+
+  it('informa la cantidad de cada pedido con el ciclo elegido', () => {
+    expect(recomendarReposicion(entrada(costos)).cantidad_politica).toBe(21000); // 3 entregas: 1.000 × 21 días
+    expect(recomendarReposicion(entrada({ ...costos, vidaUtilDias: 14 })).cantidad_politica).toBe(14000);
+  });
+
+  it('sin costos no hay EOQ ni cantidad de política', () => {
+    const r = recomendarReposicion(entrada());
+    expect(r.costo_anual_eoq).toBeNull();
+    expect(r.cantidad_politica).toBeNull();
+  });
+
+  it('con el EOQ calculable pero sin calendario informa el EOQ y no la política', () => {
+    const r = recomendarReposicion(entrada({ ...costos, calendario: null }));
+    expect(r.costo_anual_eoq).not.toBeNull();
+    expect(r.cantidad_politica).toBeNull();
+  });
+});

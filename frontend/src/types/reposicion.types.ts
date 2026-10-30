@@ -39,6 +39,16 @@ export interface ItemRecomendacion {
   eoq: number | null;
   ciclo_economico_dias: number | null;
   ciclos_elegidos: number | null;
+  // Datos para dibujar la curva de costos del EOQ; null si el EOQ no se pudo calcular
+  modelo: {
+    demanda_anual: number;
+    costo_pedido: number;
+    costo_mantener: number;
+    // Cantidad de cada pedido con el calendario del proveedor
+    cantidad_politica: number | null;
+    // Costo anual de pedir y guardar pidiendo justo el EOQ
+    costo_anual_eoq: number;
+  } | null;
   cantidad_recomendada: number;
   presentacion: string | null;
   presentaciones_a_pedir: number | null;
