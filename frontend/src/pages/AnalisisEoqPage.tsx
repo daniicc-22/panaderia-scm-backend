@@ -8,7 +8,7 @@ import { BarrasCostoAnual } from '../features/reposicion/eoq/BarrasCostoAnual';
 import { CortesGuardados } from '../features/reposicion/eoq/CortesGuardados';
 import { CurvaCostos } from '../features/reposicion/eoq/CurvaCostos';
 import { TablaEoq } from '../features/reposicion/eoq/TablaEoq';
-import { conEoq, costoReferencia, explicacion, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
+import { conEoq, costoReferencia, explicacion, insumosSinEoq, motivosSinCalendario, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { formatoCantidad, formatoDinero } from '../features/inventario/formatos';
 import { getRecomendaciones } from '../services/reposicionService';
@@ -34,6 +34,8 @@ export function AnalisisEoqPage() {
   );
   const resumen = useMemo(() => resumenGlobal(data?.items ?? []), [data]);
   const motivos = useMemo(() => motivosSinEoq(data?.items ?? []), [data]);
+  const sinEoq = useMemo(() => insumosSinEoq(data?.items ?? []), [data]);
+  const sinCalendario = useMemo(() => motivosSinCalendario(data?.items ?? []), [data]);
   const elegido = lista.find((i) => i.materia_prima_id === seleccionId) ?? lista[0] ?? null;
 
   return (
@@ -96,16 +98,47 @@ export function AnalisisEoqPage() {
               <Link to="/reposicion/parametros" className="font-medium underline">
                 Completarlos
               </Link>
+              <details className="mt-1">
+                <summary className="cursor-pointer font-medium">Ver cuáles y qué les falta</summary>
+                <ul className="mt-1 list-disc pl-5">
+                  {sinEoq.map((i) => (
+                    <li key={i.id}>
+                      {i.nombre}: {i.falta.join(', ') || 'revisar parámetros'}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </Alert>
           )}
 
-          {resumen.conCalendario < resumen.conEoq && (
+          {sinCalendario.total > 0 && (
             <Alert variant="info">
-              {resumen.conEoq - resumen.conCalendario === 1 ? '1 insumo no tiene' : `${resumen.conEoq - resumen.conCalendario} insumos no tienen`} calendario de
-              entrega o días de seguridad, así que solo se muestra su mínimo teórico (barras más claras) y no entran en la comparación con el calendario.{' '}
-              <Link to="/reposicion/parametros" className="font-medium underline">
-                Completarlos
-              </Link>
+              <p>
+                {sinCalendario.total === 1 ? '1 insumo' : `${sinCalendario.total} insumos`} se muestra solo con su mínimo teórico (barras más claras) y no
+                entra en la comparación con el calendario del proveedor. Lo que falta:
+              </p>
+              <ul className="mt-1 list-disc pl-5">
+                {sinCalendario.sinSeguridad > 0 && (
+                  <li>
+                    {sinCalendario.sinSeguridad} sin días de seguridad ni stock mínimo (se completan en{' '}
+                    <Link to="/reposicion/parametros" className="font-medium underline">
+                      Parámetros
+                    </Link>
+                    , «Completar vacíos»).
+                  </li>
+                )}
+                {sinCalendario.sinProveedor > 0 && <li>{sinCalendario.sinProveedor} sin proveedor con precio vigente.</li>}
+                {sinCalendario.sinDiasEntrega > 0 && (
+                  <li>
+                    {sinCalendario.sinDiasEntrega} con un proveedor sin días de entrega (en{' '}
+                    <Link to="/proveedores" className="font-medium underline">
+                      Proveedores
+                    </Link>
+                    , botón «Entrega»).
+                  </li>
+                )}
+                {sinCalendario.sinPlazo > 0 && <li>{sinCalendario.sinPlazo} sin plazo de entrega.</li>}
+              </ul>
             </Alert>
           )}
 

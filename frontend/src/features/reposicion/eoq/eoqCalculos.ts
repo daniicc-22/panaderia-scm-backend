@@ -98,6 +98,31 @@ export function motivosSinEoq(items: readonly ItemRecomendacion[]) {
   };
 }
 
+// Qué le falta a cada insumo sin EOQ, con nombre, para que el administrador sepa a cuál entrar
+export function insumosSinEoq(items: readonly ItemRecomendacion[]): { id: string; nombre: string; falta: string[] }[] {
+  return items
+    .filter((i) => i.modelo === null)
+    .map((i) => {
+      const falta: string[] = [];
+      if (i.faltantes.includes('demanda')) falta.push('consumo semanal');
+      if (i.advertencias.includes('sin_eoq_falta_costo_pedido')) falta.push('costo por pedido');
+      if (i.advertencias.includes('sin_eoq_falta_costo_mantener')) falta.push('costo de mantener');
+      return { id: i.materia_prima_id, nombre: i.nombre, falta };
+    });
+}
+
+// Los que tienen EOQ pero no la cantidad con calendario: qué falta, separando lo del insumo de lo del proveedor
+export function motivosSinCalendario(items: readonly ItemRecomendacion[]) {
+  const sin = conEoq(items).filter((i) => i.modelo.cantidad_politica === null);
+  return {
+    total: sin.length,
+    sinSeguridad: sin.filter((i) => i.faltantes.includes('stock_seguridad')).length,
+    sinProveedor: sin.filter((i) => i.faltantes.includes('proveedor')).length,
+    sinDiasEntrega: sin.filter((i) => i.faltantes.includes('dias_entrega')).length,
+    sinPlazo: sin.filter((i) => i.faltantes.includes('plazo_entrega')).length,
+  };
+}
+
 const dias = (n: number) => n.toLocaleString('es-CO', { maximumFractionDigits: 1 });
 
 // La explicación en palabras de un insumo: lo que el administrador necesita entender sin saber la fórmula
