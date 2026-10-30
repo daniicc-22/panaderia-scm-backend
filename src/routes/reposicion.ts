@@ -102,6 +102,7 @@ export async function cargarDatosReposicion(prisma: PrismaClient, panaderiaId: s
           vida_util_dias: num(p.vida_util_dias),
           plazo_dias: num(p.lead_time_dias),
           porcentaje_perdida_tolerable: num(p.porcentaje_perdida_tolerable),
+          modo_reposicion: p.modo_reposicion === 'al_uso' ? 'al_uso' : 'periodica',
         }
       : null;
 
@@ -234,6 +235,7 @@ export function crearRouterReposicion(prisma: PrismaClient, ahora: () => Date = 
         consumo_semanal_declarado: num(guardado.consumo_semanal_declarado),
         lead_time_dias: num(guardado.lead_time_dias),
         porcentaje_perdida_tolerable: num(guardado.porcentaje_perdida_tolerable),
+        modo_reposicion: guardado.modo_reposicion === 'al_uso' ? 'al_uso' : 'periodica',
       });
     } catch (error) {
       console.error('Error al guardar los parámetros de reposición:', error);

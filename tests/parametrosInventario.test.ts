@@ -77,3 +77,30 @@ describe('revisarCoherencia', () => {
     expect(revisarCoherencia({ stock_minimo: 10, stock_maximo: null })).toEqual([]);
   });
 });
+
+describe('validarParametros: modo de reposición', () => {
+  test('acepta periodica y al_uso, solo o junto con otros campos', () => {
+    expect(validarParametros({ modo_reposicion: 'al_uso' })).toEqual({ ok: true, datos: { modo_reposicion: 'al_uso' } });
+    expect(validarParametros({ modo_reposicion: 'periodica' })).toEqual({ ok: true, datos: { modo_reposicion: 'periodica' } });
+    expect(validarParametros({ modo_reposicion: 'al_uso', dias_seguridad: 2 })).toEqual({
+      ok: true,
+      datos: { modo_reposicion: 'al_uso', dias_seguridad: 2 },
+    });
+  });
+
+  test('rechaza otros textos, null, números y mayúsculas distintas', () => {
+    for (const v of ['otro', 'AL_USO', 'al uso', '', null, 1, true, undefined]) {
+      const r = validarParametros({ modo_reposicion: v });
+      expect(r.ok).toBe(false);
+    }
+  });
+
+  test('el error dice cuáles son los valores válidos y no se pierde el de otros campos', () => {
+    const r = validarParametros({ modo_reposicion: 'x', dias_seguridad: -1 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errores.some((e) => e.includes('"periodica" o "al_uso"'))).toBe(true);
+      expect(r.errores).toHaveLength(2);
+    }
+  });
+});

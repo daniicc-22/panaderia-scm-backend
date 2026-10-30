@@ -255,3 +255,48 @@ describe('GET /produccion/existencias-bajas', () => {
     }
   });
 });
+
+describe('insumos en modo al_uso (queso cuajada)', () => {
+  const QUESO = '33333333-3333-4333-8333-333333333399';
+  const paramQueso = (modo: string) => ({
+    id: 'p-queso', panaderia_id: PAN_A, materia_prima_id: QUESO, activo: true, modo_reposicion: modo,
+    costo_ordenar_s: null, costo_mantener_h: null, tasa_mantenimiento_anual: null, dias_seguridad: null,
+    stock_minimo: null, stock_maximo: null, vida_util_dias: null, consumo_semanal_declarado: null,
+    lead_time_dias: null, porcentaje_perdida_tolerable: null,
+  });
+  const prepararQueso = (modo: string | null) => {
+    materias.push(materia(QUESO, 'MP-099', 'Queso cuajada'));
+    formulaciones.push(form('p-queso', 'Pan de queso', [detalle(HARINA, 500), detalle(QUESO, 300)]));
+    if (modo !== null) parametros.push(paramQueso(modo));
+  };
+
+  test('sin el modo, un insumo en cero aparece como agotado y bloquea la producción', async () => {
+    prepararQueso(null);
+    const bajas = await llamar('/produccion/existencias-bajas');
+    expect(bajas.cuerpo.items.some((i: any) => i.nombre === 'Queso cuajada' && i.nivel === 'agotado')).toBe(true);
+    const q = (await llamar('/produccion/que-producir')).cuerpo.items.find((i: any) => i.producto_id === 'p-queso');
+    expect(q.estado).toBe('no_alcanza');
+    expect(q.faltantes).toEqual([{ materia_prima_id: QUESO, nombre: 'Queso cuajada', unidad: 'g', falta: 300 }]);
+    expect(q.compra_al_uso).toEqual([]);
+  });
+
+  test('en modo al_uso no sale en existencias bajas', async () => {
+    prepararQueso('al_uso');
+    const bajas = await llamar('/produccion/existencias-bajas');
+    expect(bajas.cuerpo.items.some((i: any) => i.nombre === 'Queso cuajada')).toBe(false);
+  });
+
+  test('en modo al_uso no limita qué producir y se avisa que se compra según la producción', async () => {
+    prepararQueso('al_uso');
+    const q = (await llamar('/produccion/que-producir')).cuerpo.items.find((i: any) => i.producto_id === 'p-queso');
+    expect(q.estado).toBe('puede');
+    expect(q.faltantes).toEqual([]);
+    expect(q.compra_al_uso).toEqual([{ materia_prima_id: QUESO, nombre: 'Queso cuajada', unidad: 'g', por_lote: 300 }]);
+  });
+
+  test('con modo periodica explícito se comporta como cualquier insumo', async () => {
+    prepararQueso('periodica');
+    const q = (await llamar('/produccion/que-producir')).cuerpo.items.find((i: any) => i.producto_id === 'p-queso');
+    expect(q.estado).toBe('no_alcanza');
+  });
+});

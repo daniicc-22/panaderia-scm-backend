@@ -387,7 +387,7 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
     const panaderiaId = req.panaderiaId!;
     try {
       const hoy = hoyColombia(ahora());
-      const [formulaciones, materias, filasLotes] = await Promise.all([
+      const [formulaciones, materias, filasLotes, filasParametros] = await Promise.all([
         prisma.formulacion.findMany({
           where: { panaderia_id: panaderiaId, activa: true },
           include: { producto: true, detalle_formulacion: true },
@@ -396,10 +396,13 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
         prisma.lote.findMany({
           where: { panaderia_id: panaderiaId, materia_prima_id: { not: null }, cantidad_disponible: { gt: 0 } },
         }),
+        prisma.parametro_inventario.findMany({ where: { panaderia_id: panaderiaId, activo: true } }),
       ]);
       const recetas = new Map<string, LineaReceta[]>(formulaciones.map((f) => [f.producto_id, aLineasReceta(f.detalle_formulacion)]));
       const materiaPorId = new Map(materias.map((m) => [m.id, m]));
       const sinControl = new Set(materias.filter((m) => !m.controla_inventario).map((m) => m.id));
+      // Perecederos que se compran según la producción: no limitan lo que se puede producir
+      const alUso = new Set(filasParametros.filter((p) => p.modo_reposicion === 'al_uso').map((p) => p.materia_prima_id));
 
       const existencias = new Map<string, number>();
       for (const l of filasLotes) {
@@ -437,7 +440,8 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
             formulacion_id: f.id,
             version: f.version,
             rendimiento: f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado),
-            necesidades: separarControlados(need.materias, sinControl).controladas,
+            necesidades: separarControlados(separarControlados(need.materias, sinControl).controladas, alUso).controladas,
+            compra_al_uso: separarControlados(separarControlados(need.materias, sinControl).controladas, alUso).no_controladas,
             bloqueo,
           };
         });

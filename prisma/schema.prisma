@@ -339,6 +339,7 @@ model parametro_inventario {
   vida_util_dias               Decimal?      @db.Decimal(6, 1)
   consumo_semanal_declarado    Decimal?      @db.Decimal(14, 3)
   tasa_mantenimiento_anual     Decimal?      @db.Decimal(6, 4)
+  modo_reposicion              String        @default("periodica") @db.VarChar(10)
   activo                       Boolean       @default(true)
   vigente_desde                DateTime      @default(dbgenerated("CURRENT_DATE")) @db.Date
   materia_prima                materia_prima @relation(fields: [materia_prima_id, panaderia_id], references: [id, panaderia_id], onDelete: NoAction, onUpdate: NoAction)

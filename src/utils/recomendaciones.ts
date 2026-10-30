@@ -28,6 +28,8 @@ export interface ParametrosInsumo {
   /** Tiempo de entrega propio del insumo (respaldo si la oferta no lo trae). */
   plazo_dias: number | null;
   porcentaje_perdida_tolerable?: number | null;
+  /** Sin valor cuenta como 'periodica'. */
+  modo_reposicion?: 'periodica' | 'al_uso';
 }
 
 export interface OfertaAplicada {
@@ -109,10 +111,25 @@ export interface PedidoProveedor {
   costos: { total: number; pedido_minimo: EvaluacionPedidoMinimo };
 }
 
+/** Insumo perecedero que no se maneja con inventario: se compra según lo que pida la producción. */
+export interface InsumoAlUso {
+  materia_prima_id: string;
+  codigo: string;
+  nombre: string;
+  unidad: string;
+  clase_abc: ClaseAbc | null;
+  existencia: number;
+  existencia_vencida: number;
+  demanda_semanal: number | null;
+  demanda_origen: OrigenDemanda | null;
+}
+
 export interface ResultadoRecomendaciones {
   fecha: FechaCivil;
   resumen: Record<EstadoReposicion, number>;
   items: ItemRecomendacion[];
+  /** Insumos en modo `al_uso`: no se calcula cuándo pedirlos y no cuentan en el resumen ni en las alertas. */
+  al_uso: InsumoAlUso[];
   pedidos: PedidoProveedor[];
 }
 
@@ -142,8 +159,28 @@ export interface EntradaRecomendaciones {
 export function armarRecomendaciones(entrada: EntradaRecomendaciones): ResultadoRecomendaciones {
   const proveedores = new Map(entrada.proveedores.map((p) => [p.id, p]));
   const items: ItemRecomendacion[] = [];
+  const alUso: InsumoAlUso[] = [];
 
   for (const insumo of entrada.insumos) {
+    if (insumo.parametros?.modo_reposicion === 'al_uso') {
+      const d = resolverDemanda({
+        real: insumo.consumo_real,
+        declaradaSemanal: insumo.consumo_declarado_semanal,
+        estimadaSemanal: insumo.consumo_estimado_semanal,
+      });
+      alUso.push({
+        materia_prima_id: insumo.materia_prima_id,
+        codigo: insumo.codigo,
+        nombre: insumo.nombre,
+        unidad: insumo.unidad,
+        clase_abc: insumo.clase_abc,
+        existencia: insumo.existencia,
+        existencia_vencida: insumo.existencia_vencida,
+        demanda_semanal: d ? redondear(d.semanal) : null,
+        demanda_origen: d ? d.origen : null,
+      });
+      continue;
+    }
     const oferta = insumo.oferta;
     const proveedor = oferta ? (proveedores.get(oferta.proveedor_id) ?? null) : null;
     const par = insumo.parametros;
@@ -297,5 +334,7 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
   });
   pedidos.sort((a, b) => comparar(a.fecha_limite_pedido ?? SIN_FECHA, b.fecha_limite_pedido ?? SIN_FECHA) || comparar(a.proveedor.nombre, b.proveedor.nombre));
 
-  return { fecha: entrada.hoy, resumen, items, pedidos };
+  alUso.sort((a, b) => comparar(a.nombre, b.nombre) || comparar(a.materia_prima_id, b.materia_prima_id));
+
+  return { fecha: entrada.hoy, resumen, items, al_uso: alUso, pedidos };
 }

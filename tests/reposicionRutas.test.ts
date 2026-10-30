@@ -319,3 +319,31 @@ describe('GET /abc?fuente=', () => {
     expect(r.cuerpo.insumos_sin_consumo_real).toHaveLength(2);
   });
 });
+
+describe('modo de reposición por la API', () => {
+  test('PUT guarda el modo al_uso y lo devuelve', async () => {
+    const r = await llamar('PUT', `/reposicion/parametros/${SAL}`, 'administrador', { modo_reposicion: 'al_uso' });
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.modo_reposicion).toBe('al_uso');
+    expect(parametros.find((p) => p.materia_prima_id === SAL)!.modo_reposicion).toBe('al_uso');
+  });
+
+  test('PUT rechaza un modo desconocido y no guarda nada', async () => {
+    const antes = parametros.length;
+    const r = await llamar('PUT', `/reposicion/parametros/${SAL}`, 'administrador', { modo_reposicion: 'mensual' });
+    expect(r.status).toBe(400);
+    expect(parametros).toHaveLength(antes);
+  });
+
+  test('un parámetro sin modo guardado se muestra como periodica', async () => {
+    const r = await llamar('PUT', `/reposicion/parametros/${HARINA}`, 'administrador', { vida_util_dias: 14 });
+    expect(r.cuerpo.modo_reposicion).toBe('periodica');
+  });
+
+  test('un insumo en al_uso sale de recomendaciones y va en al_uso', async () => {
+    await llamar('PUT', `/reposicion/parametros/${HARINA}`, 'administrador', { modo_reposicion: 'al_uso' });
+    const r = await llamar('GET', '/reposicion/recomendaciones', 'administrador');
+    expect(r.cuerpo.items.some((i: any) => i.materia_prima_id === HARINA)).toBe(false);
+    expect(r.cuerpo.al_uso.map((i: any) => i.materia_prima_id)).toContain(HARINA);
+  });
+});

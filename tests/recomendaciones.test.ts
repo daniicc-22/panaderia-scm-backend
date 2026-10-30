@@ -242,3 +242,59 @@ describe('armarRecomendaciones: pedidos por proveedor', () => {
     expect(armar([ok, sinDatos]).pedidos).toEqual([]);
   });
 });
+
+describe('armarRecomendaciones: insumos que se compran al uso', () => {
+  const alUso = (cambios: Partial<DatosInsumo> = {}) =>
+    insumo({
+      materia_prima_id: 'mp-queso',
+      codigo: 'MP-009',
+      nombre: 'Queso cuajada',
+      existencia: 0,
+      parametros: { ...insumo().parametros!, modo_reposicion: 'al_uso' },
+      ...cambios,
+    });
+
+  test('salen de las recomendaciones y del resumen y se listan aparte', () => {
+    const r = armar([insumo(), alUso()]);
+    expect(r.items.map((i) => i.nombre)).toEqual(['Harina']);
+    expect(Object.values(r.resumen).reduce((a, b) => a + b, 0)).toBe(1);
+    expect(r.al_uso).toEqual([
+      {
+        materia_prima_id: 'mp-queso',
+        codigo: 'MP-009',
+        nombre: 'Queso cuajada',
+        unidad: 'g',
+        clase_abc: 'A',
+        existencia: 0,
+        existencia_vencida: 0,
+        demanda_semanal: 7000,
+        demanda_origen: 'declarada',
+      },
+    ]);
+  });
+
+  test('no entran en los pedidos por proveedor aunque tengan oferta y estén en cero', () => {
+    const { pedidos } = armar([insumo({ existencia: 40000 }), alUso()]);
+    expect(pedidos).toEqual([]);
+  });
+
+  test('sin consumo conocido la demanda queda en null, sin inventar nada', () => {
+    const r = armar([alUso({ consumo_declarado_semanal: null })]);
+    expect(r.al_uso[0]!.demanda_semanal).toBeNull();
+    expect(r.al_uso[0]!.demanda_origen).toBeNull();
+  });
+
+  test('el modo periodica explícito o sin parámetros se calcula como siempre', () => {
+    const explicito = insumo({ parametros: { ...insumo().parametros!, modo_reposicion: 'periodica' } });
+    const sinParametros = insumo({ materia_prima_id: 'mp-sin', nombre: 'Sal', parametros: null });
+    const r = armar([explicito, sinParametros]);
+    expect(r.items).toHaveLength(2);
+    expect(r.al_uso).toEqual([]);
+    expect(r.items.find((i) => i.nombre === 'Sal')!.estado).toBe('datos_insuficientes');
+  });
+
+  test('se listan por nombre', () => {
+    const r = armar([alUso({ materia_prima_id: 'b', nombre: 'Queso', }), alUso({ materia_prima_id: 'a', nombre: 'Arequipe' })]);
+    expect(r.al_uso.map((i) => i.nombre)).toEqual(['Arequipe', 'Queso']);
+  });
+});

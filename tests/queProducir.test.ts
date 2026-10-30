@@ -94,3 +94,33 @@ describe('queSePuedeProducir', () => {
     expect(JSON.stringify(r)).not.toMatch(/precio|costo|valor/);
   });
 });
+
+describe('queSePuedeProducir: insumos que se compran al uso', () => {
+  const conQueso = new Map([...insumos, ['queso', { nombre: 'Queso cuajada', unidad: 'g' }]]);
+
+  test('no limitan: con el queso en cero igual se puede producir, y se avisa que hay que comprarlo', () => {
+    const p = producto({ compra_al_uso: new Map([['queso', 300]]) });
+    const [r] = queSePuedeProducir([p], new Map([['harina', 1200], ['levadura', 300]]), conQueso);
+    expect(r!.estado).toBe('puede');
+    expect(r!.faltantes).toEqual([]);
+    expect(r!.compra_al_uso).toEqual([{ materia_prima_id: 'queso', nombre: 'Queso cuajada', unidad: 'g', por_lote: 300 }]);
+  });
+
+  test('sin insumos al uso la lista sale vacía', () => {
+    const [r] = queSePuedeProducir([producto()], new Map([['harina', 1200], ['levadura', 300]]), conQueso);
+    expect(r!.compra_al_uso).toEqual([]);
+  });
+
+  test('un producto no calculable también informa lo que se compra al uso', () => {
+    const p = producto({ bloqueo: 'La receta usa insumos desactivados.', compra_al_uso: new Map([['queso', 300]]) });
+    const [r] = queSePuedeProducir([p], new Map(), conQueso);
+    expect(r!.estado).toBe('no_calculable');
+    expect(r!.compra_al_uso).toHaveLength(1);
+  });
+
+  test('se ordenan por nombre', () => {
+    const p = producto({ compra_al_uso: new Map([['sal', 10], ['queso', 300]]) });
+    const [r] = queSePuedeProducir([p], new Map([['harina', 1200], ['levadura', 300]]), conQueso);
+    expect(r!.compra_al_uso.map((c) => c.nombre)).toEqual(['Queso cuajada', 'Sal']);
+  });
+});

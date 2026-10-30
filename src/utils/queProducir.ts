@@ -10,6 +10,8 @@ export interface ProductoProducible {
   rendimiento: number | null;
   /** Lo que gasta un lote de cada insumo con inventario, ya con los intermedios repartidos. */
   necesidades: ReadonlyMap<string, number>;
+  /** Lo que gasta un lote de los insumos que se compran al uso: no limitan, solo se avisan. */
+  compra_al_uso?: ReadonlyMap<string, number>;
   /** Si no se puede calcular (receta incompleta, unidades distintas...), el motivo en palabras. */
   bloqueo: string | null;
 }
@@ -35,6 +37,8 @@ export interface ItemProducible {
   cantidad_posible: number | null;
   limitante: { materia_prima_id: string; nombre: string; unidad: string; disponible: number; por_lote: number } | null;
   faltantes: { materia_prima_id: string; nombre: string; unidad: string; falta: number }[];
+  /** Insumos que se compran según la producción (no cuentan para saber si alcanza). */
+  compra_al_uso: { materia_prima_id: string; nombre: string; unidad: string; por_lote: number }[];
 }
 
 const redondear = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
@@ -54,6 +58,9 @@ export function queSePuedeProducir(
       formulacion_id: p.formulacion_id,
       version: p.version,
       rendimiento_por_lote: p.rendimiento,
+      compra_al_uso: [...(p.compra_al_uso ?? [])]
+        .map(([id, porLote]) => ({ materia_prima_id: id, ...nombreDe(insumos, id), por_lote: redondear(porLote, 3) }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     };
     const sinCalculo = (motivo: string): ItemProducible => ({
       ...base,

@@ -14,10 +14,18 @@ export interface CambiosParametros {
   consumo_semanal_declarado?: number | null;
   lead_time_dias?: number | null;
   porcentaje_perdida_tolerable?: number | null;
+  /** 'periodica' (por defecto) o 'al_uso': perecedero que se compra según la producción. */
+  modo_reposicion?: ModoReposicion;
 }
 
+export const MODOS_REPOSICION = ['periodica', 'al_uso'] as const;
+export type ModoReposicion = (typeof MODOS_REPOSICION)[number];
+
+/** Campos numéricos (el modo de reposición es texto y se valida aparte). */
+type CampoNumerico = Exclude<keyof CambiosParametros, 'modo_reposicion'>;
+
 interface Regla {
-  campo: keyof CambiosParametros;
+  campo: CampoNumerico;
   etiqueta: string;
   /** El valor debe ser mayor que este mínimo (estricto) o, si `incluyeMinimo`, mayor o igual. */
   minimo: number;
@@ -54,10 +62,20 @@ export function validarParametros(cuerpo: unknown): Resultado<CambiosParametros>
   if (!esObjeto(cuerpo)) return { ok: false, errores: ['El cuerpo de la solicitud no es válido.'] };
   const errores: string[] = [];
   const datos: CambiosParametros = {};
-  const conocidos = new Set<string>(REGLAS_PARAMETROS.map((r) => r.campo));
+  const conocidos = new Set<string>([...REGLAS_PARAMETROS.map((r) => r.campo), 'modo_reposicion']);
 
   for (const clave of Object.keys(cuerpo)) {
     if (!conocidos.has(clave)) errores.push(`El campo "${clave}" no se puede modificar.`);
+  }
+
+  // El modo no admite null: la columna siempre tiene valor ('periodica' si no se dice otra cosa)
+  if ('modo_reposicion' in cuerpo) {
+    const modo = cuerpo.modo_reposicion;
+    if (typeof modo === 'string' && (MODOS_REPOSICION as readonly string[]).includes(modo)) {
+      datos.modo_reposicion = modo as ModoReposicion;
+    } else {
+      errores.push('El modo de reposición debe ser "periodica" o "al_uso".');
+    }
   }
 
   for (const r of REGLAS_PARAMETROS) {
