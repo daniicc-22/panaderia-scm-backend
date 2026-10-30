@@ -5,9 +5,10 @@ import { Alert } from '../components/ui/Alert';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { BarrasCostoAnual } from '../features/reposicion/eoq/BarrasCostoAnual';
+import { CortesGuardados } from '../features/reposicion/eoq/CortesGuardados';
 import { CurvaCostos } from '../features/reposicion/eoq/CurvaCostos';
 import { TablaEoq } from '../features/reposicion/eoq/TablaEoq';
-import { conEoq, costoPolitica, explicacion, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
+import { conEoq, costoReferencia, explicacion, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { formatoCantidad, formatoDinero } from '../features/inventario/formatos';
 import { getRecomendaciones } from '../services/reposicionService';
@@ -28,7 +29,7 @@ export function AnalisisEoqPage() {
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
 
   const lista = useMemo(
-    () => conEoq(data?.items ?? []).filter((i) => costoPolitica(i) !== null).sort((a, b) => (costoPolitica(b) ?? 0) - (costoPolitica(a) ?? 0)),
+    () => conEoq(data?.items ?? []).sort((a, b) => costoReferencia(b) - costoReferencia(a)),
     [data],
   );
   const resumen = useMemo(() => resumenGlobal(data?.items ?? []), [data]);
@@ -98,10 +99,24 @@ export function AnalisisEoqPage() {
             </Alert>
           )}
 
+          {resumen.conCalendario < resumen.conEoq && (
+            <Alert variant="info">
+              {resumen.conEoq - resumen.conCalendario === 1 ? '1 insumo no tiene' : `${resumen.conEoq - resumen.conCalendario} insumos no tienen`} calendario de
+              entrega o días de seguridad, así que solo se muestra su mínimo teórico (barras más claras) y no entran en la comparación con el calendario.{' '}
+              <Link to="/reposicion/parametros" className="font-medium underline">
+                Completarlos
+              </Link>
+            </Alert>
+          )}
+
           <section aria-label="Resumen" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Indicador etiqueta="Insumos con EOQ" valor={`${resumen.conEoq} de ${resumen.total}`} />
-            <Indicador etiqueta="Pedir y guardar, con calendario" valor={formatoDinero(resumen.costoPolitica)} detalle="por año" />
-            <Indicador etiqueta="Mínimo teórico (EOQ)" valor={formatoDinero(resumen.costoMinimo)} detalle="por año, sin restricciones" />
+            <Indicador
+              etiqueta="Pedir y guardar, con calendario"
+              valor={formatoDinero(resumen.costoPolitica)}
+              detalle={`por año · ${resumen.conCalendario} ${resumen.conCalendario === 1 ? 'insumo' : 'insumos'}`}
+            />
+            <Indicador etiqueta="Mínimo teórico (EOQ)" valor={formatoDinero(resumen.costoMinimo)} detalle="por año, los mismos insumos, sin restricciones" />
             <Indicador
               etiqueta="Costo de ajustarse al calendario"
               valor={`+ ${formatoDinero(resumen.extra)}`}
@@ -155,6 +170,8 @@ export function AnalisisEoqPage() {
           </details>
         </>
       )}
+
+      {data && <CortesGuardados />}
     </div>
   );
 }

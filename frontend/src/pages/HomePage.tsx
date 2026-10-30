@@ -35,7 +35,7 @@ export function HomePage() {
   const materias = useQuery({ queryKey: ['materias-primas'], queryFn: getMateriasPrimas });
   const formulaciones = useQuery({ queryKey: ['formulaciones'], queryFn: getFormulaciones });
   // La clasificación ABC solo existe para administradores; el operario no la consulta
-  const abc = useQuery({ queryKey: ['clasificacion-abc'], queryFn: getClasificacionAbc, enabled: verCostos });
+  const abc = useQuery({ queryKey: ['clasificacion-abc'], queryFn: () => getClasificacionAbc(), enabled: verCostos });
 
   const actualizando = useIsFetching() > 0;
   const claseA = abc.data?.resumen.find((r) => r.clase === 'A');

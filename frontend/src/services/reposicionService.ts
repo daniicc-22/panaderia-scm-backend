@@ -1,6 +1,8 @@
 import { httpClient } from './httpClient';
 import type {
   CambiosParametros,
+  ResultadoGuardarCorte,
+  ResumenCorte,
   RespuestaExistenciasBajas,
   RespuestaParametros,
   RespuestaQueProducir,
@@ -33,4 +35,15 @@ export async function getExistenciasBajas(): Promise<RespuestaExistenciasBajas> 
 export async function getQueProducir(): Promise<RespuestaQueProducir> {
   const { data } = await httpClient.get<RespuestaQueProducir>('/produccion/que-producir');
   return data;
+}
+
+// Guarda el corte del día en analisis_eoq (si ya había uno de hoy, lo reemplaza)
+export async function guardarCorteEoq(): Promise<ResultadoGuardarCorte> {
+  const { data } = await httpClient.post<ResultadoGuardarCorte>('/reposicion/calcular');
+  return data;
+}
+
+export async function getCortesEoq(): Promise<ResumenCorte[]> {
+  const { data } = await httpClient.get<{ cortes: ResumenCorte[] }>('/reposicion/cortes');
+  return data.cortes;
 }

@@ -25,6 +25,8 @@ export function conEoq(items: readonly ItemRecomendacion[]): ItemConEoq[] {
 export const costoEoq = (i: ItemConEoq) => i.modelo.costo_anual_eoq;
 export const costoPolitica = (i: ItemConEoq): number | null =>
   i.modelo.cantidad_politica === null ? null : costosEn(i.modelo, i.modelo.cantidad_politica).total;
+// Para ordenar y dibujar: el costo con calendario si se pudo calcular y, si no, el mínimo teórico
+export const costoReferencia = (i: ItemConEoq): number => costoPolitica(i) ?? costoEoq(i);
 
 // Rango de cantidades a dibujar: desde bien por debajo hasta bien por encima de las dos cantidades que importan
 export function rangoCurva(i: ItemConEoq): { lo: number; hi: number } {
@@ -57,6 +59,8 @@ export function techoNice(valor: number): number {
 
 export interface ResumenEoq {
   conEoq: number;
+  // Cuántos de ellos además tienen calendario de entrega y días de seguridad (los únicos que entran en los costos de abajo)
+  conCalendario: number;
   total: number;
   costoPolitica: number;
   costoMinimo: number;
@@ -66,11 +70,14 @@ export interface ResumenEoq {
 
 // Cuánto cuesta (solo pedir y guardar, sin el precio de compra) ajustarse al calendario del proveedor
 export function resumenGlobal(todos: readonly ItemRecomendacion[]): ResumenEoq {
-  const lista = conEoq(todos).filter((i) => costoPolitica(i) !== null);
+  const conMinimo = conEoq(todos);
+  // La comparación solo es justa entre insumos que tienen las dos cifras
+  const lista = conMinimo.filter((i) => costoPolitica(i) !== null);
   const costoPol = lista.reduce((s, i) => s + (costoPolitica(i) as number), 0);
   const minimo = lista.reduce((s, i) => s + costoEoq(i), 0);
   return {
-    conEoq: lista.length,
+    conEoq: conMinimo.length,
+    conCalendario: lista.length,
     total: todos.length,
     costoPolitica: costPolRedondeo(costoPol),
     costoMinimo: costPolRedondeo(minimo),

@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Alert } from '../components/ui/Alert';
 import { getClasificacionAbc } from '../services/abcService';
-import type { ClaseAbc, ItemAbc } from '../types/abc.types';
+import type { ClaseAbc, FuenteAbc, ItemAbc } from '../types/abc.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
@@ -33,10 +34,12 @@ const columnas: ColumnaTabla<ItemAbc>[] = [
 ];
 
 export function ClasificacionAbcPage() {
+  const [fuente, setFuente] = useState<FuenteAbc>('estimada');
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['clasificacion-abc'],
-    queryFn: getClasificacionAbc,
+    queryKey: ['clasificacion-abc', fuente],
+    queryFn: () => getClasificacionAbc(fuente),
   });
+  const esReal = data?.fuente === 'real';
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,6 +48,27 @@ export function ClasificacionAbcPage() {
         <p className="text-sm text-gray-500">
           Insumos ordenados por valor anual de consumo (demanda × costo)
         </p>
+      </div>
+
+      <div role="group" aria-label="Fuente de la demanda" className="inline-flex w-fit rounded-md border border-gray-200 bg-white p-0.5 text-sm">
+        {(
+          [
+            ['estimada', 'Demanda estimada'],
+            ['real', 'Consumo real'],
+          ] as const
+        ).map(([valor, texto]) => (
+          <button
+            key={valor}
+            type="button"
+            aria-pressed={fuente === valor}
+            onClick={() => setFuente(valor)}
+            className={`min-h-[40px] rounded px-3 py-1.5 font-medium ${
+              fuente === valor ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {texto}
+          </button>
+        ))}
       </div>
 
       {data && (
@@ -70,6 +94,35 @@ export function ClasificacionAbcPage() {
             </Alert>
           )}
 
+          {esReal && data.datos_insuficientes && (
+            <Alert variant="warning">
+              Todavía no hay insumos con al menos {data.supuestos.semanas_minimas_consumo_real ?? 4} semanas de consumo
+              registrado en producciones, así que no se puede clasificar con consumo real. El sistema no estima ese
+              consumo: sigue usando la pestaña «Demanda estimada» mientras tanto.
+            </Alert>
+          )}
+
+          {esReal && (data.insumos_sin_consumo_real?.length ?? 0) > 0 && (
+            <Alert variant="warning">
+              <p>
+                {data.insumos_sin_consumo_real!.length === 1
+                  ? '1 insumo no entra'
+                  : `${data.insumos_sin_consumo_real!.length} insumos no entran`}{' '}
+                porque aún no tienen {data.supuestos.semanas_minimas_consumo_real ?? 4} semanas de consumo real:
+              </p>
+              <details className="mt-1">
+                <summary className="cursor-pointer font-medium">Ver cuáles</summary>
+                <ul className="mt-1 list-disc pl-5">
+                  {data.insumos_sin_consumo_real!.map((i) => (
+                    <li key={i.codigo}>
+                      {i.nombre} ({i.semanas_observadas} {i.semanas_observadas === 1 ? 'semana' : 'semanas'})
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
               <div key={r.clase} className="rounded-lg border border-gray-200 bg-white p-4">
@@ -85,10 +138,11 @@ export function ClasificacionAbcPage() {
             ))}
           </div>
 
-                    <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            Demanda estimada a partir de las formulaciones, con {data.supuestos.lotes_por_semana_por_defecto} lotes por
-            semana por producto y {data.supuestos.semanas_al_anio} semanas al año. Se recalibrará con el consumo real del
-            piloto. Regla de clasificación: un insumo es clase A si el acumulado previo es menor a{' '}
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {esReal
+              ? `Demanda calculada con lo que realmente se gastó al producir (promedio semanal × ${data.supuestos.semanas_al_anio} semanas), solo para insumos con al menos ${data.supuestos.semanas_minimas_consumo_real ?? 4} semanas de consumo registrado.`
+              : `Demanda estimada a partir de las formulaciones, con ${data.supuestos.lotes_por_semana_por_defecto} lotes por semana por producto y ${data.supuestos.semanas_al_anio} semanas al año. Cuando haya consumo real suficiente, compárala en la pestaña «Consumo real».`}{' '}
+            Regla de clasificación: un insumo es clase A si el acumulado previo es menor a{' '}
             {data.supuestos.limites.A} %, clase B si es menor a {data.supuestos.limites.B} %, y clase C en los demás
             casos; así, el insumo que cruza el límite queda en la clase superior.
           </div>

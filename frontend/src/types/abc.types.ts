@@ -18,11 +18,16 @@ export interface ResumenAbc {
   porcentaje: number;
 }
 
+export type FuenteAbc = 'estimada' | 'real';
+
 export interface RespuestaAbc {
+  fuente: FuenteAbc;
   supuestos: {
     semanas_al_anio: number;
     lotes_por_semana_por_defecto: number;
     limites: { A: number; B: number };
+    // Solo con fuente real: semanas de consumo observado que se piden antes de fiarse de él
+    semanas_minimas_consumo_real?: number;
   };
   total_valor_anual: number;
   resumen: ResumenAbc[];
@@ -30,5 +35,8 @@ export interface RespuestaAbc {
   insumos_sin_costo: { codigo: string; nombre: string }[];
   // Productos intermedios usados o activos que no tienen receta vigente: su costo no se puede calcular
   intermedios_sin_receta: { id: string; nombre: string }[];
+  // Solo con fuente real: insumos que aún no tienen semanas de consumo suficientes (no se estiman)
+  insumos_sin_consumo_real?: { codigo: string; nombre: string; semanas_observadas: number }[];
+  datos_insuficientes?: boolean;
   items: ItemAbc[];
 }

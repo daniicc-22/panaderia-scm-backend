@@ -30,6 +30,8 @@ export interface ItemRecomendacion {
   cobertura_dias: number | null;
   fecha_agotamiento: string | null;
   proveedor: { id: string; nombre: string } | null;
+  // Días entre pedir y recibir con los que se calculó
+  plazo_dias: number | null;
   proxima_entrega: string | null;
   fecha_limite_pedido: string | null;
   proyeccion_a_la_entrega: number | null;
@@ -192,4 +194,29 @@ export interface RespuestaQueProducir {
   fecha: string;
   resumen: { pueden: number; no_alcanzan: number; no_calculables: number };
   items: ItemProducible[];
+}
+
+
+// Corte del análisis EOQ guardado para la tesis (una fila por insumo con demanda)
+export interface OmitidoCorte {
+  materia_prima_id: string;
+  codigo: string;
+  nombre: string;
+  motivo: 'sin_demanda';
+}
+
+export interface ResultadoGuardarCorte {
+  fecha: string;
+  guardados: number;
+  calculados: number;
+  datos_insuficientes: number;
+  reemplazados: number;
+  omitidos: OmitidoCorte[];
+}
+
+export interface ResumenCorte {
+  fecha: string;
+  insumos: number;
+  calculados: number;
+  datos_insuficientes: number;
 }
