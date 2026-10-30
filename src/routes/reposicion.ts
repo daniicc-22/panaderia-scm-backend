@@ -17,6 +17,7 @@ import {
 } from '../utils/recomendaciones';
 import { cargarConsumoReal } from '../datos/consumoReal';
 import { calcularAbc } from './abc';
+import { armarFilasCorte } from '../utils/corteEoq';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 const SEMANAS_AL_ANIO = 52;
@@ -153,6 +154,103 @@ export function crearRouterReposicion(prisma: PrismaClient, ahora: () => Date = 
     } catch (error) {
       console.error('Error al calcular las recomendaciones de reposición:', error);
       res.status(500).json({ error: 'Error al calcular las recomendaciones de reposición' });
+    }
+  });
+
+  // Guarda el corte del día en analisis_eoq: una fila por insumo con demanda. Si ya había un corte de hoy lo reemplaza.
+  router.post('/calcular', async (req, res) => {
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const momento = ahora();
+      const recomendaciones = await cargarRecomendaciones(prisma, panaderiaId, momento);
+      const { filas, omitidos } = armarFilasCorte(recomendaciones.items);
+      if (filas.length === 0) {
+        return res.status(422).json({
+          error: 'Ningún insumo tiene demanda todavía, así que no hay nada que guardar. Registra el consumo declarado o produce para tener consumo real.',
+          omitidos,
+        });
+      }
+      const fecha = new Date(`${recomendaciones.fecha}T00:00:00.000Z`);
+      const reemplazadas = await prisma.$transaction(async (tx) => {
+        const borradas = await tx.analisis_eoq.deleteMany({ where: { panaderia_id: panaderiaId, fecha_corte: fecha } });
+        await tx.analisis_eoq.createMany({
+          data: filas.map((f) => ({ panaderia_id: panaderiaId, fecha_corte: fecha, ...f })),
+        });
+        return borradas.count;
+      });
+      res.status(201).json({
+        fecha: recomendaciones.fecha,
+        guardados: filas.length,
+        calculados: filas.filter((f) => f.estado === 'calculado').length,
+        datos_insuficientes: filas.filter((f) => f.estado === 'datos_insuficientes').length,
+        reemplazados: reemplazadas,
+        omitidos,
+      });
+    } catch (error) {
+      console.error('Error al guardar el corte del análisis EOQ:', error);
+      res.status(500).json({ error: 'Error al guardar el corte del análisis EOQ' });
+    }
+  });
+
+  // Cortes guardados (uno por día), del más reciente al más antiguo
+  router.get('/cortes', async (req, res) => {
+    try {
+      const filas = await prisma.analisis_eoq.findMany({
+        where: { panaderia_id: req.panaderiaId! },
+        select: { fecha_corte: true, estado: true },
+        orderBy: { fecha_corte: 'desc' },
+      });
+      const porFecha = new Map<string, { fecha: string; insumos: number; calculados: number; datos_insuficientes: number }>();
+      for (const f of filas) {
+        const fecha = f.fecha_corte.toISOString().slice(0, 10);
+        const c = porFecha.get(fecha) ?? { fecha, insumos: 0, calculados: 0, datos_insuficientes: 0 };
+        c.insumos++;
+        if (f.estado === 'calculado') c.calculados++;
+        else c.datos_insuficientes++;
+        porFecha.set(fecha, c);
+      }
+      // Del más reciente al más antiguo, sin depender del orden en que devuelva las filas la base de datos
+      res.json({ cortes: [...porFecha.values()].sort((a, b) => b.fecha.localeCompare(a.fecha)) });
+    } catch (error) {
+      console.error('Error al consultar los cortes del análisis EOQ:', error);
+      res.status(500).json({ error: 'Error al consultar los cortes del análisis EOQ' });
+    }
+  });
+
+  // Detalle de un corte, para exportarlo a la tesis
+  router.get('/cortes/:fecha', async (req, res) => {
+    const fecha = String(req.params.fecha);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || Number.isNaN(Date.parse(fecha))) {
+      return res.status(400).json({ error: 'La fecha debe tener el formato AAAA-MM-DD.' });
+    }
+    try {
+      const filas = await prisma.analisis_eoq.findMany({
+        where: { panaderia_id: req.panaderiaId!, fecha_corte: new Date(`${fecha}T00:00:00.000Z`) },
+        include: { materia_prima: { select: { codigo: true, nombre: true } } },
+      });
+      if (filas.length === 0) return res.status(404).json({ error: 'No hay un corte guardado en esa fecha.' });
+      res.json({
+        fecha,
+        items: filas
+          .map((f) => ({
+            materia_prima_id: f.materia_prima_id,
+            codigo: f.materia_prima.codigo,
+            nombre: f.materia_prima.nombre,
+            estado: f.estado,
+            demanda_anual: num(f.demanda_anual_d),
+            costo_pedido: num(f.costo_pedido_s),
+            costo_mantener: num(f.costo_mantenimiento_h),
+            eoq: num(f.eoq_calculado),
+            plazo_dias: num(f.lead_time_dias),
+            stock_seguridad: num(f.stock_seguridad),
+            punto_reorden: num(f.punto_reorden),
+            advertencias: f.advertencias,
+          }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+      });
+    } catch (error) {
+      console.error('Error al consultar el corte del análisis EOQ:', error);
+      res.status(500).json({ error: 'Error al consultar el corte del análisis EOQ' });
     }
   });
 

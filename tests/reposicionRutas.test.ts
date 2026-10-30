@@ -23,6 +23,7 @@ let proveedores: Fila[];
 let consumos: Fila[];
 let primeraProduccion: Date | null;
 let fallar: boolean;
+let cortes: Fila[];
 
 const decimal = (n: number | null) => (n === null ? null : (n as any));
 
@@ -59,6 +60,22 @@ const prismaFalso: any = {
       return fila;
     },
   },
+  analisis_eoq: {
+    deleteMany: async ({ where }: any) => {
+      const antes = cortes.length;
+      cortes = cortes.filter((c) => !(c.panaderia_id === where.panaderia_id && c.fecha_corte.getTime() === where.fecha_corte.getTime()));
+      return { count: antes - cortes.length };
+    },
+    createMany: async ({ data }: any) => {
+      cortes.push(...data);
+      return { count: data.length };
+    },
+    findMany: async ({ where }: any) =>
+      cortes
+        .filter((c) => c.panaderia_id === where.panaderia_id && (!where.fecha_corte || c.fecha_corte.getTime() === where.fecha_corte.getTime()))
+        .map((c) => ({ ...c, materia_prima: materias.find((m) => m.id === c.materia_prima_id) })),
+  },
+  $transaction: async (fn: any) => fn(prismaFalso),
   proveedor: { findMany: async () => proveedores },
   formulacion: { findMany: async () => [] },
   produccion: { findFirst: async () => (primeraProduccion ? { fecha: primeraProduccion } : null) },
@@ -102,6 +119,7 @@ afterAll(() => {
 
 beforeEach(() => {
   fallar = false;
+  cortes = [];
   materias = [
     { id: HARINA, panaderia_id: PAN_A, codigo: 'MP-001', nombre: 'Harina', activa: true, controla_inventario: true, lead_time_dias: null, presentacion: presentacionHarina() },
     { id: SAL, panaderia_id: PAN_A, codigo: 'MP-007', nombre: 'Sal', activa: true, controla_inventario: true, lead_time_dias: null, presentacion: [] },
@@ -345,5 +363,108 @@ describe('modo de reposición por la API', () => {
     const r = await llamar('GET', '/reposicion/recomendaciones', 'administrador');
     expect(r.cuerpo.items.some((i: any) => i.materia_prima_id === HARINA)).toBe(false);
     expect(r.cuerpo.al_uso.map((i: any) => i.materia_prima_id)).toContain(HARINA);
+  });
+});
+
+
+describe('POST /reposicion/calcular y cortes guardados', () => {
+  test('el operario no puede guardar ni ver cortes', async () => {
+    expect((await llamar('POST', '/reposicion/calcular', 'operario')).status).toBe(403);
+    expect((await llamar('GET', '/reposicion/cortes', 'operario')).status).toBe(403);
+    expect((await llamar('GET', '/reposicion/cortes/2026-10-26', 'operario')).status).toBe(403);
+  });
+
+  test('guarda una fila por insumo con demanda y omite los que no la tienen', async () => {
+    const r = await llamar('POST', '/reposicion/calcular');
+    expect(r.status).toBe(201);
+    expect(r.cuerpo).toMatchObject({ fecha: '2026-10-26', guardados: 1, calculados: 1, datos_insuficientes: 0, reemplazados: 0 });
+    expect(r.cuerpo.omitidos).toEqual([{ materia_prima_id: SAL, codigo: 'MP-007', nombre: 'Sal', motivo: 'sin_demanda' }]);
+    expect(cortes).toHaveLength(1);
+    expect(cortes[0]).toMatchObject({
+      panaderia_id: PAN_A,
+      materia_prima_id: HARINA,
+      estado: 'calculado',
+      demanda_anual_d: 364000,
+      costo_pedido_s: 1000,
+      costo_mantenimiento_h: 2,
+      lead_time_dias: 1,
+      advertencias: 'demanda:declarada, existencia_vencida_excluida',
+    });
+    expect(cortes[0].eoq_calculado).toBeGreaterThan(0);
+    expect(cortes[0].fecha_corte.toISOString()).toBe('2026-10-26T00:00:00.000Z');
+  });
+
+  test('guardar dos veces el mismo día reemplaza el corte, no lo duplica', async () => {
+    await llamar('POST', '/reposicion/calcular');
+    const r = await llamar('POST', '/reposicion/calcular');
+    expect(r.status).toBe(201);
+    expect(r.cuerpo.reemplazados).toBe(1);
+    expect(cortes).toHaveLength(1);
+  });
+
+  test('un insumo con demanda pero sin costos se guarda como datos_insuficientes', async () => {
+    parametros[0].costo_ordenar_s = null;
+    const r = await llamar('POST', '/reposicion/calcular');
+    expect(r.cuerpo).toMatchObject({ guardados: 1, calculados: 0, datos_insuficientes: 1 });
+    expect(cortes[0]).toMatchObject({ estado: 'datos_insuficientes', eoq_calculado: null, costo_pedido_s: null, costo_mantenimiento_h: null });
+    expect(cortes[0].advertencias).toContain('sin_eoq_falta_costo_pedido');
+  });
+
+  test('si ningún insumo tiene demanda responde 422 y no guarda nada', async () => {
+    parametros = [];
+    const r = await llamar('POST', '/reposicion/calcular');
+    expect(r.status).toBe(422);
+    expect(r.cuerpo.error).toContain('demanda');
+    expect(cortes).toHaveLength(0);
+  });
+
+  test('no mezcla cortes de otra panadería al reemplazar', async () => {
+    cortes = [{ panaderia_id: PAN_B, materia_prima_id: AJENA, fecha_corte: new Date('2026-10-26T00:00:00.000Z'), estado: 'calculado' }];
+    await llamar('POST', '/reposicion/calcular');
+    expect(cortes.filter((c) => c.panaderia_id === PAN_B)).toHaveLength(1);
+    expect(cortes.filter((c) => c.panaderia_id === PAN_A)).toHaveLength(1);
+  });
+
+  test('GET /cortes agrupa por fecha, del más reciente al más antiguo', async () => {
+    cortes = [
+      { panaderia_id: PAN_A, materia_prima_id: HARINA, fecha_corte: new Date('2026-10-20T00:00:00.000Z'), estado: 'calculado' },
+      { panaderia_id: PAN_A, materia_prima_id: HARINA, fecha_corte: new Date('2026-10-26T00:00:00.000Z'), estado: 'calculado' },
+      { panaderia_id: PAN_A, materia_prima_id: SAL, fecha_corte: new Date('2026-10-26T00:00:00.000Z'), estado: 'datos_insuficientes' },
+      { panaderia_id: PAN_B, materia_prima_id: AJENA, fecha_corte: new Date('2026-10-26T00:00:00.000Z'), estado: 'calculado' },
+    ];
+    const r = await llamar('GET', '/reposicion/cortes');
+    expect(r.cuerpo.cortes).toEqual([
+      { fecha: '2026-10-26', insumos: 2, calculados: 1, datos_insuficientes: 1 },
+      { fecha: '2026-10-20', insumos: 1, calculados: 1, datos_insuficientes: 0 },
+    ]);
+  });
+
+  test('GET /cortes/:fecha devuelve el detalle con nombre del insumo', async () => {
+    await llamar('POST', '/reposicion/calcular');
+    const r = await llamar('GET', '/reposicion/cortes/2026-10-26');
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.fecha).toBe('2026-10-26');
+    expect(r.cuerpo.items).toHaveLength(1);
+    expect(r.cuerpo.items[0]).toMatchObject({ codigo: 'MP-001', nombre: 'Harina', estado: 'calculado', demanda_anual: 364000, costo_pedido: 1000, costo_mantener: 2, plazo_dias: 1 });
+  });
+
+  test('GET /cortes/:fecha valida la fecha y avisa si no hay corte', async () => {
+    expect((await llamar('GET', '/reposicion/cortes/ayer')).status).toBe(400);
+    expect((await llamar('GET', '/reposicion/cortes/2026-13-45')).status).toBe(400);
+    expect((await llamar('GET', '/reposicion/cortes/2026-01-01')).status).toBe(404);
+  });
+
+  test('un error de base de datos al guardar da 500 sin exponer detalles', async () => {
+    const original = prismaFalso.analisis_eoq.createMany;
+    prismaFalso.analisis_eoq.createMany = async () => {
+      throw new Error('conexión caída');
+    };
+    try {
+      const r = await sinErroresEnConsola(() => llamar('POST', '/reposicion/calcular'));
+      expect(r.status).toBe(500);
+      expect(JSON.stringify(r.cuerpo)).not.toContain('conexión');
+    } finally {
+      prismaFalso.analisis_eoq.createMany = original;
+    }
   });
 });

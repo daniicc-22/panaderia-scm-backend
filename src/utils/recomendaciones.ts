@@ -85,6 +85,8 @@ export interface ItemRecomendacion {
   cobertura_dias: number | null;
   fecha_agotamiento: FechaCivil | null;
   proveedor: { id: string; nombre: string } | null;
+  /** Días entre pedir y recibir con los que se calculó (oferta, parámetro o insumo). */
+  plazo_dias: number | null;
   proxima_entrega: FechaCivil | null;
   fecha_limite_pedido: FechaCivil | null;
   proyeccion_a_la_entrega: number | null;
@@ -269,6 +271,7 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
       cobertura_dias: r.cobertura_dias === null ? null : redondear(r.cobertura_dias, 1),
       fecha_agotamiento: r.fecha_agotamiento,
       proveedor: proveedor ? { id: proveedor.id, nombre: proveedor.nombre } : null,
+      plazo_dias: plazo,
       proxima_entrega: r.proxima_entrega,
       fecha_limite_pedido: r.fecha_limite_pedido,
       proyeccion_a_la_entrega: r.proyeccion_a_la_entrega === null ? null : redondear(r.proyeccion_a_la_entrega),
