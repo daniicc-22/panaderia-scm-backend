@@ -18,7 +18,9 @@ import { resumirDesviaciones, validarRango } from '../utils/desviaciones';
 import { causasFrecuentes, resumirSemana, serieDiaria, ventanaSemana } from '../utils/tablero';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { aplicarPesos, avisoRendimiento, desviacionPct, rendimientoPct, validarFinalizacion, validarPesos, type LineaPesaje } from '../utils/pesaje';
-import type { LoteVista } from '../utils/inventario';
+import { estadoLote, type LoteVista } from '../utils/inventario';
+import { queSePuedeProducir, type ProductoProducible } from '../utils/queProducir';
+import { cargarRecomendaciones } from './reposicion';
 
 type Db = Prisma.TransactionClient;
 
@@ -229,7 +231,7 @@ interface Fallo {
 const textoFaltantes = (p: ReturnType<typeof presentarPlan>) =>
   `No hay existencias suficientes de: ${resumirNombres(p.items.filter((i) => i.faltante > 0).map((i) => i.nombre))}.`;
 
-export function crearRouterProduccion(prisma: PrismaClient) {
+export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = () => new Date()) {
   const router = Router();
 
   // Vista previa: de qué lotes saldría cada insumo, sin escribir nada
@@ -336,6 +338,130 @@ export function crearRouterProduccion(prisma: PrismaClient) {
   });
 
   // Desviación de pesaje por insumo (HU-11): solo gestión. Va antes de «/:id» para que no se lea como un id.
+  // Insumos que se están acabando o ya se acabaron. Sin dinero ni proveedores: lo ven todos los roles.
+  router.get('/existencias-bajas', async (req, res) => {
+    try {
+      const r = await cargarRecomendaciones(prisma, req.panaderiaId!, ahora());
+      type Item = (typeof r.items)[number];
+      const nivelDe = (i: Item): 'agotado' | 'critico' | 'bajo' | null => {
+        if (i.existencia <= 0) return 'agotado';
+        if (i.estado === 'quiebre_probable' || i.estado === 'riesgo') return 'critico';
+        if (i.estado === 'pedir_hoy' || i.estado === 'pedir') return 'bajo';
+        if (i.stock_seguridad !== null && i.existencia < i.stock_seguridad) return 'bajo';
+        return null;
+      };
+      const orden = { agotado: 0, critico: 1, bajo: 2 } as const;
+      const items = r.items
+        .map((i) => ({ i, nivel: nivelDe(i) }))
+        .filter((x): x is { i: Item; nivel: 'agotado' | 'critico' | 'bajo' } => x.nivel !== null)
+        .sort((a, b) => orden[a.nivel] - orden[b.nivel])
+        .map(({ i, nivel }) => ({
+          materia_prima_id: i.materia_prima_id,
+          codigo: i.codigo,
+          nombre: i.nombre,
+          unidad: i.unidad,
+          clase_abc: i.clase_abc,
+          nivel,
+          existencia: i.existencia,
+          stock_seguridad: i.stock_seguridad,
+          cobertura_dias: i.cobertura_dias,
+          fecha_agotamiento: i.fecha_agotamiento,
+        }));
+      res.json({
+        fecha: r.fecha,
+        resumen: {
+          agotados: items.filter((i) => i.nivel === 'agotado').length,
+          criticos: items.filter((i) => i.nivel === 'critico').length,
+          bajos: items.filter((i) => i.nivel === 'bajo').length,
+        },
+        items,
+      });
+    } catch (error) {
+      console.error('Error al consultar las existencias bajas:', error);
+      res.status(500).json({ error: 'Error al consultar las existencias bajas' });
+    }
+  });
+
+  // Qué productos se pueden hacer con las existencias de hoy (sin dinero; no cuenta lotes vencidos)
+  router.get('/que-producir', async (req, res) => {
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const hoy = hoyColombia(ahora());
+      const [formulaciones, materias, filasLotes] = await Promise.all([
+        prisma.formulacion.findMany({
+          where: { panaderia_id: panaderiaId, activa: true },
+          include: { producto: true, detalle_formulacion: true },
+        }),
+        prisma.materia_prima.findMany({ where: { panaderia_id: panaderiaId }, include: { unidad_medida: true } }),
+        prisma.lote.findMany({
+          where: { panaderia_id: panaderiaId, materia_prima_id: { not: null }, cantidad_disponible: { gt: 0 } },
+        }),
+      ]);
+      const recetas = new Map<string, LineaReceta[]>(formulaciones.map((f) => [f.producto_id, aLineasReceta(f.detalle_formulacion)]));
+      const materiaPorId = new Map(materias.map((m) => [m.id, m]));
+      const sinControl = new Set(materias.filter((m) => !m.controla_inventario).map((m) => m.id));
+
+      const existencias = new Map<string, number>();
+      for (const l of filasLotes) {
+        if (estadoLote(fechaTexto(l.fecha_vencimiento), hoy) === 'vencido') continue;
+        existencias.set(l.materia_prima_id!, (existencias.get(l.materia_prima_id!) ?? 0) + Number(l.cantidad_disponible));
+      }
+
+      const productos: ProductoProducible[] = formulaciones
+        .filter((f) => f.producto.activo && !f.producto.es_intermedio)
+        .map((f) => {
+          const lineas = aLineasReceta(f.detalle_formulacion);
+          const need = necesidadesDeProduccion(lineas, recetas, f.producto_id, 1);
+          let bloqueo: string | null = null;
+          if (need.sin_receta.size > 0 || need.ciclos.size > 0) {
+            bloqueo = 'La receta usa un producto intermedio sin receta vigente o con referencia circular.';
+          } else if (need.materias.size === 0) {
+            bloqueo = 'La receta no tiene insumos.';
+          } else {
+            const inactivos = [...need.materias.keys()].filter((id) => !materiaPorId.get(id)?.activa);
+            // Mismas revisiones que al registrar la producción: si allá se rechaza, aquí no se promete
+            const alcanzados = intermediosAlcanzados(lineas, recetas);
+            const revisadas = [
+              ...f.detalle_formulacion,
+              ...formulaciones.filter((o) => alcanzados.has(o.producto_id)).flatMap((o) => o.detalle_formulacion),
+            ];
+            const distintas = revisadas.filter(
+              (d) => d.materia_prima_id && materiaPorId.get(d.materia_prima_id)?.unidad_base_id !== d.unidad_id,
+            );
+            if (inactivos.length > 0) bloqueo = 'La receta usa insumos desactivados.';
+            else if (distintas.length > 0) bloqueo = 'La receta usa una unidad distinta a la del inventario.';
+          }
+          return {
+            producto_id: f.producto_id,
+            producto: f.producto.nombre,
+            formulacion_id: f.id,
+            version: f.version,
+            rendimiento: f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado),
+            necesidades: separarControlados(need.materias, sinControl).controladas,
+            bloqueo,
+          };
+        });
+
+      const items = queSePuedeProducir(
+        productos,
+        existencias,
+        new Map(materias.map((m) => [m.id, { nombre: m.nombre, unidad: m.unidad_medida.codigo }])),
+      );
+      res.json({
+        fecha: hoy,
+        resumen: {
+          pueden: items.filter((i) => i.estado === 'puede').length,
+          no_alcanzan: items.filter((i) => i.estado === 'no_alcanza').length,
+          no_calculables: items.filter((i) => i.estado === 'no_calculable').length,
+        },
+        items,
+      });
+    } catch (error) {
+      console.error('Error al calcular qué producir:', error);
+      res.status(500).json({ error: 'Error al calcular qué se puede producir' });
+    }
+  });
+
   router.get('/desviaciones', autorizarRoles('administrador', 'superadministrador'), async (req, res) => {
     const rango = validarRango(req.query.desde, req.query.hasta);
     if (!rango.ok) return res.status(400).json({ error: rango.errores.join(' '), errores: rango.errores });

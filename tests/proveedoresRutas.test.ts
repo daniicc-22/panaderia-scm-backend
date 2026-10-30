@@ -222,3 +222,53 @@ describe('PATCH /proveedores/:id', () => {
     expect(proveedores[0].activo).toBe(true);
   });
 });
+
+describe('PUT /proveedores/:id/entrega', () => {
+  const calendario = { dias_entrega: [3], hora_limite_pedido: '16:00', pedido_minimo: 750000 };
+
+  test('el operario no puede cambiar el calendario', async () => {
+    expect((await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'operario', calendario)).status).toBe(403);
+  });
+
+  test('guarda días, hora límite y pedido mínimo', async () => {
+    const r = await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'administrador', { ...calendario, dias_entrega: [4, 1] });
+    expect(r.status).toBe(200);
+    expect(r.cuerpo.dias_entrega).toEqual([1, 4]);
+    expect(r.cuerpo.hora_limite_pedido).toBe('16:00');
+    expect(r.cuerpo.pedido_minimo).toBe(750000);
+    expect(proveedores[0].dias_entrega).toEqual([1, 4]);
+  });
+
+  test('lista vacía y null dejan el calendario sin definir', async () => {
+    await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'administrador', calendario);
+    const r = await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'administrador', { dias_entrega: [], hora_limite_pedido: null, pedido_minimo: null });
+    expect(r.status).toBe(200);
+    expect(r.cuerpo).toMatchObject({ dias_entrega: [], hora_limite_pedido: null, pedido_minimo: null });
+  });
+
+  test('datos inválidos dan 400 y no cambian nada', async () => {
+    const r = await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'administrador', { dias_entrega: [9], hora_limite_pedido: '25:00' });
+    expect(r.status).toBe(400);
+    expect(r.cuerpo.errores).toHaveLength(2);
+    expect(proveedores[0].dias_entrega).toBeUndefined();
+  });
+
+  test('identificador mal formado da 400 y uno inexistente o de otra panadería da 404', async () => {
+    expect((await llamar('PUT', '/proveedores/abc/entrega', 'administrador', calendario)).status).toBe(400);
+    expect((await llamar('PUT', `/proveedores/${ID_AJENO}/entrega`, 'administrador', calendario)).status).toBe(404);
+  });
+
+  test('un proveedor compartido del grupo no se modifica desde una panadería', async () => {
+    grupoDePanaderiaA = GRUPO;
+    expect((await llamar('PUT', `/proveedores/${ID_GRUPO}/entrega`, 'administrador', calendario)).status).toBe(403);
+  });
+
+  test('el listado muestra el calendario, con valores vacíos si no está definido', async () => {
+    await llamar('PUT', `/proveedores/${ID_PROPIO}/entrega`, 'administrador', calendario);
+    const r = await llamar('GET', '/proveedores', 'administrador');
+    expect(r.cuerpo[0]).toMatchObject({ dias_entrega: [3], hora_limite_pedido: '16:00', pedido_minimo: 750000 });
+    Object.assign(proveedores[0], { dias_entrega: undefined, hora_limite_pedido: undefined, pedido_minimo: undefined });
+    const sin = await llamar('GET', '/proveedores', 'administrador');
+    expect(sin.cuerpo[0]).toMatchObject({ dias_entrega: [], hora_limite_pedido: null, pedido_minimo: null });
+  });
+});

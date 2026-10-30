@@ -38,6 +38,11 @@ export function hoyColombia(ahora: Date = new Date()): string {
   return new Date(ahora.getTime() - 5 * 3_600_000).toISOString().slice(0, 10);
 }
 
+/** Hora actual en Colombia, 'HH:MM' (24 horas). */
+export function horaColombia(ahora: Date = new Date()): string {
+  return new Date(ahora.getTime() - 5 * 3_600_000).toISOString().slice(11, 16);
+}
+
 function texto(valor: unknown, max: number, nombre: string, errores: string[]): string | null {
   if (valor === null || valor === undefined) return null;
   if (typeof valor !== 'string') {

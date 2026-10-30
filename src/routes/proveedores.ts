@@ -5,6 +5,7 @@ import { alcanceProveedores } from '../utils/alcance';
 import { UUID } from '../utils/materiaPrima';
 import { validarProveedorCrear, validarProveedorEditar } from '../utils/proveedor';
 import { armarOfertasProveedor } from '../utils/ofertasProveedor';
+import { validarEntrega } from '../utils/entregaProveedor';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 
@@ -33,6 +34,9 @@ export function crearRouterProveedores(prisma: PrismaClient) {
           activo: p.activo,
           alcance: p.panaderia_id ? 'panaderia' : 'grupo',
           ofertas_vigentes: p._count.presentacion_proveedor,
+          dias_entrega: p.dias_entrega ?? [],
+          hora_limite_pedido: p.hora_limite_pedido ?? null,
+          pedido_minimo: p.pedido_minimo === null || p.pedido_minimo === undefined ? null : Number(p.pedido_minimo),
         })),
       );
     } catch (error) {
@@ -122,6 +126,43 @@ export function crearRouterProveedores(prisma: PrismaClient) {
     } catch (error) {
       console.error('Error al crear el proveedor:', error);
       res.status(500).json({ error: 'Error al crear el proveedor' });
+    }
+  });
+
+  // Calendario de entrega: reemplaza días, hora límite y pedido mínimo (lista vacía / null = sin definir)
+  router.put('/:id/entrega', async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido.' });
+    const validado = validarEntrega(req.body);
+    if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
+    const panaderiaId = req.panaderiaId!;
+
+    try {
+      const actual = await prisma.proveedor.findFirst({ where: { id, OR: await alcanceVisible(panaderiaId) } });
+      if (!actual) return res.status(404).json({ error: 'Proveedor no encontrado.' });
+      if (actual.panaderia_id !== panaderiaId) {
+        return res.status(403).json({ error: 'Este proveedor es compartido del grupo y no se puede modificar desde aquí.' });
+      }
+      const d = validado.datos;
+      const guardado = await prisma.proveedor.update({
+        where: { id },
+        data: {
+          dias_entrega: d.dias_entrega,
+          hora_limite_pedido: d.hora_limite_pedido,
+          pedido_minimo: d.pedido_minimo,
+          updated_at: new Date(),
+        },
+      });
+      res.json({
+        id: guardado.id,
+        nombre: guardado.nombre,
+        dias_entrega: guardado.dias_entrega ?? [],
+        hora_limite_pedido: guardado.hora_limite_pedido ?? null,
+        pedido_minimo: guardado.pedido_minimo === null || guardado.pedido_minimo === undefined ? null : Number(guardado.pedido_minimo),
+      });
+    } catch (error) {
+      console.error('Error al guardar el calendario de entrega:', error);
+      res.status(500).json({ error: 'Error al guardar el calendario de entrega' });
     }
   });
 

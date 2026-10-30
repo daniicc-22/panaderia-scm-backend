@@ -4,6 +4,7 @@ import {
   codigoGenerado,
   costoUnitario,
   fechaValida,
+  horaColombia,
   hoyColombia,
   validarEntrada,
   validarNuevoVencimiento,
@@ -144,5 +145,16 @@ describe('validarNuevoVencimiento', () => {
     expect(validarNuevoVencimiento({ fecha_vencimiento: '2019-12-31' }, HOY, null).ok).toBe(false);
     expect(validarNuevoVencimiento({ fecha_vencimiento: '2036-10-25' }, HOY, null).ok).toBe(true); // límite: 10 años
     expect(validarNuevoVencimiento({ fecha_vencimiento: '2036-10-26' }, HOY, null).ok).toBe(false);
+  });
+});
+
+describe('horaColombia', () => {
+  test('resta 5 horas al reloj universal y da HH:MM', () => {
+    expect(horaColombia(new Date('2026-10-26T14:05:00Z'))).toBe('09:05');
+    expect(horaColombia(new Date('2026-10-26T21:00:00Z'))).toBe('16:00');
+  });
+
+  test('antes de las 5 a. m. UTC sigue siendo la noche del día anterior', () => {
+    expect(horaColombia(new Date('2026-10-26T03:30:00Z'))).toBe('22:30');
   });
 });
