@@ -124,7 +124,7 @@ export function AnalisisEoqPage() {
                     <Link to="/reposicion/parametros" className="font-medium underline">
                       Parámetros
                     </Link>
-                    , «Completar vacíos»).
+                    , «Completar vacíos»): {sinCalendario.nombresSinSeguridad.join(', ')}.
                   </li>
                 )}
                 {sinCalendario.sinProveedor > 0 && <li>{sinCalendario.sinProveedor} sin proveedor con precio vigente.</li>}

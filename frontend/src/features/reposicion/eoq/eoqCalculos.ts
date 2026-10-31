@@ -117,6 +117,7 @@ export function motivosSinCalendario(items: readonly ItemRecomendacion[]) {
   return {
     total: sin.length,
     sinSeguridad: sin.filter((i) => i.faltantes.includes('stock_seguridad')).length,
+    nombresSinSeguridad: sin.filter((i) => i.faltantes.includes('stock_seguridad')).map((i) => i.nombre),
     sinProveedor: sin.filter((i) => i.faltantes.includes('proveedor')).length,
     sinDiasEntrega: sin.filter((i) => i.faltantes.includes('dias_entrega')).length,
     sinPlazo: sin.filter((i) => i.faltantes.includes('plazo_entrega')).length,
