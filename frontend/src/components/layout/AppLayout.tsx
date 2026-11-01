@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { MotionConfig } from 'motion/react';
+import { useAuth } from '../../features/auth/useAuth';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { OperarioLayout } from './OperarioLayout';
 
 export function AppLayout() {
+  const { usuario } = useAuth();
   const [menuAbierto, setMenuAbierto] = useState(false);
+
+  // El operario tiene su propia interfaz oscura con pestañas grandes
+  if (usuario?.rol === 'operario') return <OperarioLayout />;
 
   return (
     // reducedMotion="user": si el equipo pide reducir movimiento, Motion no anima

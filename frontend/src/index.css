@@ -123,3 +123,57 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  Tema del operario (interfaz oscura). Se activa con la clase .tema-operario en el
+  contenedor de su interfaz. Las pantallas son las mismas que las del administrador:
+  aquí solo se cambian los colores de superficie y de texto por sus equivalentes oscuros.
+*/
+.tema-operario {
+  --color-hueso: #22374a;
+  --color-tabla: #34495b;
+  --color-arena: #45596b;
+  --color-linea: #45596b;
+  --color-borde-campo: #5e7488;
+  --color-gris-texto: #c9d3db;
+  color: #ffffff;
+}
+
+/* Texto oscuro → claro */
+.tema-operario .text-grafito,
+.tema-operario .text-azul-noche {
+  color: #ffffff;
+}
+.tema-operario .text-pizarra {
+  color: var(--color-trigo);
+}
+
+/* Donde el fondo sigue siendo claro, el texto vuelve a ser oscuro */
+.tema-operario .bg-trigo.text-grafito,
+.tema-operario .bg-trigo .text-grafito,
+.tema-operario .bg-clase-c.text-grafito,
+.tema-operario .bg-trigo-suave .text-grafito {
+  color: var(--color-grafito);
+}
+.tema-operario .bg-info-fondo.text-azul-noche,
+.tema-operario .bg-info-fondo .text-azul-noche {
+  color: var(--color-azul-noche);
+}
+
+/* Campos de formulario sobre tarjetas oscuras */
+.tema-operario .bg-white {
+  background-color: #1b2d3d;
+}
+
+/* Acción principal del operario: botón trigo grande (mínimo 48 px de alto) */
+.tema-operario button.bg-terracota,
+.tema-operario a.bg-terracota {
+  min-height: 48px;
+  background-color: var(--color-trigo);
+  color: var(--color-grafito);
+  font-size: 16px;
+}
+.tema-operario button.bg-terracota:hover,
+.tema-operario a.bg-terracota:hover {
+  background-color: #d69b2e;
+}
