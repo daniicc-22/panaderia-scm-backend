@@ -25,7 +25,7 @@ export function BarrasCostoAnual({ items, seleccionadoId, onSeleccionar }: Props
       <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700" aria-label="Leyenda">
         {(['A', 'B', 'C'] as const).map((c) => (
           <li key={c} className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-4 rounded-sm" style={{ background: COLOR_CLASE[c] }} aria-hidden="true" />
+            <span className="inline-block h-2.5 w-4 rounded-xs" style={{ background: COLOR_CLASE[c] }} aria-hidden="true" />
             Clase {c}
           </li>
         ))}
@@ -34,7 +34,7 @@ export function BarrasCostoAnual({ items, seleccionadoId, onSeleccionar }: Props
           Mínimo teórico (EOQ)
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4 rounded-sm bg-gray-400 opacity-60" aria-hidden="true" />
+          <span className="inline-block h-2.5 w-4 rounded-xs bg-gray-400 opacity-60" aria-hidden="true" />
           Sin calendario o días de seguridad: solo se muestra el mínimo
         </li>
       </ul>

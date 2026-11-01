@@ -12,7 +12,7 @@ interface PanelProps {
 // Tarjeta común del Inicio: mismo borde, sombra, espaciado y encabezado en todas las secciones
 export function Panel({ titulo, subtitulo, accion, children, className = '' }: PanelProps) {
   return (
-    <section className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 ${className}`} aria-label={titulo}>
+    <section className={`rounded-xl border border-gray-200 bg-white p-4 shadow-xs sm:p-5 ${className}`} aria-label={titulo}>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-gray-900">{titulo}</h2>
@@ -52,7 +52,7 @@ const FRANJA: Record<NonNullable<IndicadorProps['tono']>, string> = {
 
 export function Indicador({ etiqueta, valor, detalle, tono = 'gris' }: IndicadorProps) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 pl-5 shadow-sm">
+    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 pl-5 shadow-xs">
       <span className={`absolute inset-y-0 left-0 w-1 ${FRANJA[tono]}`} aria-hidden="true" />
       <p className="text-xs font-medium text-gray-500">{etiqueta}</p>
       <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">{valor}</p>

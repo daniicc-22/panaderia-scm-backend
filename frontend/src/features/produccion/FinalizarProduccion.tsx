@@ -15,7 +15,7 @@ interface Props {
 }
 
 const CAMPO =
-  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm';
+  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
 
 // Cierra una producción en curso con lo que realmente salió del horno
 export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }: Props) {

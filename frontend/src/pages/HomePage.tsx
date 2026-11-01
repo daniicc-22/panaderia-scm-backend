@@ -95,7 +95,7 @@ export function HomePage() {
         </div>
 
         {!verCostos && (
-          <p className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+          <p className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-xs">
             Consulta las recetas estandarizadas en{' '}
             <Link to="/formulaciones" className="font-medium text-blue-600 hover:underline">
               Formulaciones
@@ -142,7 +142,7 @@ export function HomePage() {
                 {abc.data.resumen.map((r) => (
                   <li key={r.clase} className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2">
-                      <span className={`h-3 w-3 rounded-sm ${COLOR_CLASE[r.clase]}`} aria-hidden="true" />
+                      <span className={`h-3 w-3 rounded-xs ${COLOR_CLASE[r.clase]}`} aria-hidden="true" />
                       Clase {r.clase} · {r.insumos} insumos
                     </span>
                     <span className="font-medium text-gray-900">{numero.format(r.porcentaje)} %</span>
@@ -169,7 +169,7 @@ export function HomePage() {
                     title={`${i.nombre}: ${pesos0.format(i.valor_anual)} al año (${numero.format(i.porcentaje)} %) · Clase ${i.clase}`}
                   >
                     <span className="truncate text-sm text-gray-700">{i.nombre}</span>
-                    <div className="h-4 rounded-sm bg-gray-100">
+                    <div className="h-4 rounded-xs bg-gray-100">
                       <div className={`h-4 rounded-r-[4px] ${COLOR_CLASE[i.clase]}`} style={{ width: `${(i.porcentaje / maximo) * 100}%` }} />
                     </div>
                     <span className="text-right text-sm text-gray-900">{numero.format(i.porcentaje)} %</span>

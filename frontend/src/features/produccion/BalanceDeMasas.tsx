@@ -64,7 +64,7 @@ export function BalanceDeMasas({ id }: { id: string }) {
             <li key={i.materia_prima_id} className="flex items-center gap-2 text-sm text-gray-800">
               <span className="w-32 shrink-0 truncate sm:w-40">{i.nombre}</span>
               <span
-                className="h-2 rounded bg-blue-500"
+                className="h-2 rounded-sm bg-blue-500"
                 style={{ width: `${Math.max(2, Math.min(100, i.porcentaje))}%`, maxWidth: '55%' }}
                 aria-hidden="true"
               />

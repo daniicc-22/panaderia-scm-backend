@@ -45,7 +45,7 @@ export function QueProducir() {
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['produccion', 'que-producir'], queryFn: getQueProducir });
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Qué se puede producir">
+    <section className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-xs sm:p-5" aria-label="Qué se puede producir">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Qué se puede producir hoy</h2>
         <p className="text-sm text-gray-500">Con las existencias vigentes (los lotes vencidos no cuentan).</p>

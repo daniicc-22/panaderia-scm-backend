@@ -14,7 +14,7 @@ import { ETAPAS, ETIQUETA_ETAPA, MERMA_MAX } from './etiquetas';
 type Tipo = 'insumo' | 'produccion';
 
 const CAMPO =
-  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm';
+  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
 

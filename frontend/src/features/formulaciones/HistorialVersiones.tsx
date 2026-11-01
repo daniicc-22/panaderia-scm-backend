@@ -32,11 +32,11 @@ export function HistorialVersiones({ formulacionId }: Props) {
         <div className="flex items-center gap-2">
           <span className="font-medium text-gray-900">v{v.version}</span>
           {v.activa ? (
-            <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Vigente</span>
+            <span className="rounded-sm bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Vigente</span>
           ) : (
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">Anterior</span>
+            <span className="rounded-sm bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">Anterior</span>
           )}
-          {v.id === formulacionId && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">Estás aquí</span>}
+          {v.id === formulacionId && <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">Estás aquí</span>}
         </div>
       ),
     },

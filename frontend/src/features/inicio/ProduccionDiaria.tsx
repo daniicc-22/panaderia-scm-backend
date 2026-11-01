@@ -55,7 +55,7 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
                 <li key={d.fecha} className="relative flex h-full flex-col">
                   <button
                     type="button"
-                    className="group relative flex min-h-0 flex-1 flex-col items-center justify-end rounded-md pb-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    className="group relative flex min-h-0 flex-1 flex-col items-center justify-end rounded-md pb-0 outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
                     onMouseEnter={() => setActivo(i)}
                     onMouseLeave={() => setActivo(null)}
                     onFocus={() => setActivo(i)}

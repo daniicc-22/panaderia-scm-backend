@@ -15,7 +15,7 @@ import { getRecomendaciones } from '../services/reposicionService';
 
 function Indicador({ etiqueta, valor, detalle }: { etiqueta: string; valor: string; detalle?: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-xs sm:p-4">
       <p className="text-xs text-gray-500">{etiqueta}</p>
       <p className="mt-1 text-xl font-semibold tracking-tight text-gray-900">{valor}</p>
       {detalle && <p className="mt-0.5 text-xs text-gray-500">{detalle}</p>}
@@ -158,13 +158,13 @@ export function AnalisisEoqPage() {
           </section>
           <p className="-mt-2 text-xs text-gray-500">Solo costo de pedir y guardar; no incluye el precio de compra del producto.</p>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm" aria-label="Dónde se concentra el costo">
+          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs" aria-label="Dónde se concentra el costo">
             <h2 className="text-base font-semibold text-gray-900">Dónde se concentra el costo de pedir y guardar</h2>
             <p className="mb-2 text-sm text-gray-500">Los 10 insumos que más cuestan al año. Toca uno para ver su curva.</p>
             <BarrasCostoAnual items={lista} seleccionadoId={elegido.materia_prima_id} onSeleccionar={setSeleccionId} />
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm" aria-label="Curva de costos">
+          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs" aria-label="Curva de costos">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Curva de costos de {elegido.nombre}</h2>

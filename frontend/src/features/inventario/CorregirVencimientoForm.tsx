@@ -61,7 +61,7 @@ export function CorregirVencimientoForm({ loteId, codigoLote, nombre, fechaActua
             setFecha(e.target.value);
             setError(null);
           }}
-          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm"
         />
         <p className="text-xs text-gray-500">Déjala vacía solo si el insumo no vence. Los insumos que se usan por vencimiento (FEFO) siempre llevan fecha.</p>
       </div>

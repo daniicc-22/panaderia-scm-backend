@@ -129,7 +129,7 @@ export function FormulacionDetallePage() {
               <h1 className="text-2xl font-semibold text-gray-900">
                 {data.producto}
                 {!data.producto_activo && (
-                  <span className="ml-3 rounded bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
+                  <span className="ml-3 rounded-sm bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
                     Dado de baja
                   </span>
                 )}

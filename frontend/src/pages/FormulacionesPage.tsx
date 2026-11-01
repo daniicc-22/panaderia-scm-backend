@@ -24,7 +24,7 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
           <span className={`font-medium ${f.producto_activo ? 'text-gray-900' : 'text-gray-400'}`}>
             {f.producto}
             {!f.producto_activo && (
-              <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Dado de baja</span>
+              <span className="ml-2 rounded-sm bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Dado de baja</span>
             )}
           </span>
           {f.es_intermedio && <span className="text-xs text-gray-500">Producto intermedio</span>}

@@ -146,7 +146,7 @@ export function ReposicionPage() {
                 {data.pedidos.map((p) => {
                   const min = p.costos.pedido_minimo;
                   return (
-                    <li key={p.proveedor.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <li key={p.proveedor.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-base font-semibold text-gray-900">{p.proveedor.nombre}</p>

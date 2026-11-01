@@ -33,10 +33,10 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
         <span className={`font-medium ${p.activo ? 'text-gray-900' : 'text-gray-400'}`}>
           {p.nombre}
           {!p.activo && (
-            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactivo</span>
+            <span className="ml-2 rounded-sm bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactivo</span>
           )}
           {p.alcance === 'grupo' && (
-            <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-normal text-blue-700">Del grupo</span>
+            <span className="ml-2 rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-normal text-blue-700">Del grupo</span>
           )}
         </span>
       ),
