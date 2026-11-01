@@ -62,10 +62,10 @@ export function ParametrosReposicionPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Parámetros de reposición</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Parámetros de reposición</h1>
+          <p className="mt-1 text-sm text-niebla">
             Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir
             {parametros.data ? ` · ${cuantosFaltan} de ${items.length} con datos por completar` : ''}
           </p>
@@ -95,13 +95,13 @@ export function ParametrosReposicionPage() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar insumo"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
         />
         <select
           aria-label="Filtrar"
           value={filtro}
           onChange={(e) => setFiltro(e.target.value as Filtro)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-md border border-borde-campo px-3 py-2 text-sm"
         >
           <option value="todos">Todos</option>
           <option value="faltan">Con datos por completar</option>
@@ -119,17 +119,17 @@ export function ParametrosReposicionPage() {
           const esAlUso = alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso';
           const c = calculo.get(i.materia_prima_id);
           return (
-            <li key={i.materia_prima_id} className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+            <li key={i.materia_prima_id} className="flex flex-col gap-2 rounded-lg border border-linea bg-tabla p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-grafito">
                   {i.nombre}
                   {i.clase_abc && <Badge color={i.clase_abc === 'A' ? 'red' : i.clase_abc === 'B' ? 'yellow' : 'gray'}>Clase {i.clase_abc}</Badge>}
                   {esAlUso ? <Badge color="blue">Se compra según la producción</Badge> : c && <Badge color={ESTADOS[c.estado].color}>{ESTADOS[c.estado].etiqueta}</Badge>}
                 </p>
                 {!esAlUso && c && c.faltantes.length > 0 && (
-                  <p className="text-xs text-gray-600">Falta: {c.faltantes.map(etiquetaFaltante).join(', ')}</p>
+                  <p className="text-xs text-gris-texto">Falta: {c.faltantes.map(etiquetaFaltante).join(', ')}</p>
                 )}
-                <p className="text-xs text-gray-400">{i.codigo}</p>
+                <p className="text-xs text-gris-texto">{i.codigo}</p>
               </div>
               <Button type="button" variant="secondary" onClick={() => setEditando(i)}>
                 Editar

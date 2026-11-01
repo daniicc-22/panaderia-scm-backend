@@ -5,12 +5,12 @@ import { costoEoq, costoPolitica, costosEn, marcas, puntosCurva, rangoCurva, tec
 const W_ANCHO = 640;
 const M = { l: 64, r: 16, t: 14, b: 40 };
 // Colores de la paleta categórica del Inicio (ranuras 1 a 3); cada curva también se rotula, no depende solo del color
-export const COLOR_TOTAL = '#2a78d6';
-export const COLOR_PEDIR = '#eb6834';
-export const COLOR_GUARDAR = '#1baf7a';
-const TINTA = '#111827';
-const TEXTO = '#6b7280';
-const REJILLA = '#e5e7eb';
+export const COLOR_TOTAL = '#22374A';
+export const COLOR_PEDIR = '#A85C3E';
+export const COLOR_GUARDAR = '#4A7A5A';
+const TINTA = '#2A2D30';
+const TEXTO = '#5A6066';
+const REJILLA = '#E3DCCF';
 
 const compacto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', notation: 'compact', maximumFractionDigits: 1 });
 
@@ -62,7 +62,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
 
   return (
     <div className="relative">
-      <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700" aria-label="Leyenda">
+      <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-grafito" aria-label="Leyenda">
         <li className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-5" style={{ background: COLOR_TOTAL, height: 3 }} aria-hidden="true" />
           Costo total
@@ -81,7 +81,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         </li>
         {qp !== null && (
           <li className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rotate-45 border-2 bg-white" style={{ borderColor: TINTA }} aria-hidden="true" />
+            <span className="inline-block h-2.5 w-2.5 rotate-45 border-2 bg-tabla" style={{ borderColor: TINTA }} aria-hidden="true" />
             Con el calendario del proveedor
           </li>
         )}
@@ -166,14 +166,14 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
 
       {hover && (
         <div
-          className="pointer-events-none absolute top-8 z-10 w-52 rounded-md border border-gray-200 bg-white p-2 text-xs shadow-md"
+          className="pointer-events-none absolute top-8 z-10 w-52 rounded-md border border-linea bg-tabla p-2 text-xs shadow-md"
           style={{ left: `${Math.min(Math.max(((x(hover.q) - 0) / W) * 100, 24), 76)}%`, transform: 'translateX(-50%)' }}
           role="status"
         >
-          <p className="font-medium text-gray-900">Pedidos de {formatoCantidad(hover.q, u)}</p>
-          <p className="text-gray-700">Total: {formatoDinero(hover.total)} al año</p>
-          <p className="text-gray-600">Hacer pedidos: {formatoDinero(hover.pedir)}</p>
-          <p className="text-gray-600">Guardar: {formatoDinero(hover.mantener)}</p>
+          <p className="font-medium text-grafito">Pedidos de {formatoCantidad(hover.q, u)}</p>
+          <p className="text-grafito">Total: {formatoDinero(hover.total)} al año</p>
+          <p className="text-gris-texto">Hacer pedidos: {formatoDinero(hover.pedir)}</p>
+          <p className="text-gris-texto">Guardar: {formatoDinero(hover.mantener)}</p>
         </div>
       )}
     </div>

@@ -24,9 +24,9 @@ function fechaCorta(iso: string): string {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{etiqueta}</p>
-      <p className="mt-1 text-xl font-semibold text-gray-900">{valor}</p>
+    <div className="rounded-lg border border-linea bg-tabla p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gris-texto">{etiqueta}</p>
+      <p className="mt-1 text-xl font-semibold text-grafito">{valor}</p>
     </div>
   );
 }
@@ -88,8 +88,8 @@ export function FormulacionDetallePage() {
       encabezado: 'Ingrediente',
       render: (i) => (
         <div className="flex flex-col">
-          <span className="font-medium text-gray-900">{i.nombre}</span>
-          {i.tipo === 'producto_intermedio' && <span className="text-xs text-gray-500">Producto intermedio</span>}
+          <span className="font-medium text-grafito">{i.nombre}</span>
+          {i.tipo === 'producto_intermedio' && <span className="text-xs text-gris-texto">Producto intermedio</span>}
         </div>
       ),
     },
@@ -118,23 +118,23 @@ export function FormulacionDetallePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Link to="/formulaciones" className="text-sm font-medium text-blue-600 hover:underline">
+      <Link to="/formulaciones" className="text-sm font-medium text-pizarra hover:underline">
         ← Volver a formulaciones
       </Link>
 
       {data && (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="rounded-tarjeta bg-pizarra px-5 py-5 text-white sm:px-6 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
+              <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">
                 {data.producto}
                 {!data.producto_activo && (
-                  <span className="ml-3 rounded-sm bg-gray-100 px-2 py-0.5 align-middle text-sm font-normal text-gray-600">
+                  <span className="ml-3 rounded-sm bg-noche-tarjeta px-2 py-0.5 align-middle text-sm font-normal text-niebla">
                     Dado de baja
                   </span>
                 )}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="mt-1 text-sm text-niebla">
                 Versión {data.version} · {data.activa ? 'vigente' : 'anterior'} desde {fechaCorta(data.vigente_desde)}
                 {data.vigente_hasta ? ` hasta ${fechaCorta(data.vigente_hasta)}` : ''}
               </p>
@@ -168,7 +168,7 @@ export function FormulacionDetallePage() {
           {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
           {!data.activa && (
-            <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <div className="rounded-md border border-[#c6d3de] bg-info-fondo px-4 py-3 text-sm text-pizarra">
               Estás viendo una versión anterior. No se usa en la producción ni en el ABC; el costo se calcula con los
               precios de hoy.
             </div>
@@ -186,7 +186,7 @@ export function FormulacionDetallePage() {
           </div>
 
           {verCostos && data.costo_incompleto && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="rounded-md border border-[#f1d9a6] bg-atencion-fondo px-4 py-3 text-sm text-atencion-texto">
               Esta formulación incluye un ingrediente sin costo (producto intermedio o materia prima sin precio). El costo total es parcial.
             </div>
           )}
@@ -207,7 +207,7 @@ export function FormulacionDetallePage() {
       {puedeGestionar && data && (
         <Modal isOpen={confirmandoBaja} onClose={() => setConfirmandoBaja(false)} title="Dar de baja el producto">
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-grafito">
               ¿Dar de baja <span className="font-medium">{data.producto}</span>?
             </p>
             <Alert variant="warning">

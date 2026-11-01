@@ -26,7 +26,7 @@ interface Props {
 }
 
 const CANTIDAD_MAX = 1_000_000;
-const CAMPO = 'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
+const CAMPO = 'min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm';
 
 const aTexto = (n: number) => String(n).replace('.', ',');
 
@@ -102,15 +102,15 @@ export function LineaForm({ conteoId, lote, linea, onTerminar }: Props) {
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
-      <div className="text-sm text-gray-600">
-        <p className="font-medium text-gray-900">
+      <div className="text-sm text-gris-texto">
+        <p className="font-medium text-grafito">
           Lote {lote.codigo_lote ?? 'sin código'}
         </p>
         <p>{lote.fecha_vencimiento ? `Vence el ${formatoFecha(lote.fecha_vencimiento)}` : 'Sin fecha de vencimiento'}</p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="cantidad-contada" className="text-sm font-medium text-gray-700">
+        <label htmlFor="cantidad-contada" className="text-sm font-medium text-grafito">
           ¿Cuánto hay en este lote?
         </label>
         <div className="flex gap-2">
@@ -137,21 +137,21 @@ export function LineaForm({ conteoId, lote, linea, onTerminar }: Props) {
                 setTexto('');
                 setPide(null);
               }}
-              className="min-h-11 rounded-md border border-gray-300 px-2 text-base sm:text-sm"
+              className="min-h-11 rounded-md border border-borde-campo px-2 text-base sm:text-sm"
             >
               <option value="kg">kg</option>
               <option value="g">g</option>
             </select>
           ) : (
-            <span className="flex min-h-11 items-center px-1 text-sm text-gray-600">{lote.unidad}</span>
+            <span className="flex min-h-11 items-center px-1 text-sm text-gris-texto">{lote.unidad}</span>
           )}
         </div>
-        <p className="text-xs text-gray-500">Cuenta lo que ves en la bodega, sin mirar lo que dice el sistema.</p>
+        <p className="text-xs text-gris-texto">Cuenta lo que ves en la bodega, sin mirar lo que dice el sistema.</p>
       </div>
 
       {pide && (
-        <div className="flex flex-col gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-          <p className="text-sm text-yellow-900">
+        <div className="flex flex-col gap-3 rounded-lg border border-[#f1d9a6] bg-atencion-fondo p-3">
+          <p className="text-sm text-atencion-texto">
             El sistema decía <span className="font-semibold">{formatoCantidad(pide.cantidad_sistema, lote.unidad)}</span>: hay una diferencia de{' '}
             <span className="font-semibold">
               {pide.diferencia > 0 ? '+' : '−'}
@@ -160,7 +160,7 @@ export function LineaForm({ conteoId, lote, linea, onTerminar }: Props) {
             . Cuéntanos qué pasó.
           </p>
           <div className="flex flex-col gap-1">
-            <label htmlFor="motivo" className="text-sm font-medium text-gray-700">
+            <label htmlFor="motivo" className="text-sm font-medium text-grafito">
               Motivo
             </label>
             <select id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoDiferencia | '')} className={CAMPO}>
@@ -173,7 +173,7 @@ export function LineaForm({ conteoId, lote, linea, onTerminar }: Props) {
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="obs" className="text-sm font-medium text-gray-700">
+            <label htmlFor="obs" className="text-sm font-medium text-grafito">
               Observaciones {motivo === 'otro' ? '' : '(opcional)'}
             </label>
             <textarea

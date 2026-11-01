@@ -30,13 +30,13 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
       key: 'nombre',
       encabezado: 'Proveedor',
       render: (p) => (
-        <span className={`font-medium ${p.activo ? 'text-gray-900' : 'text-gray-400'}`}>
+        <span className={`font-medium ${p.activo ? 'text-grafito' : 'text-gris-texto'}`}>
           {p.nombre}
           {!p.activo && (
-            <span className="ml-2 rounded-sm bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactivo</span>
+            <span className="ml-2 rounded-sm bg-arena px-1.5 py-0.5 text-xs font-normal text-gris-texto">Inactivo</span>
           )}
           {p.alcance === 'grupo' && (
-            <span className="ml-2 rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-normal text-blue-700">Del grupo</span>
+            <span className="ml-2 rounded-sm bg-info-fondo px-1.5 py-0.5 text-xs font-normal text-pizarra">Del grupo</span>
           )}
         </span>
       ),
@@ -49,9 +49,9 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
       encabezado: 'Entrega',
       render: (p) => (
         <span className="text-sm">
-          <span className={p.dias_entrega.length === 0 ? 'text-amber-700' : 'text-gray-700'}>{textoDiasEntrega(p.dias_entrega)}</span>
+          <span className={p.dias_entrega.length === 0 ? 'text-atencion-texto' : 'text-grafito'}>{textoDiasEntrega(p.dias_entrega)}</span>
           {p.pedido_minimo !== null && (
-            <span className="block text-xs text-gray-500">Mínimo {pesos.format(p.pedido_minimo)}</span>
+            <span className="block text-xs text-gris-texto">Mínimo {pesos.format(p.pedido_minimo)}</span>
           )}
         </span>
       ),
@@ -62,7 +62,7 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
       render: (p) => (
         <button
           type="button"
-          className="whitespace-nowrap font-medium text-blue-600 hover:underline"
+          className="whitespace-nowrap font-medium text-pizarra hover:underline"
           onClick={() => acciones.onVerOferta(p)}
         >
           {p.ofertas_vigentes === 0 ? 'Ver oferta' : `Ver oferta (${p.ofertas_vigentes})`}
@@ -74,12 +74,12 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
       encabezado: 'Acciones',
       render: (p) =>
         p.alcance === 'grupo' ? (
-          <span className="text-xs text-gray-400">Solo consulta</span>
+          <span className="text-xs text-gris-texto">Solo consulta</span>
         ) : (
           <div className="flex gap-3 whitespace-nowrap text-sm">
             <button
               type="button"
-              className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+              className="font-medium text-pizarra hover:underline disabled:opacity-50"
               disabled={acciones.ocupado}
               onClick={() => acciones.onEditar(p)}
             >
@@ -87,7 +87,7 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
             </button>
             <button
               type="button"
-              className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+              className="font-medium text-pizarra hover:underline disabled:opacity-50"
               disabled={acciones.ocupado}
               onClick={() => acciones.onEntrega(p)}
             >
@@ -96,7 +96,7 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
             {p.activo ? (
               <button
                 type="button"
-                className="font-medium text-red-600 hover:underline disabled:opacity-50"
+                className="font-medium text-critico-texto hover:underline disabled:opacity-50"
                 disabled={acciones.ocupado}
                 onClick={() => acciones.onDesactivar(p)}
               >
@@ -105,7 +105,7 @@ function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
             ) : (
               <button
                 type="button"
-                className="font-medium text-green-700 hover:underline disabled:opacity-50"
+                className="font-medium text-exito-texto hover:underline disabled:opacity-50"
                 disabled={acciones.ocupado}
                 onClick={() => acciones.onReactivar(p)}
               >
@@ -213,10 +213,10 @@ export function ProveedoresPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Proveedores</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Proveedores</h1>
+          <p className="mt-1 text-sm text-niebla">
             {data ? `${filtrados.length} de ${visibles.length} proveedores` : 'Quién te vende los insumos'}
           </p>
         </div>
@@ -233,9 +233,9 @@ export function ProveedoresPage() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
         />
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-grafito">
           <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
           Mostrar inactivos
         </label>
@@ -274,7 +274,7 @@ export function ProveedoresPage() {
 
       <Modal isOpen={porDesactivar !== null} onClose={() => setPorDesactivar(null)} title="Desactivar proveedor">
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-grafito">
             ¿Desactivar <span className="font-medium">{porDesactivar?.nombre}</span>?
           </p>
           <Alert variant="warning">

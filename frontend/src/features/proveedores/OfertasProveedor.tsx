@@ -37,16 +37,16 @@ function Estado({ o }: { o: OfertaProveedor }) {
 }
 
 function Comparacion({ o }: { o: OfertaProveedor }) {
-  if (!o.cuenta) return <span className="text-gray-400">—</span>;
+  if (!o.cuenta) return <span className="text-gris-texto">—</span>;
   if (o.mejor_precio) {
     return o.otros_proveedores === 0 ? (
-      <span className="text-gray-500">Único proveedor</span>
+      <span className="text-gris-texto">Único proveedor</span>
     ) : (
       <Badge color="green">Mejor precio</Badge>
     );
   }
   return (
-    <span className={`font-medium ${o.sobre_mejor_pct !== null && o.sobre_mejor_pct >= 10 ? 'text-red-700' : 'text-yellow-700'}`}>
+    <span className={`font-medium ${o.sobre_mejor_pct !== null && o.sobre_mejor_pct >= 10 ? 'text-critico-texto' : 'text-atencion-texto'}`}>
       +{o.sobre_mejor_pct !== null ? pct(o.sobre_mejor_pct) : '—'} sobre el mejor
     </span>
   );
@@ -54,9 +54,9 @@ function Comparacion({ o }: { o: OfertaProveedor }) {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-      <p className="text-xs text-gray-500">{etiqueta}</p>
-      <p className="text-lg font-semibold text-gray-900">{valor}</p>
+    <div className="rounded-lg border border-linea bg-hueso px-3 py-2">
+      <p className="text-xs text-gris-texto">{etiqueta}</p>
+      <p className="text-lg font-semibold text-grafito">{valor}</p>
     </div>
   );
 }
@@ -82,9 +82,9 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
 
   if (items.length === 0) {
     return (
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-gris-texto">
         {proveedor.nombre} todavía no tiene precios registrados. Agrégalos desde{' '}
-        <Link to="/materias-primas" className="font-medium text-blue-600 hover:underline">
+        <Link to="/materias-primas" className="font-medium text-pizarra hover:underline">
           Materias primas
         </Link>
         , en la sección de precios de cada insumo.
@@ -107,22 +107,22 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar insumo"
-          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base sm:max-w-xs sm:text-sm"
+          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
         />
-        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-700">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
           <input type="checkbox" checked={soloCuentan} onChange={(e) => setSoloCuentan(e.target.checked)} />
           Solo las que cuentan en los costos
         </label>
       </div>
 
       {filtradas.length === 0 ? (
-        <p className="text-sm text-gray-500">Ningún precio coincide con el filtro.</p>
+        <p className="text-sm text-gris-texto">Ningún precio coincide con el filtro.</p>
       ) : (
         <>
           {/* Pantallas grandes: tabla para comparar de un vistazo */}
-          <div className="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="hidden overflow-x-auto rounded-lg border border-linea md:block">
+            <table className="min-w-full divide-y divide-linea text-sm">
+              <thead className="bg-azul-noche text-left text-xs font-semibold text-white">
                 <tr>
                   <th className="px-3 py-2">Insumo</th>
                   <th className="px-3 py-2">Presentación</th>
@@ -133,12 +133,12 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
                   <th className="px-3 py-2">Frente a otros</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-linea bg-tabla">
                 {filtradas.map((o) => (
-                  <tr key={o.oferta_id} className={o.cuenta ? '' : 'text-gray-400'}>
-                    <td className="px-3 py-2 font-medium text-gray-900">{o.materia}</td>
+                  <tr key={o.oferta_id} className={o.cuenta ? '' : 'text-gris-texto'}>
+                    <td className="px-3 py-2 font-medium text-grafito">{o.materia}</td>
                     <td className="px-3 py-2">
-                      {o.presentacion} <span className="text-gray-500">({contenidoLegible(o)})</span>
+                      {o.presentacion} <span className="text-gris-texto">({contenidoLegible(o)})</span>
                     </td>
                     <td className="px-3 py-2 text-right font-medium">{formatoPesos.format(o.precio)}</td>
                     <td className="px-3 py-2 text-right">{costoLegible(o)}</td>
@@ -158,18 +158,18 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
           {/* Celular: una tarjeta por oferta */}
           <ul className="flex flex-col gap-2 md:hidden">
             {filtradas.map((o) => (
-              <li key={o.oferta_id} className={`rounded-lg border border-gray-200 bg-white p-3 ${o.cuenta ? '' : 'opacity-70'}`}>
+              <li key={o.oferta_id} className={`rounded-lg border border-linea bg-tabla p-3 ${o.cuenta ? '' : 'opacity-70'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">{o.materia}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-grafito">{o.materia}</p>
+                    <p className="text-xs text-gris-texto">
                       {o.presentacion} ({contenidoLegible(o)})
                     </p>
                   </div>
                   <Estado o={o} />
                 </div>
-                <p className="mt-1 text-lg font-semibold text-gray-900">{formatoPesos.format(o.precio)}</p>
-                <p className="text-sm text-gray-600">
+                <p className="mt-1 text-lg font-semibold text-grafito">{formatoPesos.format(o.precio)}</p>
+                <p className="text-sm text-gris-texto">
                   {costoLegible(o)}
                   {o.tiempo_entrega_dias !== null ? ` · Entrega ${numero.format(o.tiempo_entrega_dias)} d` : ''}
                 </p>
@@ -182,10 +182,10 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
         </>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gris-texto">
         «Precio aplicado» es el que usan hoy los costos del insumo: la presentación de mayor contenido y, dentro de ella, el menor precio.
         «Frente a otros» compara el costo por unidad con los demás proveedores. Para cambiar precios, abre el insumo en{' '}
-        <Link to="/materias-primas" className="font-medium text-blue-600 hover:underline">
+        <Link to="/materias-primas" className="font-medium text-pizarra hover:underline">
           Materias primas
         </Link>
         .

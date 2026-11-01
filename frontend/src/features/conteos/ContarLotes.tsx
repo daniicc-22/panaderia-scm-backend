@@ -68,13 +68,13 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
     <div className="flex flex-col gap-3">
       <div>
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-grafito">
             {contados} de {total} lotes contados
           </span>
-          {total > 0 && <span className="text-gray-500">{Math.round((contados / total) * 100)} %</span>}
+          {total > 0 && <span className="text-gris-texto">{Math.round((contados / total) * 100)} %</span>}
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={contados}>
-          <div className="h-full bg-blue-600 transition-all" style={{ width: total === 0 ? '0%' : `${(contados / total) * 100}%` }} />
+        <div className="h-2 overflow-hidden rounded-full bg-arena" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={contados}>
+          <div className="h-full bg-terracota transition-all" style={{ width: total === 0 ? '0%' : `${(contados / total) * 100}%` }} />
         </div>
       </div>
 
@@ -85,7 +85,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar insumo o lote"
           aria-label="Buscar insumo o lote"
-          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base sm:max-w-xs sm:text-sm"
+          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
         />
         <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar lotes">
           {FILTROS.map((f) => (
@@ -95,7 +95,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
               aria-pressed={filtro === f.valor}
               onClick={() => setFiltro(f.valor)}
               className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
-                filtro === f.valor ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                filtro === f.valor ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo bg-tabla text-gris-texto hover:bg-arena'
               }`}
             >
               {f.etiqueta}
@@ -122,11 +122,11 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
               <button
                 type="button"
                 onClick={() => setElegida(f)}
-                className="flex min-h-14 w-full items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left active:bg-gray-50"
+                className="flex min-h-14 w-full items-start justify-between gap-3 rounded-lg border border-linea bg-tabla p-3 text-left active:bg-arena"
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-gray-900">{f.nombre}</span>
-                  <span className="block text-xs text-gray-500">
+                  <span className="block truncate font-medium text-grafito">{f.nombre}</span>
+                  <span className="block text-xs text-gris-texto">
                     Lote {f.codigo_lote ?? 'sin código'}
                     {f.fecha_vencimiento ? ` · vence ${formatoFecha(f.fecha_vencimiento)}` : ''}
                   </span>
@@ -134,7 +134,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   {f.linea ? (
                     <>
-                      <span className="text-sm font-semibold text-gray-900">{formatoCantidad(f.linea.cantidad_contada, f.unidad)}</span>
+                      <span className="text-sm font-semibold text-grafito">{formatoCantidad(f.linea.cantidad_contada, f.unidad)}</span>
                       {f.linea.diferencia === 0 ? (
                         <Badge color="green">Exacto</Badge>
                       ) : (

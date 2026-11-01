@@ -42,15 +42,15 @@ export function CorregirVencimientoForm({ loteId, codigoLote, nombre, fechaActua
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
-      <div className="text-sm text-gray-600">
-        <p className="font-medium text-gray-900">
+      <div className="text-sm text-gris-texto">
+        <p className="font-medium text-grafito">
           {nombre} · Lote {codigoLote ?? 'sin código'}
         </p>
         <p>{fechaActual ? `Vence el ${formatoFecha(fechaActual)}.` : 'Sin fecha de vencimiento.'}</p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="nuevo-vencimiento" className="text-sm font-medium text-gray-700">
+        <label htmlFor="nuevo-vencimiento" className="text-sm font-medium text-grafito">
           Fecha de vencimiento correcta
         </label>
         <input
@@ -61,9 +61,9 @@ export function CorregirVencimientoForm({ loteId, codigoLote, nombre, fechaActua
             setFecha(e.target.value);
             setError(null);
           }}
-          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm"
+          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
         />
-        <p className="text-xs text-gray-500">Déjala vacía solo si el insumo no vence. Los insumos que se usan por vencimiento (FEFO) siempre llevan fecha.</p>
+        <p className="text-xs text-gris-texto">Déjala vacía solo si el insumo no vence. Los insumos que se usan por vencimiento (FEFO) siempre llevan fecha.</p>
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}

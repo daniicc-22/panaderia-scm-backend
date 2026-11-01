@@ -15,7 +15,7 @@ interface Props {
 }
 
 const CAMPO =
-  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
+  'min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm';
 
 // Cierra una producción en curso con lo que realmente salió del horno
 export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }: Props) {
@@ -41,9 +41,9 @@ export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }:
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+    <div className="mt-3 flex flex-col gap-3 rounded-md border border-[#c6d3de] bg-info-fondo p-3">
       <div className="flex flex-col gap-1">
-        <label htmlFor={`prod-${id}`} className="text-sm font-medium text-gray-700">
+        <label htmlFor={`prod-${id}`} className="text-sm font-medium text-grafito">
           ¿Cuántas unidades salieron?
         </label>
         <input
@@ -58,8 +58,8 @@ export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }:
             finalizar.reset();
           }}
         />
-        {planificada !== null && <span className="text-xs text-gray-500">Se esperaban {planificada.toLocaleString('es-CO')} unidades.</span>}
-        {errorCampo && <span className="text-xs text-red-600">{errorCampo}</span>}
+        {planificada !== null && <span className="text-xs text-gris-texto">Se esperaban {planificada.toLocaleString('es-CO')} unidades.</span>}
+        {errorCampo && <span className="text-xs text-critico-texto">{errorCampo}</span>}
       </div>
       {finalizar.isError && <Alert variant="error">{mensajeDeError(finalizar.error, 'No se pudo cerrar la producción.')}</Alert>}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

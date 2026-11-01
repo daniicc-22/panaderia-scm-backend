@@ -67,8 +67,8 @@ export function MateriaPrimaForm({ materia, catalogos, onTerminar }: Props) {
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
       {modoEdicion && (
-        <p className="text-sm text-gray-500">
-          Código <span className="font-medium text-gray-800">{materia.codigo}</span> · el código y la unidad base no se
+        <p className="text-sm text-gris-texto">
+          Código <span className="font-medium text-grafito">{materia.codigo}</span> · el código y la unidad base no se
           pueden cambiar.
         </p>
       )}

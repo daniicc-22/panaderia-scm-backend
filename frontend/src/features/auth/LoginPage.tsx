@@ -49,11 +49,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-hueso px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Panadería SCM</h1>
-          <p className="text-sm text-gray-500">Inicia sesión para continuar</p>
+          <h1 className="text-2xl font-semibold text-grafito">Panadería SCM</h1>
+          <p className="text-sm text-gris-texto">Inicia sesión para continuar</p>
         </div>
 
         <Card>
@@ -84,8 +84,8 @@ export function LoginPage() {
         </Card>
 
         {env.apiMode === 'mock' && (
-          <div className="mt-4 rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-500">
-            <p className="mb-1 font-medium text-gray-600">Usuarios de prueba:</p>
+          <div className="mt-4 rounded-md border border-linea bg-tabla p-3 text-xs text-gris-texto">
+            <p className="mb-1 font-medium text-gris-texto">Usuarios de prueba:</p>
             <p>superadmin@demo.local — Demo123!</p>
             <p>admin@demo.local — Demo123!</p>
             <p>operario@demo.local — Demo123!</p>

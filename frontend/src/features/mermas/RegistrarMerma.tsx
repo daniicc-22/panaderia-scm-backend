@@ -14,7 +14,7 @@ import { ETAPAS, ETIQUETA_ETAPA, MERMA_MAX } from './etiquetas';
 type Tipo = 'insumo' | 'produccion';
 
 const CAMPO =
-  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
+  'min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm';
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
 
@@ -104,16 +104,16 @@ export function RegistrarMerma() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 sm:max-w-xl">
+    <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
       {exito && <Alert variant="success">{exito}</Alert>}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-gray-700">¿Qué se perdió?</legend>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-800">
+        <legend className="text-sm font-medium text-grafito">¿Qué se perdió?</legend>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
           <input type="radio" name="tipo-merma" checked={tipo === 'insumo'} onChange={() => cambiarTipo('insumo')} />
           Un insumo (se vence, se cae, se derrama)
         </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-800">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
           <input type="radio" name="tipo-merma" checked={tipo === 'produccion'} onChange={() => cambiarTipo('produccion')} />
           Masa o producto de una producción (quemado, masa pasada)
         </label>
@@ -122,7 +122,7 @@ export function RegistrarMerma() {
       {tipo === 'insumo' ? (
         <>
           <div className="flex flex-col gap-1">
-            <label htmlFor="mm-insumo" className="text-sm font-medium text-gray-700">Insumo</label>
+            <label htmlFor="mm-insumo" className="text-sm font-medium text-grafito">Insumo</label>
             <select
               id="mm-insumo"
               className={CAMPO}
@@ -140,14 +140,14 @@ export function RegistrarMerma() {
                 </option>
               ))}
             </select>
-            {inventario.isError && <span className="text-xs text-red-600">No se pudo cargar el inventario. Recarga la página.</span>}
+            {inventario.isError && <span className="text-xs text-critico-texto">No se pudo cargar el inventario. Recarga la página.</span>}
             {inventario.isSuccess && insumos.length === 0 && (
-              <span className="text-xs text-gray-500">No hay insumos con existencias para registrar una merma.</span>
+              <span className="text-xs text-gris-texto">No hay insumos con existencias para registrar una merma.</span>
             )}
           </div>
           {materiaId !== '' && (
             <div className="flex flex-col gap-1">
-              <label htmlFor="mm-lote" className="text-sm font-medium text-gray-700">Lote</label>
+              <label htmlFor="mm-lote" className="text-sm font-medium text-grafito">Lote</label>
               <select
                 id="mm-lote"
                 className={CAMPO}
@@ -165,11 +165,11 @@ export function RegistrarMerma() {
                   </option>
                 ))}
               </select>
-              {lotes.isError && <span className="text-xs text-red-600">No se pudieron cargar los lotes.</span>}
+              {lotes.isError && <span className="text-xs text-critico-texto">No se pudieron cargar los lotes.</span>}
             </div>
           )}
           <div className="flex flex-col gap-1">
-            <label htmlFor="mm-etapa" className="text-sm font-medium text-gray-700">¿En qué etapa se perdió?</label>
+            <label htmlFor="mm-etapa" className="text-sm font-medium text-grafito">¿En qué etapa se perdió?</label>
             <select
               id="mm-etapa"
               className={CAMPO}
@@ -186,7 +186,7 @@ export function RegistrarMerma() {
           </div>
           {etapa === 'produccion' && (
             <div className="flex flex-col gap-1">
-              <label htmlFor="mm-prod-insumo" className="text-sm font-medium text-gray-700">¿De qué producción? (opcional)</label>
+              <label htmlFor="mm-prod-insumo" className="text-sm font-medium text-grafito">¿De qué producción? (opcional)</label>
               <select
                 id="mm-prod-insumo"
                 className={CAMPO}
@@ -204,13 +204,13 @@ export function RegistrarMerma() {
                   </option>
                 ))}
               </select>
-              <span className="text-xs text-gray-500">Si la eliges, la merma entra al balance de masas de esa producción. Debe ser una producción que usó este lote.</span>
+              <span className="text-xs text-gris-texto">Si la eliges, la merma entra al balance de masas de esa producción. Debe ser una producción que usó este lote.</span>
             </div>
           )}
         </>
       ) : (
         <div className="flex flex-col gap-1">
-          <label htmlFor="mm-produccion" className="text-sm font-medium text-gray-700">Producción</label>
+          <label htmlFor="mm-produccion" className="text-sm font-medium text-grafito">Producción</label>
           <select
             id="mm-produccion"
             className={CAMPO}
@@ -229,13 +229,13 @@ export function RegistrarMerma() {
             ))}
           </select>
           {producciones.isSuccess && produccionesValidas.length === 0 && (
-            <span className="text-xs text-gray-500">No hay producciones en curso ni finalizadas.</span>
+            <span className="text-xs text-gris-texto">No hay producciones en curso ni finalizadas.</span>
           )}
         </div>
       )}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="mm-causa" className="text-sm font-medium text-gray-700">Causa</label>
+        <label htmlFor="mm-causa" className="text-sm font-medium text-grafito">Causa</label>
         <select
           id="mm-causa"
           className={CAMPO}
@@ -250,11 +250,11 @@ export function RegistrarMerma() {
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>
-        {causas.isError && <span className="text-xs text-red-600">No se pudieron cargar las causas.</span>}
+        {causas.isError && <span className="text-xs text-critico-texto">No se pudieron cargar las causas.</span>}
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="mm-cantidad" className="text-sm font-medium text-gray-700">
+        <label htmlFor="mm-cantidad" className="text-sm font-medium text-grafito">
           Cantidad perdida{enGramos ? '' : ` (${unidadInsumo})`}
         </label>
         <div className="flex gap-2">
@@ -281,8 +281,8 @@ export function RegistrarMerma() {
             </select>
           )}
         </div>
-        {cantidadValida && <span className="text-xs text-gray-500">Se registrarán {formatoCantidad(cantidad, unidadFinal)}.</span>}
-        {lote && <span className="text-xs text-gray-500">El lote tiene {formatoCantidad(lote.cantidad_disponible, unidadInsumo)}.</span>}
+        {cantidadValida && <span className="text-xs text-gris-texto">Se registrarán {formatoCantidad(cantidad, unidadFinal)}.</span>}
+        {lote && <span className="text-xs text-gris-texto">El lote tiene {formatoCantidad(lote.cantidad_disponible, unidadInsumo)}.</span>}
       </div>
 
       {errorForm && <Alert variant="error">{errorForm}</Alert>}

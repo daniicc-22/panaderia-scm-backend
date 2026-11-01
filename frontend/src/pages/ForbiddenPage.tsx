@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
+import { Logo } from '../components/brand/Logo';
 
 export function ForbiddenPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 text-center">
-      <h1 className="text-4xl font-bold text-gray-900">403</h1>
-      <p className="text-gray-600">No tienes permiso para ver esta página.</p>
-      <Link to="/inicio">
-        <Button>Volver al inicio</Button>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-azul-noche px-4 text-center text-white">
+      <Logo size={72} />
+      <h1 className="font-display text-6xl font-semibold text-trigo">403</h1>
+      <p className="text-niebla">No tienes permiso para ver esta página.</p>
+      <Link
+        to="/inicio"
+        className="inline-flex min-h-11 items-center rounded-lg bg-terracota px-5 text-sm font-semibold text-white transition-colors hover:bg-[#93502f]"
+      >
+        Volver al inicio
       </Link>
     </div>
   );

@@ -20,7 +20,7 @@ const LOTES_MAX = 1000;
 const DESVIACION_SOSPECHOSA = 50;
 
 const CAMPO =
-  'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-sm';
+  'min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm';
 
 export function ProduccionPage() {
   const queryClient = useQueryClient();
@@ -91,9 +91,9 @@ export function ProduccionPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Producir</h1>
-        <p className="text-sm text-gray-500">Registra una producción y descuenta los insumos del inventario.</p>
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Producir</h1>
+        <p className="mt-1 text-sm text-niebla">Registra una producción y descuenta los insumos del inventario.</p>
       </div>
 
       {exito && <Alert variant="success">{exito}</Alert>}
@@ -103,9 +103,9 @@ export function ProduccionPage() {
       ) : formulaciones.isError ? (
         <ErrorState onReintentar={() => formulaciones.refetch()} />
       ) : (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 sm:max-w-xl">
+        <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
           <div className="flex flex-col gap-1">
-            <label htmlFor="pr-producto" className="text-sm font-medium text-gray-700">
+            <label htmlFor="pr-producto" className="text-sm font-medium text-grafito">
               Producto
             </label>
             <select
@@ -129,7 +129,7 @@ export function ProduccionPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="pr-lotes" className="text-sm font-medium text-gray-700">
+            <label htmlFor="pr-lotes" className="text-sm font-medium text-grafito">
               ¿Cuántos lotes de la receta?
             </label>
             <input
@@ -145,13 +145,13 @@ export function ProduccionPage() {
               }}
             />
             {elegida && lotesValidos && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gris-texto">
                 Cada lote pesa {formatoCantidad(elegida.peso_lote_g, 'g')}
                 {elegida.rendimiento !== null ? ` y rinde ${elegida.rendimiento} unidades` : ''}
                 {elegida.rendimiento !== null ? ` (${Math.round(elegida.rendimiento * lotes * 1000) / 1000} en total).` : '.'}
               </span>
             )}
-            {errorLotes && <span className="text-xs text-red-600">{errorLotes}</span>}
+            {errorLotes && <span className="text-xs text-critico-texto">{errorLotes}</span>}
           </div>
 
           <Button type="button" className="min-h-11" isLoading={calcular.isPending} onClick={alCalcular}>
@@ -164,7 +164,7 @@ export function ProduccionPage() {
       {plan && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-grafito">
               Consumo para {plan.lotes} {plan.lotes === 1 ? 'lote' : 'lotes'} de {plan.formulacion.producto}
             </h2>
             <Badge color={plan.completo ? 'green' : 'red'}>{plan.completo ? 'Hay existencias' : 'Faltan existencias'}</Badge>
@@ -177,7 +177,7 @@ export function ProduccionPage() {
             </Alert>
           )}
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gris-texto">
             Escribe lo que pesaste de cada insumo. Los que dejes vacíos se toman «al ojo» con el peso de la receta.
           </p>
 
@@ -186,15 +186,15 @@ export function ProduccionPage() {
               <li
                 key={i.materia_prima_id}
                 className={`rounded-lg border p-3 ${
-                  i.faltante > 0 ? 'border-red-200 bg-red-50' : i.controla_inventario ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50'
+                  i.faltante > 0 ? 'border-[#f0c3c0] bg-critico-fondo' : i.controla_inventario ? 'border-linea bg-tabla' : 'border-linea bg-hueso'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <span className="font-medium text-gray-900">{i.nombre}</span>
-                  <span className="text-sm font-semibold text-gray-900">{formatoCantidad(i.necesario, i.unidad)}</span>
+                  <span className="font-medium text-grafito">{i.nombre}</span>
+                  <span className="text-sm font-semibold text-grafito">{formatoCantidad(i.necesario, i.unidad)}</span>
                 </div>
                 <div className="mt-2 flex flex-col gap-1">
-                  <label htmlFor={`peso-${i.materia_prima_id}`} className="text-xs font-medium text-gray-600">
+                  <label htmlFor={`peso-${i.materia_prima_id}`} className="text-xs font-medium text-gris-texto">
                     Lo que pesaste ({i.unidad})
                   </label>
                   <input
@@ -207,31 +207,31 @@ export function ProduccionPage() {
                     onChange={(e) => setPesosTexto((prev) => ({ ...prev, [i.materia_prima_id]: e.target.value }))}
                     onBlur={alSalirDelPeso}
                   />
-                  {lectura.errores[i.materia_prima_id] && <span className="text-xs text-red-600">{lectura.errores[i.materia_prima_id]}</span>}
+                  {lectura.errores[i.materia_prima_id] && <span className="text-xs text-critico-texto">{lectura.errores[i.materia_prima_id]}</span>}
                   {i.pesado && i.desviacion_pct !== null && !lectura.errores[i.materia_prima_id] && (
                     <span>
                       <Badge color={colorDesviacion(i.desviacion_pct)}>{textoDesviacion(i.desviacion_pct)} frente a la receta</Badge>
                     </span>
                   )}
                   {i.pesado && i.desviacion_pct !== null && Math.abs(i.desviacion_pct) > DESVIACION_SOSPECHOSA && !lectura.errores[i.materia_prima_id] && (
-                    <span className="text-xs font-medium text-yellow-700">
+                    <span className="text-xs font-medium text-atencion-texto">
                       Está muy lejos de la receta ({formatoCantidad(i.peso_estandar, i.unidad)}). Revisa que lo escribiste en {i.unidad === 'g' ? 'gramos, no en kilos' : i.unidad}.
                     </span>
                   )}
                 </div>
                 {!i.controla_inventario && (
-                  <p className="mt-1 text-xs text-gray-500">No se controla en inventario: no se descuenta.</p>
+                  <p className="mt-1 text-xs text-gris-texto">No se controla en inventario: no se descuenta.</p>
                 )}
                 {i.faltante > 0 && (
-                  <p className="mt-1 text-sm font-medium text-red-700">Faltan {formatoCantidad(i.faltante, i.unidad)}</p>
+                  <p className="mt-1 text-sm font-medium text-critico-texto">Faltan {formatoCantidad(i.faltante, i.unidad)}</p>
                 )}
                 {i.vencido_omitido > 0 && (
-                  <p className="mt-1 text-xs text-yellow-700">
+                  <p className="mt-1 text-xs text-atencion-texto">
                     {formatoCantidad(i.vencido_omitido, i.unidad)} en lotes vencidos no se usan.
                   </p>
                 )}
                 {i.lotes.length > 0 && (
-                  <ul className="mt-1 flex flex-col gap-0.5 text-xs text-gray-600">
+                  <ul className="mt-1 flex flex-col gap-0.5 text-xs text-gris-texto">
                     {i.lotes.map((l) => (
                       <li key={l.lote_id}>
                         {formatoCantidad(l.cantidad, i.unidad)} del lote {l.codigo_lote ?? 'sin código'}

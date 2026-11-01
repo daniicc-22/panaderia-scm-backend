@@ -15,10 +15,10 @@ import { getRecomendaciones } from '../services/reposicionService';
 
 function Indicador({ etiqueta, valor, detalle }: { etiqueta: string; valor: string; detalle?: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-xs sm:p-4">
-      <p className="text-xs text-gray-500">{etiqueta}</p>
-      <p className="mt-1 text-xl font-semibold tracking-tight text-gray-900">{valor}</p>
-      {detalle && <p className="mt-0.5 text-xs text-gray-500">{detalle}</p>}
+    <div className="rounded-xl border border-linea bg-tabla p-3 shadow-xs sm:p-4">
+      <p className="text-xs text-gris-texto">{etiqueta}</p>
+      <p className="mt-1 text-xl font-semibold tracking-tight text-grafito">{valor}</p>
+      {detalle && <p className="mt-0.5 text-xs text-gris-texto">{detalle}</p>}
     </div>
   );
 }
@@ -39,15 +39,15 @@ export function AnalisisEoqPage() {
   const elegido = lista.find((i) => i.materia_prima_id === seleccionId) ?? lista[0] ?? null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Análisis EOQ</h1>
-        <p className="text-sm text-gray-500">Cuánto conviene pedir de cada insumo y cuánto cuesta ajustarse al calendario del proveedor</p>
+    <div className="flex flex-col gap-4">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Análisis EOQ</h1>
+        <p className="mt-1 text-sm text-niebla">Cuánto conviene pedir de cada insumo y cuánto cuesta ajustarse al calendario del proveedor</p>
       </div>
       <NavReposicion />
 
-      <details className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
-        <summary className="cursor-pointer font-medium text-gray-900">¿Cómo se lee esta pantalla?</summary>
+      <details className="rounded-lg border border-linea bg-tabla p-3 text-sm text-grafito">
+        <summary className="cursor-pointer font-medium text-grafito">¿Cómo se lee esta pantalla?</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p>
             Pedir cuesta (hacer el pedido, recibir, pesar) y guardar también cuesta (espacio, riesgo de que se dañe, plata quieta). Si pides
@@ -61,7 +61,7 @@ export function AnalisisEoqPage() {
           <p>
             Solo se cuenta el costo de pedir y guardar; <strong>no incluye el precio de compra del producto</strong>. El resultado depende del
             consumo semanal, el costo por pedido y el costo de mantener: si alguno es un supuesto, el análisis también lo es.{' '}
-            <Link to="/reposicion/parametros" className="font-medium text-blue-700 underline">
+            <Link to="/reposicion/parametros" className="font-medium text-pizarra underline">
               Revisar parámetros
             </Link>
           </p>
@@ -156,28 +156,28 @@ export function AnalisisEoqPage() {
               detalle={resumen.extraPct === null ? 'por año' : `por año (${resumen.extraPct.toLocaleString('es-CO', { maximumFractionDigits: 1 })} % más)`}
             />
           </section>
-          <p className="-mt-2 text-xs text-gray-500">Solo costo de pedir y guardar; no incluye el precio de compra del producto.</p>
+          <p className="-mt-2 text-xs text-gris-texto">Solo costo de pedir y guardar; no incluye el precio de compra del producto.</p>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs" aria-label="Dónde se concentra el costo">
-            <h2 className="text-base font-semibold text-gray-900">Dónde se concentra el costo de pedir y guardar</h2>
-            <p className="mb-2 text-sm text-gray-500">Los 10 insumos que más cuestan al año. Toca uno para ver su curva.</p>
+          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Dónde se concentra el costo">
+            <h2 className="text-base font-semibold text-grafito">Dónde se concentra el costo de pedir y guardar</h2>
+            <p className="mb-2 text-sm text-gris-texto">Los 10 insumos que más cuestan al año. Toca uno para ver su curva.</p>
             <BarrasCostoAnual items={lista} seleccionadoId={elegido.materia_prima_id} onSeleccionar={setSeleccionId} />
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs" aria-label="Curva de costos">
+          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Curva de costos">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Curva de costos de {elegido.nombre}</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="text-base font-semibold text-grafito">Curva de costos de {elegido.nombre}</h2>
+                <p className="text-sm text-gris-texto">
                   Consumo de {elegido.demanda_semanal === null ? '—' : formatoCantidad(elegido.demanda_semanal, elegido.unidad)} por semana
                 </p>
               </div>
-              <label className="text-sm text-gray-700">
+              <label className="text-sm text-grafito">
                 <span className="sr-only">Insumo</span>
                 <select
                   value={elegido.materia_prima_id}
                   onChange={(e) => setSeleccionId(e.target.value)}
-                  className="min-h-11 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  className="min-h-11 rounded-md border border-borde-campo px-3 py-2 text-sm"
                 >
                   {lista.map((i) => (
                     <option key={i.materia_prima_id} value={i.materia_prima_id}>
@@ -188,15 +188,15 @@ export function AnalisisEoqPage() {
               </label>
             </div>
             <CurvaCostos key={elegido.materia_prima_id} item={elegido} />
-            <div className="mt-3 flex flex-col gap-1 rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+            <div className="mt-3 flex flex-col gap-1 rounded-md bg-hueso p-3 text-sm text-grafito">
               {explicacion(elegido, { cantidad: (v) => formatoCantidad(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
                 <p key={t}>{t}</p>
               ))}
             </div>
           </section>
 
-          <details className="rounded-lg border border-gray-200 bg-white p-3">
-            <summary className="cursor-pointer text-sm font-medium text-gray-900">Ver todos los números en una tabla</summary>
+          <details className="rounded-lg border border-linea bg-tabla p-3">
+            <summary className="cursor-pointer text-sm font-medium text-grafito">Ver todos los números en una tabla</summary>
             <div className="mt-3">
               <TablaEoq items={lista} />
             </div>

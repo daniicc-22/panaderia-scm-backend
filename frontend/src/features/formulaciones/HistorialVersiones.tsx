@@ -30,13 +30,13 @@ export function HistorialVersiones({ formulacionId }: Props) {
       encabezado: 'Versión',
       render: (v) => (
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">v{v.version}</span>
+          <span className="font-medium text-grafito">v{v.version}</span>
           {v.activa ? (
-            <span className="rounded-sm bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Vigente</span>
+            <span className="rounded-sm bg-exito-fondo px-1.5 py-0.5 text-xs text-exito-texto">Vigente</span>
           ) : (
-            <span className="rounded-sm bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">Anterior</span>
+            <span className="rounded-sm bg-arena px-1.5 py-0.5 text-xs text-gris-texto">Anterior</span>
           )}
-          {v.id === formulacionId && <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">Estás aquí</span>}
+          {v.id === formulacionId && <span className="rounded-sm bg-info-fondo px-1.5 py-0.5 text-xs text-pizarra">Estás aquí</span>}
         </div>
       ),
     },
@@ -53,7 +53,7 @@ export function HistorialVersiones({ formulacionId }: Props) {
       render: (v) => (
         <div className="flex flex-col">
           <span>{pesos0.format(v.costo_lote)}</span>
-          {v.costo_incompleto && <span className="text-xs text-amber-600">Costo incompleto</span>}
+          {v.costo_incompleto && <span className="text-xs text-atencion-texto">Costo incompleto</span>}
         </div>
       ),
     },
@@ -64,7 +64,7 @@ export function HistorialVersiones({ formulacionId }: Props) {
       encabezado: '',
       render: (v) =>
         v.id === formulacionId ? null : (
-          <Link to={`/formulaciones/${v.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+          <Link to={`/formulaciones/${v.id}`} className="text-sm font-medium text-pizarra hover:underline">
             Ver
           </Link>
         ),
@@ -74,8 +74,8 @@ export function HistorialVersiones({ formulacionId }: Props) {
   return (
     <section className="flex flex-col gap-2">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Historial de versiones</h2>
-        <p className="text-xs text-gray-500">
+        <h2 className="text-lg font-semibold text-grafito">Historial de versiones</h2>
+        <p className="text-xs text-gris-texto">
           Las versiones anteriores no se modifican. El costo de cada una se calcula con los precios de hoy.
         </p>
       </div>

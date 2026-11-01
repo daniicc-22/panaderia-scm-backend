@@ -39,8 +39,8 @@ export function EliminarConteo({ conteo, onCerrar, onEliminado }: Props) {
     <Modal isOpen={conteo !== null} onClose={cerrar} title={conteo ? `Eliminar el conteo n.º ${conteo.numero}` : 'Eliminar conteo'}>
       {conteo && (
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">
-            Se borra el conteo con todo lo que se contó en él. <span className="font-medium text-gray-900">El inventario no cambia.</span> Esta acción no se
+          <p className="text-sm text-gris-texto">
+            Se borra el conteo con todo lo que se contó en él. <span className="font-medium text-grafito">El inventario no cambia.</span> Esta acción no se
             puede deshacer.
           </p>
           {conteo.estado === 'enviado' && <Alert variant="warning">Este conteo está esperando revisión.</Alert>}
