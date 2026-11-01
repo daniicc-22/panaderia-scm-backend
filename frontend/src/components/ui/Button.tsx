@@ -1,15 +1,19 @@
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { LoaderCircle } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'trigo';
   isLoading?: boolean;
   children: ReactNode;
 }
 
-const VARIANT_CLASSES: Record<string, string> = {
-  primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-  secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800',
-  danger: 'bg-red-600 hover:bg-red-700 text-white',
+// primary = acción principal (terracota) · secondary = acción secundaria
+// trigo = acción principal del operario · danger = acción destructiva
+const VARIANT_CLASSES: Record<NonNullable<ButtonProps['variant']>, string> = {
+  primary: 'bg-terracota text-white hover:bg-[#93502f]',
+  secondary: 'border border-borde-campo bg-tabla text-azul-noche hover:bg-arena',
+  danger: 'bg-critico-texto text-white hover:bg-[#86231f]',
+  trigo: 'bg-trigo text-grafito hover:bg-[#d69b2e]',
 };
 
 export function Button({
@@ -23,10 +27,17 @@ export function Button({
   return (
     <button
       disabled={disabled || isLoading}
-      className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${className}`}
       {...rest}
     >
-      {isLoading ? 'Cargando...' : children}
+      {isLoading ? (
+        <>
+          <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+          Cargando…
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }
