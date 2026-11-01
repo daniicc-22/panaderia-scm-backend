@@ -1,12 +1,82 @@
 @import 'tailwindcss';
 
 /*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+  Sistema de diseño Panadería SCM (ver el sistema de diseño "Panadería SCM").
+  Cada color de la paleta es una clase de Tailwind: bg-azul-noche, text-trigo,
+  border-linea, bg-terracota, etc. Las fuentes se cargan en main.tsx.
+*/
+@theme {
+  /* Tipografía */
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Fraunces, Georgia, serif;
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
+  /* Paleta base */
+  --color-hueso: #f5f3ee;
+  --color-azul-noche: #22374a;
+  --color-pizarra: #2f4a5e;
+  --color-trigo: #e2ae45;
+  --color-terracota: #a85c3e;
+  --color-verde-bosque: #4a7a5a;
+  --color-grafito: #2a2d30;
+
+  /* Apoyo */
+  --color-gris-texto: #5a6066;
+  --color-niebla: #c9d3db;
+  --color-tabla: #f7f4ee;
+  --color-arena: #e8e2d6;
+  --color-linea: #e3dccf;
+  --color-borde-campo: #d3cbbc;
+  --color-noche-tarjeta: #34495b;
+  --color-noche-borde: #45596b;
+  --color-grafico-neutro: #5e7488;
+  --color-clase-c: #d8d2c6;
+
+  /* Tintes */
+  --color-trigo-suave: #f6e7c6;
+  --color-terracota-suave: #f1ddd3;
+  --color-verde-suave: #dce8df;
+  --color-azul-suave: #dce3ea;
+
+  /* Estados: siempre color + ícono + texto */
+  --color-exito-fondo: #e5efe8;
+  --color-exito-texto: #2f5a3e;
+  --color-atencion-fondo: #fcefd6;
+  --color-atencion-texto: #7e5209;
+  --color-critico-fondo: #fbe4e3;
+  --color-critico-texto: #9e2a26;
+  --color-info-fondo: #e3eaf0;
+
+  /* Inicio de sesión */
+  --color-login-fondo: #8f4c32;
+  --color-login-espiga: #a86749;
+
+  /* Forma */
+  --radius-tarjeta: 10px;
+  --shadow-elevada: 0 6px 16px rgb(34 55 74 / 0.18);
+  --shadow-login: 0 20px 44px rgb(40 16 6 / 0.45);
+
+  /* Movimiento (150–400 ms; se apaga con "reducir movimiento") */
+  --animate-entra: entra 380ms ease-out both;
+  --animate-desliza: desliza 320ms ease-out both;
+  --animate-late: late 1.2s ease-in-out infinite;
+
+  @keyframes entra {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes desliza {
+    from { opacity: 0; transform: translateX(-14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes late {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+}
+
+/*
+  Tailwind v4 cambió el color por defecto de los bordes a `currentcolor`.
+  Se mantiene un color por defecto, ahora el tono "linea" de la paleta.
 */
 @layer base {
   *,
@@ -14,6 +84,26 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    border-color: var(--color-linea, currentcolor);
+  }
+
+  body {
+    @apply bg-hueso font-sans text-grafito antialiased;
+  }
+}
+
+/* Cifras alineadas en tablas e indicadores */
+@utility cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
