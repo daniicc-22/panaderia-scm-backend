@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/useAuth';
 import { getMateriasPrimas } from '../services/materiasPrimasService';
@@ -15,11 +17,11 @@ const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 const millones = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
-// Colores de la paleta categórica validada (ranuras 1 a 3): una clase = un color fijo
+// Colores ABC del sistema de diseño: difieren en claridad para distinguirse también en gris
 const COLOR_CLASE: Record<ClaseAbc, string> = {
-  A: 'bg-[#2a78d6]',
-  B: 'bg-[#eb6834]',
-  C: 'bg-[#1baf7a]',
+  A: 'bg-azul-noche',
+  B: 'bg-trigo',
+  C: 'bg-clase-c',
 };
 
 const fechaLarga = () => {
@@ -43,23 +45,23 @@ export function HomePage() {
   const maximo = top[0]?.porcentaje || 1;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Inicio</h1>
-          <p className="text-sm text-gray-500">
-            Hola, {usuario?.nombre}. {fechaLarga()}
-          </p>
-        </div>
+    <>
+    <PageHeader
+      titulo="Inicio"
+      subtitulo={`Hola, ${usuario?.nombre ?? ''}. ${fechaLarga()}`}
+      acciones={
         <button
           type="button"
           onClick={() => queryClient.invalidateQueries()}
           disabled={actualizando}
-          className="inline-flex min-h-11 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-grafico-neutro px-4 text-sm font-semibold text-white transition-colors hover:bg-azul-noche disabled:opacity-70"
         >
+          <RefreshCw size={16} className={actualizando ? 'animate-spin' : ''} aria-hidden="true" />
           {actualizando ? 'Actualizando…' : 'Actualizar'}
         </button>
-      </div>
+      }
+    />
+    <div className="mx-auto flex max-w-7xl flex-col gap-6">
 
       <RequiereAtencion verCostos={verCostos} />
 
@@ -74,8 +76,8 @@ export function HomePage() {
 
       <Seccion titulo={verCostos ? 'Catálogo y costos' : 'Catálogo'}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Indicador etiqueta="Insumos activos" valor={materias.data ? String(materias.data.length) : '—'} tono="gris" />
-          <Indicador etiqueta="Recetas estandarizadas" valor={formulaciones.data ? String(formulaciones.data.length) : '—'} tono="gris" />
+          <Indicador etiqueta="Insumos activos" valor="—" numero={materias.data?.length} tono="gris" enlace="/materias-primas" indice={0} />
+          <Indicador etiqueta="Recetas estandarizadas" valor="—" numero={formulaciones.data?.length} tono="gris" enlace="/formulaciones" indice={1} />
           {verCostos && (
             <>
               <Indicador
@@ -83,29 +85,33 @@ export function HomePage() {
                 valor={abc.data ? `$ ${millones.format(abc.data.total_valor_anual / 1_000_000)} M` : '—'}
                 detalle={`Estimado: ${abc.data?.supuestos.lotes_por_semana_por_defecto ?? 6} lotes por semana`}
                 tono="azul"
+                enlace="/clasificacion-abc"
+                indice={2}
               />
               <Indicador
                 etiqueta="Insumos clase A"
                 valor={claseA ? String(claseA.insumos) : '—'}
                 detalle={claseA ? `${numero.format(claseA.porcentaje)} % del valor` : undefined}
-                tono="azul"
+                tono="amarillo"
+                enlace="/clasificacion-abc"
+                indice={3}
               />
             </>
           )}
         </div>
 
         {!verCostos && (
-          <p className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-xs">
+          <p className="rounded-tarjeta border border-linea bg-tabla px-4 py-3 text-sm text-gris-texto">
             Consulta las recetas estandarizadas en{' '}
-            <Link to="/formulaciones" className="font-medium text-blue-600 hover:underline">
+            <Link to="/formulaciones" className="font-semibold text-pizarra hover:underline">
               Formulaciones
             </Link>
             . Registra lo que produces en{' '}
-            <Link to="/produccion" className="font-medium text-blue-600 hover:underline">
+            <Link to="/produccion" className="font-semibold text-pizarra hover:underline">
               Producir
             </Link>{' '}
             y las entradas en{' '}
-            <Link to="/inventario" className="font-medium text-blue-600 hover:underline">
+            <Link to="/inventario" className="font-semibold text-pizarra hover:underline">
               Inventario
             </Link>
             .
@@ -113,7 +119,7 @@ export function HomePage() {
         )}
 
         {verCostos && abc.isError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-tarjeta border border-[#f0c3c0] bg-critico-fondo px-4 py-3 text-sm text-critico-texto">
             No se pudo cargar la clasificación ABC.{' '}
             <button type="button" className="font-medium underline" onClick={() => abc.refetch()}>
               Reintentar
@@ -138,14 +144,14 @@ export function HomePage() {
                   />
                 ))}
               </div>
-              <ul className="mt-4 flex flex-col gap-2 text-sm text-gray-700">
+              <ul className="mt-4 flex flex-col gap-2 text-sm text-grafito">
                 {abc.data.resumen.map((r) => (
                   <li key={r.clase} className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2">
                       <span className={`h-3 w-3 rounded-xs ${COLOR_CLASE[r.clase]}`} aria-hidden="true" />
                       Clase {r.clase} · {r.insumos} insumos
                     </span>
-                    <span className="font-medium text-gray-900">{numero.format(r.porcentaje)} %</span>
+                    <span className="cifras font-semibold text-grafito">{numero.format(r.porcentaje)} %</span>
                   </li>
                 ))}
               </ul>
@@ -156,7 +162,7 @@ export function HomePage() {
               subtitulo="Los 10 con mayor valor anual; el color indica la clase ABC"
               className="lg:col-span-3"
               accion={
-                <Link to="/clasificacion-abc" className="font-medium text-blue-600 hover:underline">
+                <Link to="/clasificacion-abc" className="font-semibold text-pizarra hover:underline">
                   Ver tabla completa →
                 </Link>
               }
@@ -168,11 +174,11 @@ export function HomePage() {
                     className="grid grid-cols-[7rem_1fr_4rem] items-center gap-3 sm:grid-cols-[11rem_1fr_5rem]"
                     title={`${i.nombre}: ${pesos0.format(i.valor_anual)} al año (${numero.format(i.porcentaje)} %) · Clase ${i.clase}`}
                   >
-                    <span className="truncate text-sm text-gray-700">{i.nombre}</span>
-                    <div className="h-4 rounded-xs bg-gray-100">
+                    <span className="truncate text-sm text-grafito">{i.nombre}</span>
+                    <div className="h-4 rounded-xs bg-arena">
                       <div className={`h-4 rounded-r-[4px] ${COLOR_CLASE[i.clase]}`} style={{ width: `${(i.porcentaje / maximo) * 100}%` }} />
                     </div>
-                    <span className="text-right text-sm text-gray-900">{numero.format(i.porcentaje)} %</span>
+                    <span className="cifras text-right text-sm text-grafito">{numero.format(i.porcentaje)} %</span>
                   </li>
                 ))}
               </ul>
@@ -181,5 +187,6 @@ export function HomePage() {
         )}
       </Seccion>
     </div>
+    </>
   );
 }

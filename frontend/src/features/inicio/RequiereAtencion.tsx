@@ -1,4 +1,7 @@
 import { Link } from 'react-router-dom';
+import { CircleCheck, Info, OctagonAlert, TriangleAlert } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Esqueleto } from '../../components/feedback/Esqueleto';
 import { useQuery } from '@tanstack/react-query';
 import { colorEri, formatoPorcentaje } from '../conteos/etiquetas';
 import { getConteos } from '../../services/conteosService';
@@ -18,10 +21,11 @@ interface Aviso {
   accion: string;
 }
 
-const ESTILO: Record<Nivel, { caja: string; punto: string; etiqueta: string }> = {
-  rojo: { caja: 'border-red-200 bg-red-50', punto: 'bg-red-600', etiqueta: 'Urgente' },
-  amarillo: { caja: 'border-yellow-200 bg-yellow-50', punto: 'bg-yellow-500', etiqueta: 'Atención' },
-  azul: { caja: 'border-blue-200 bg-blue-50', punto: 'bg-[#2a78d6]', etiqueta: 'Pendiente' },
+// Colores de estado del sistema de diseño: siempre color + ícono + texto
+const ESTILO: Record<Nivel, { caja: string; texto: string; icono: LucideIcon; etiqueta: string }> = {
+  rojo: { caja: 'border-[#f0c3c0] bg-critico-fondo', texto: 'text-critico-texto', icono: OctagonAlert, etiqueta: 'Urgente' },
+  amarillo: { caja: 'border-[#f1d9a6] bg-atencion-fondo', texto: 'text-atencion-texto', icono: TriangleAlert, etiqueta: 'Atención' },
+  azul: { caja: 'border-[#c6d3de] bg-info-fondo', texto: 'text-azul-noche', icono: Info, etiqueta: 'Pendiente' },
 };
 
 const ORDEN: Record<Nivel, number> = { rojo: 0, amarillo: 1, azul: 2 };
@@ -41,7 +45,14 @@ export function RequiereAtencion({ verCostos }: { verCostos: boolean }) {
 
   const cargando =
     tablero.isLoading || alertas.isLoading || conteos.isLoading || existencias.isLoading || (verCostos && (formulaciones.isLoading || reposicion.isLoading));
-  if (cargando) return null;
+  if (cargando) {
+    return (
+      <div className="grid gap-2 md:grid-cols-2" role="status" aria-label="Cargando avisos">
+        <Esqueleto className="h-20" />
+        <Esqueleto className="h-20" />
+      </div>
+    );
+  }
 
   const avisos: Aviso[] = [];
 
@@ -190,8 +201,8 @@ export function RequiereAtencion({ verCostos }: { verCostos: boolean }) {
 
   if (avisos.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800" role="status">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-green-600" aria-hidden="true" />
+      <div className="flex animate-entra items-center gap-3 rounded-tarjeta border border-[#c5dccb] bg-exito-fondo px-4 py-3 text-sm text-exito-texto" role="status">
+        <CircleCheck size={20} className="shrink-0" aria-hidden="true" />
         <span>
           <span className="font-medium">Todo en orden.</span> Nada requiere atención en este momento.
         </span>
@@ -201,23 +212,30 @@ export function RequiereAtencion({ verCostos }: { verCostos: boolean }) {
 
   return (
     <section aria-label="Requiere atención" className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Requiere atención ({avisos.length})</h2>
+      <h2 className="text-sm font-semibold text-azul-noche">Requiere atención ({avisos.length})</h2>
       <ul className="grid gap-2 md:grid-cols-2">
-        {avisos.map((a) => (
-          <li key={a.clave} className={`flex items-start gap-3 rounded-xl border p-3 ${ESTILO[a.nivel].caja}`}>
-            <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${ESTILO[a.nivel].punto}`} aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                <span className="sr-only">{ESTILO[a.nivel].etiqueta}: </span>
-                {a.texto}
-              </p>
-              {a.detalle && <p className="text-xs text-gray-600">{a.detalle}</p>}
-            </div>
-            <Link to={a.enlace} className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-blue-700 hover:underline">
-              {a.accion} →
-            </Link>
-          </li>
-        ))}
+        {avisos.map((a, i) => {
+          const e = ESTILO[a.nivel];
+          return (
+            <li
+              key={a.clave}
+              style={{ animationDelay: `${i * 80}ms` }}
+              className={`flex animate-desliza items-start gap-3 rounded-tarjeta border p-3 sm:p-4 ${e.caja} ${e.texto}`}
+            >
+              <e.icono size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  <span className="sr-only">{e.etiqueta}: </span>
+                  {a.texto}
+                </p>
+                {a.detalle && <p className="text-xs sm:text-sm">{a.detalle}</p>}
+              </div>
+              <Link to={a.enlace} className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold hover:underline">
+                {a.accion} →
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
