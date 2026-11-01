@@ -59,6 +59,9 @@
   --animate-entra: entra 380ms ease-out both;
   --animate-desliza: desliza 320ms ease-out both;
   --animate-late: late 1.2s ease-in-out infinite;
+  --animate-crece: crece 2.6s ease-in-out infinite;
+  --animate-flota: flota 7s linear infinite;
+  --animate-hornea: hornea 700ms ease-in-out infinite;
 
   @keyframes entra {
     from { opacity: 0; transform: translateY(10px); }
@@ -71,6 +74,19 @@
   @keyframes late {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
+  }
+  @keyframes crece {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+  @keyframes flota {
+    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.85; }
+    100% { transform: translateY(-760px) rotate(90deg); opacity: 0; }
+  }
+  @keyframes hornea {
+    0%, 100% { transform: scale(0.85); }
+    50% { transform: scale(1.12); }
   }
 }
 
