@@ -1,1 +1,1 @@
-- Michael Viveros
+- Michael Viveros - backend y modelo EOQ
