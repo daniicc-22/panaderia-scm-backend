@@ -22,6 +22,8 @@ const ITEMS_MENU: ItemMenu[] = [
   { etiqueta: 'Conteo físico', ruta: '/conteos' },
   { etiqueta: 'Formulaciones', ruta: '/formulaciones' },
   { etiqueta: 'Clasificación ABC', ruta: '/clasificacion-abc', rolesPermitidos: ['administrador', 'superadministrador'] },
+  { etiqueta: 'Usuarios', ruta: '/usuarios', rolesPermitidos: ['administrador', 'superadministrador'] },
+  { etiqueta: 'Panaderías', ruta: '/panaderias', rolesPermitidos: ['superadministrador'] },
 ];
 
 interface SidebarProps {

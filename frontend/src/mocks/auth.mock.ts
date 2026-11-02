@@ -46,12 +46,12 @@ export async function loginMock(credenciales: Credenciales): Promise<SesionInici
 
   const encontrado = USUARIOS_DEMO.find(
     (u) =>
-      u.email.toLowerCase() === credenciales.email.toLowerCase() &&
+      (u.email ?? '').toLowerCase() === credenciales.usuario.trim().toLowerCase() &&
       u.password === credenciales.password,
   );
 
   if (!encontrado) {
-    throw new Error('Credenciales incorrectas. Verifica el correo y la contraseña.');
+    throw new Error('Credenciales incorrectas. Verifica el usuario y la contraseña.');
   }
 
   const { password: _password, ...usuario } = encontrado;

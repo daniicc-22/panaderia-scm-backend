@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
@@ -40,8 +41,11 @@ export function Header({ onAbrirMenu }: HeaderProps) {
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
           <p className="text-sm font-medium text-gray-900">{usuario?.nombre}</p>
-          <p className="text-xs text-gray-500">{usuario?.rol}</p>
+          <p className="text-xs text-gray-500">{usuario?.nombre_usuario ?? usuario?.rol}</p>
         </div>
+        <Link to="/cambiar-contrasena" className="hidden text-sm font-medium text-blue-600 hover:underline md:inline">
+          Cambiar contraseña
+        </Link>
         <Button variant="secondary" onClick={salir}>
           Cerrar sesión
         </Button>

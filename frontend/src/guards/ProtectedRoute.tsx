@@ -3,6 +3,8 @@ import { useAuth } from '../features/auth/useAuth';
 import type { RolCodigo } from '../types/auth.types';
 import { Spinner } from '../components/ui/Spinner';
 
+const RUTA_CAMBIAR_CLAVE = '/cambiar-contrasena';
+
 interface ProtectedRouteProps {
   rolesPermitidos?: RolCodigo[];
 }
@@ -25,6 +27,11 @@ export function ProtectedRoute({ rolesPermitidos }: ProtectedRouteProps) {
 
   if (!estaAutenticado || !usuario) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Si otra persona fijó su contraseña, primero debe cambiarla
+  if (usuario.debe_cambiar_password && location.pathname !== RUTA_CAMBIAR_CLAVE) {
+    return <Navigate to={RUTA_CAMBIAR_CLAVE} replace />;
   }
 
   if (rolesPermitidos && !rolesPermitidos.includes(usuario.rol)) {

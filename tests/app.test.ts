@@ -21,8 +21,10 @@ function usuarioDe(rol: string, extra: Fila = {}): Fila {
     id: `u-${rol}`,
     nombre: `Usuario ${rol}`,
     email: `${rol}@prueba.test`,
+    nombre_usuario: `${rol}.prueba`,
     password_hash: HASH,
     activo: true,
+    debe_cambiar_password: false,
     rol: { codigo: rol },
     ...extra,
   };
@@ -37,7 +39,13 @@ function baseFalsa(opciones: { usuarios?: Fila[]; fallar?: boolean; sinPanaderia
     usuario: {
       findUnique: async ({ where }: any) => {
         comprobar();
+        if (where.nombre_usuario !== undefined) return usuarios.find((u) => u.nombre_usuario === where.nombre_usuario) ?? null;
+        if (where.id !== undefined) return usuarios.find((u) => u.id === where.id) ?? null;
         return usuarios.find((u) => u.email === where.email) ?? null;
+      },
+      findMany: async () => {
+        comprobar();
+        return usuarios.map(({ password_hash: _h, ...resto }) => ({ ...resto, rol: resto.rol }));
       },
     },
     rol: {
@@ -136,10 +144,13 @@ test('GET /health responde 200 sin token', async () => {
 
 // ---------- /login ----------
 
-test('POST /login: sin correo o sin contraseña responde 400', async () => {
+test('POST /login: sin usuario o sin contraseña responde 400', async () => {
   await conServidor(baseFalsa(), {}, async (base) => {
     assert.equal((await login(base, { password: CLAVE })).status, 400);
     assert.equal((await login(base, { email: 'administrador@prueba.test' })).status, 400);
+    assert.equal((await login(base, { usuario: 'administrador.prueba' })).status, 400);
+    assert.equal((await login(base, { usuario: '   ', password: CLAVE })).status, 400);
+    assert.equal((await login(base, { usuario: 'administrador.prueba', password: 123 })).status, 400);
     assert.equal((await login(base, {})).status, 400);
   });
 });
@@ -164,15 +175,56 @@ test('POST /login: con credenciales correctas devuelve usuario y token, sin la c
     assert.deepEqual(r.cuerpo.usuario, {
       id: 'u-administrador',
       nombre: 'Usuario administrador',
+      nombre_usuario: 'administrador.prueba',
       email: 'administrador@prueba.test',
       rol: 'administrador',
+      debe_cambiar_password: false,
     });
-    assert.ok(!JSON.stringify(r.cuerpo).includes('password'));
+    assert.ok(!JSON.stringify(r.cuerpo).includes('password_hash'));
     assert.ok(!JSON.stringify(r.cuerpo).includes(HASH));
     const payload = jwt.verify(r.cuerpo.token, SECRETO) as any;
     assert.equal(payload.id, 'u-administrador');
     assert.equal(payload.email, 'administrador@prueba.test');
     assert.equal(payload.rol, 'administrador');
+  });
+});
+
+test('POST /login: entra con el nombre de usuario (sin importar mayúsculas ni espacios) y con la clave', async () => {
+  await conServidor(baseFalsa(), {}, async (base) => {
+    for (const usuario of ['operario.prueba', '  Operario.Prueba ']) {
+      const r = await login(base, { usuario, password: CLAVE });
+      assert.equal(r.status, 200, usuario);
+      assert.equal(r.cuerpo.usuario.rol, 'operario');
+      assert.equal(r.cuerpo.usuario.nombre_usuario, 'operario.prueba');
+    }
+    // El campo «usuario» también acepta un correo (lo reconoce por la arroba)
+    const porCorreo = await login(base, { usuario: 'administrador@prueba.test', password: CLAVE });
+    assert.equal(porCorreo.status, 200);
+    assert.equal(porCorreo.cuerpo.usuario.rol, 'administrador');
+  });
+});
+
+test('POST /login: un nombre de usuario no registrado, o con clave mala, responde 401 con el mismo mensaje', async () => {
+  await conServidor(baseFalsa(), {}, async (base) => {
+    const inexistente = await login(base, { usuario: 'nadie.nunca', password: CLAVE });
+    const mala = await login(base, { usuario: 'operario.prueba', password: 'otra-clave' });
+    for (const r of [inexistente, mala]) {
+      assert.equal(r.status, 401);
+      assert.equal(r.cuerpo.error, 'Credenciales incorrectas');
+    }
+  });
+});
+
+test('POST /login: un usuario sin correo entra con su nombre y el token lleva el correo en null', async () => {
+  const prisma = baseFalsa({ usuarios: [usuarioDe('operario', { email: null, debe_cambiar_password: true })] });
+  await conServidor(prisma, {}, async (base) => {
+    const r = await login(base, { usuario: 'operario.prueba', password: CLAVE });
+    assert.equal(r.status, 200);
+    assert.equal(r.cuerpo.usuario.email, null);
+    assert.equal(r.cuerpo.usuario.debe_cambiar_password, true);
+    const payload = jwt.verify(r.cuerpo.token, SECRETO) as any;
+    assert.equal(payload.email, null);
+    assert.equal(payload.rol, 'operario');
   });
 });
 
@@ -325,7 +377,7 @@ test('producción: la aplicación confía en el proxy del hosting; en desarrollo
 
 // ---------- guardas de las rutas ----------
 
-const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/inventario', '/produccion', '/mermas', '/conteos', '/abc'];
+const RUTAS_PROTEGIDAS = ['/roles', '/mi-panaderia', '/materias-primas', '/proveedores', '/precios', '/formulaciones', '/inventario', '/produccion', '/mermas', '/conteos', '/abc', '/usuarios'];
 
 test('todas las rutas protegidas responden 401 sin token y con un token inválido', async () => {
   await conServidor(baseFalsa(), {}, async (base) => {
@@ -374,6 +426,47 @@ test('/abc: el operario recibe 403', async () => {
   await conServidor(baseFalsa(), {}, async (base) => {
     const r = await get(base, '/abc', tokenDe('operario'));
     assert.equal(r.status, 403);
+  });
+});
+
+test('/usuarios: el operario recibe 403 y el administrador ve a los usuarios sin contraseñas', async () => {
+  await conServidor(baseFalsa(), {}, async (base) => {
+    assert.equal((await get(base, '/usuarios', tokenDe('operario'))).status, 403);
+    const r = await get(base, '/usuarios', tokenDe('administrador'));
+    assert.equal(r.status, 200);
+    assert.ok(!JSON.stringify(r.cuerpo).includes(HASH));
+  });
+});
+
+test('/panaderias: sin token 401; administrador y operario 403 (ni leer ni crear); solo el superadministrador pasa la guarda', async () => {
+  await sinErroresEnConsola(() =>
+    conServidor(baseFalsa(), {}, async (base) => {
+      assert.equal((await get(base, '/panaderias')).status, 401);
+      for (const rol of ['administrador', 'operario']) {
+        assert.equal((await get(base, '/panaderias', tokenDe(rol))).status, 403, `GET como ${rol}`);
+        const r = await fetch(`${base}/panaderias`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${tokenDe(rol)}` },
+          body: JSON.stringify({ nombre: 'X' }),
+        });
+        assert.equal(r.status, 403, `POST como ${rol}`);
+      }
+      const { status } = await get(base, '/panaderias', tokenDe('superadministrador'));
+      assert.ok(status !== 401 && status !== 403, `superadministrador respondió ${status}`);
+    }),
+  );
+});
+
+test('POST /cuenta/contrasena exige sesión: sin token o con token inválido responde 401', async () => {
+  await conServidor(baseFalsa(), {}, async (base) => {
+    for (const authorization of [undefined, 'Bearer esto-no-es-un-token']) {
+      const r = await fetch(`${base}/cuenta/contrasena`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(authorization ? { authorization } : {}) },
+        body: JSON.stringify({ actual: CLAVE, nueva: 'Clave-nueva-2026' }),
+      });
+      assert.equal(r.status, 401);
+    }
   });
 });
 
