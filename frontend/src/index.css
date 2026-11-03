@@ -136,23 +136,80 @@
   accent-color: var(--color-terracota);
 }
 
-/* Tarjetas (Card y paneles redondeados): trigo suave con borde trigo */
-.tema-operario .rounded-tarjeta.bg-tabla {
+/*
+  Color por tipo de bloque (igual en todas las pantallas del operario):
+  - Resúmenes y tarjetas informativas → azul suave
+  - Formularios (bloques con campos)   → trigo suave
+  - Tablas                             → cabecera verde bosque, filas alternas verde claro
+  - Avisos informativos                → terracota suave
+  Los avisos de estado (éxito, atención, crítico) conservan su color propio.
+*/
+
+/* Bloques: tarjetas (Card) y paneles redondeados de las páginas → resumen (azul suave) */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg) {
+  background-color: var(--color-azul-suave);
+  border-color: #c3d0dc;
+}
+
+/* Formularios */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):has(input, select, textarea),
+.tema-operario form:is(.rounded-tarjeta, .rounded-xl, .rounded-lg) {
   background-color: var(--color-trigo-suave);
   border-color: #ecd49a;
 }
 
-/* Campos de formulario: borde trigo para que se lean como zona de captura */
-.tema-operario .rounded-tarjeta.bg-tabla input:not([type='radio']):not([type='checkbox']),
-.tema-operario .rounded-tarjeta.bg-tabla select,
-.tema-operario .rounded-tarjeta.bg-tabla textarea {
+/* Bloques cuyo contenido principal es una tabla: fondo blanco con borde verde */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):has(table):not(:has(input, select, textarea)) {
+  background-color: #ffffff;
+  border-color: #c7dacb;
+}
+
+/* Bloques dentro de otro bloque (por ejemplo, cada producto de una lista): blancos,
+   para que se separen del color del bloque que los contiene */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg) :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):not(:has(input, select, textarea)) {
+  background-color: #ffffff;
+  border-color: #d8e0e8;
+}
+
+/* Campos dentro de formularios: borde trigo para que se lean como zona de captura */
+.tema-operario :is(.rounded-tarjeta, form) :is(input:not([type='radio']):not([type='checkbox']), select, textarea):not([aria-invalid='true']) {
   border-color: var(--color-trigo);
 }
 
-/* Etiquetas y texto secundario en café trigo dentro de las tarjetas */
-.tema-operario .rounded-tarjeta.bg-tabla label,
-.tema-operario .rounded-tarjeta.bg-tabla .text-gris-texto {
+/* Etiquetas y texto secundario en café trigo dentro de los formularios */
+.tema-operario .rounded-tarjeta:has(input, select, textarea) label,
+.tema-operario .rounded-tarjeta:has(input, select, textarea) .text-gris-texto {
   color: #6e4f10;
+}
+
+/* Tablas */
+.tema-operario div:has(> table) {
+  border-color: #c7dacb;
+}
+.tema-operario thead,
+.tema-operario thead.bg-azul-noche {
+  background-color: var(--color-verde-bosque);
+}
+.tema-operario tbody {
+  background-color: #ffffff;
+}
+.tema-operario tbody tr:nth-child(even) {
+  background-color: #eef4f0;
+}
+.tema-operario tbody tr:hover {
+  background-color: var(--color-verde-suave);
+}
+.tema-operario tbody :is(td, th) {
+  border-color: #dbe7de;
+}
+
+/* Avisos informativos */
+.tema-operario .bg-info-fondo {
+  background-color: var(--color-terracota-suave);
+  color: #7a3f28;
+}
+.tema-operario .bg-info-fondo :is(.text-azul-noche, .text-grafito, svg) {
+  color: #7a3f28;
 }
 
 /* Acción principal del operario: botón terracota grande (mínimo 48 px de alto) */
