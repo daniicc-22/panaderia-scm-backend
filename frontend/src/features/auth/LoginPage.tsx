@@ -12,7 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { env } from '../../app/config/env';
 
 const esquemaLogin = z.object({
-  email: z.string().min(1, 'El correo es obligatorio').email('Correo inválido'),
+  usuario: z.string().trim().min(1, 'Escribe tu usuario o correo'),
   password: z.string().min(1, 'La contraseña es obligatoria'),
 });
 
@@ -61,18 +61,23 @@ export function LoginPage() {
             {errorLogin && <Alert variant="error">{errorLogin}</Alert>}
 
             <Input
-              id="email"
-              type="email"
-              label="Correo electrónico"
-              placeholder="tucorreo@demo.local"
-              error={errors.email?.message}
-              {...register('email')}
+              id="usuario"
+              type="text"
+              label="Usuario"
+              placeholder="Tu usuario"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              error={errors.usuario?.message}
+              {...register('usuario')}
             />
 
             <PasswordInput
               id="password"
               label="Contraseña"
               placeholder="••••••••"
+              autoComplete="current-password"
               error={errors.password?.message}
               {...register('password')}
             />
@@ -86,6 +91,7 @@ export function LoginPage() {
         {env.apiMode === 'mock' && (
           <div className="mt-4 rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-500">
             <p className="mb-1 font-medium text-gray-600">Usuarios de prueba:</p>
+            <p>Se entra con el correo de abajo en el campo Usuario.</p>
             <p>superadmin@demo.local — Demo123!</p>
             <p>admin@demo.local — Demo123!</p>
             <p>operario@demo.local — Demo123!</p>
