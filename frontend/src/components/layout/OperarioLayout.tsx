@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MotionConfig, motion } from 'motion/react';
-import { BookOpen, ChefHat, ClipboardCheck, House, LogOut, Package, Trash2, Wheat } from 'lucide-react';
+import { BookOpen, ChefHat, ClipboardCheck, House, KeyRound, LogOut, Package, Trash2, Wheat } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
@@ -55,6 +55,14 @@ export function OperarioLayout() {
                 <p className="text-sm font-semibold">{usuario?.nombre}</p>
                 <p className="text-xs text-niebla">Operario{panaderia?.nombre ? ` · ${panaderia.nombre}` : ''}</p>
               </div>
+              <NavLink
+                to="/cambiar-contrasena"
+                className="inline-flex size-11 items-center justify-center rounded-lg border border-[#5e7488] text-niebla transition-colors hover:bg-[#34495b] hover:text-white"
+                aria-label="Cambiar contraseña"
+                title="Cambiar contraseña"
+              >
+                <KeyRound size={20} />
+              </NavLink>
               <button
                 type="button"
                 onClick={salir}

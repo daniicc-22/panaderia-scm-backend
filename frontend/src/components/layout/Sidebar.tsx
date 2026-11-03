@@ -3,11 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import {
   BookOpen,
+  Building2,
   ChartLine,
   ChartPie,
   ChefHat,
   ClipboardCheck,
   House,
+  KeyRound,
   LogOut,
   Package,
   Scale,
@@ -16,6 +18,7 @@ import {
   Store,
   Trash2,
   Truck,
+  Users,
   Wheat,
   X,
 } from 'lucide-react';
@@ -71,6 +74,13 @@ const GRUPOS_MENU: GrupoMenu[] = [
       { etiqueta: 'Análisis EOQ', ruta: '/reposicion/eoq', icono: ChartLine, rolesPermitidos: GESTION },
       { etiqueta: 'Parámetros de reposición', ruta: '/reposicion/parametros', icono: SlidersHorizontal, rolesPermitidos: GESTION },
       { etiqueta: 'Clasificación ABC', ruta: '/clasificacion-abc', icono: ChartPie, rolesPermitidos: GESTION },
+    ],
+  },
+  {
+    titulo: 'Administración',
+    items: [
+      { etiqueta: 'Usuarios', ruta: '/usuarios', icono: Users, rolesPermitidos: GESTION },
+      { etiqueta: 'Panaderías', ruta: '/panaderias', icono: Building2, rolesPermitidos: ['superadministrador'] },
     ],
   },
 ];
@@ -198,6 +208,15 @@ export function Sidebar({ abierto, onCerrar }: SidebarProps) {
               <p className="truncate text-sm font-semibold text-white">{usuario.nombre}</p>
               <p className="text-xs text-[#9fb0be]">{NOMBRE_ROL[usuario.rol]}</p>
             </div>
+            <NavLink
+              to="/cambiar-contrasena"
+              onClick={onCerrar}
+              className="rounded-md p-2 text-niebla transition-colors hover:bg-noche-tarjeta hover:text-white"
+              aria-label="Cambiar contraseña"
+              title="Cambiar contraseña"
+            >
+              <KeyRound size={18} />
+            </NavLink>
             <button
               type="button"
               onClick={salir}

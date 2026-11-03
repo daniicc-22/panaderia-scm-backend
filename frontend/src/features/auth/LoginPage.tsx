@@ -10,7 +10,7 @@ import { Logo } from '../../components/brand/Logo';
 import { env } from '../../app/config/env';
 
 const esquemaLogin = z.object({
-  email: z.string().min(1, 'Escribe tu correo').email('Ese correo no parece válido'),
+  usuario: z.string().trim().min(1, 'Escribe tu usuario o correo'),
   password: z.string().min(1, 'Escribe tu contraseña'),
 });
 
@@ -140,7 +140,7 @@ export function LoginPage() {
     }
   }
 
-  const hayErrorCampo = !!errors.email || !!errors.password;
+  const hayErrorCampo = !!errors.usuario || !!errors.password;
   const textoBoton = estado === 'horneando' ? 'Horneando tu sesión…' : estado === 'exito' ? '¡Listo! Entrando al panel' : 'Iniciar sesión';
 
   return (
@@ -208,19 +208,22 @@ export function LoginPage() {
 
             <div className="flex flex-col gap-4 bg-azul-noche px-7 pt-6 pb-7 text-white sm:px-9">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="email" className="text-[13px] font-semibold">
-                  Correo electrónico
+                <label htmlFor="usuario" className="text-[13px] font-semibold">
+                  Usuario o correo
                 </label>
                 <input
-                  id="email"
-                  type="email"
+                  id="usuario"
+                  type="text"
                   autoComplete="username"
-                  placeholder="nombre@panaderia.com"
-                  aria-invalid={!!errors.email}
-                  className={`${CAMPO} ${errors.email || errorLogin ? 'border-trigo' : 'border-hueso'}`}
-                  {...register('email')}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="Tu usuario o correo"
+                  aria-invalid={!!errors.usuario}
+                  className={`${CAMPO} ${errors.usuario || errorLogin ? 'border-trigo' : 'border-hueso'}`}
+                  {...register('usuario')}
                 />
-                {errors.email && <span className="text-xs font-semibold text-trigo">{errors.email.message}</span>}
+                {errors.usuario && <span className="text-xs font-semibold text-trigo">{errors.usuario.message}</span>}
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -288,6 +291,7 @@ export function LoginPage() {
               {env.apiMode === 'mock' && (
                 <div className="rounded-lg bg-noche-tarjeta p-3 text-xs text-niebla">
                   <p className="mb-1 font-semibold text-white">Modo simulado · usuarios de prueba</p>
+                  <p>Escribe el correo de abajo en el campo Usuario.</p>
                   <p>superadmin@demo.local — Demo123!</p>
                   <p>admin@demo.local — Demo123!</p>
                   <p>operario@demo.local — Demo123!</p>

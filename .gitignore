@@ -15,3 +15,7 @@ dist
 
 # informes de cobertura de pruebas
 coverage
+
+# Caché de Python (prediccion/ y validacion/)
+__pycache__/
+*.pyc

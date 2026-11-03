@@ -482,8 +482,12 @@ model unidad_medida {
 model usuario {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre            String
-  email             String              @unique
+  email             String?             @unique
+  /// Nombre con el que entra a la aplicación (minúsculas, único en todo el sistema). El correo es opcional.
+  nombre_usuario    String?             @unique
   password_hash     String
+  /// Verdadero cuando otra persona fijó la contraseña: se pide cambiarla al entrar.
+  debe_cambiar_password Boolean         @default(false)
   rol_id            String              @db.Uuid
   activo            Boolean             @default(true)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)

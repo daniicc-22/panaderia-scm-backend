@@ -53,9 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }
 
+  function actualizarUsuario(cambios: Partial<Usuario>) {
+    setUsuario((actual) => {
+      if (!actual) return actual;
+      const nuevo = { ...actual, ...cambios };
+      localStorage.setItem(CLAVE_USUARIO, JSON.stringify(nuevo));
+      return nuevo;
+    });
+  }
+
   return (
     <AuthContext.Provider
-      value={{ usuario, estaAutenticado: usuario !== null, cargando, error, iniciarSesion, cerrarSesion }}
+      value={{ usuario, estaAutenticado: usuario !== null, cargando, error, iniciarSesion, cerrarSesion, actualizarUsuario }}
     >
       {children}
     </AuthContext.Provider>

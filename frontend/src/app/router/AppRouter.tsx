@@ -19,6 +19,9 @@ import { MermasPage } from '../../pages/MermasPage';
 import { DesviacionPesajePage } from '../../pages/DesviacionPesajePage';
 import { ConteosPage } from '../../pages/ConteosPage';
 import { ConteoDetallePage } from '../../pages/ConteoDetallePage';
+import { CambiarContrasenaPage } from '../../pages/CambiarContrasenaPage';
+import { UsuariosPage } from '../../pages/UsuariosPage';
+import { PanaderiasPage } from '../../pages/PanaderiasPage';
 
 export function AppRouter() {
   return (
@@ -30,6 +33,7 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<HomePage />} />
+          <Route path="/cambiar-contrasena" element={<CambiarContrasenaPage />} />
           <Route path="/materias-primas" element={<MateriasPrimasPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/produccion" element={<ProduccionPage />} />
@@ -46,10 +50,18 @@ export function AppRouter() {
       <Route element={<ProtectedRoute rolesPermitidos={['administrador', 'superadministrador']} />}>
         <Route element={<AppLayout />}>
           <Route path="/proveedores" element={<ProveedoresPage />} />
+          <Route path="/usuarios" element={<UsuariosPage />} />
           <Route path="/desviacion-pesaje" element={<DesviacionPesajePage />} />
           <Route path="/reposicion" element={<ReposicionPage />} />
           <Route path="/reposicion/eoq" element={<AnalisisEoqPage />} />
           <Route path="/reposicion/parametros" element={<ParametrosReposicionPage />} />
+        </Route>
+      </Route>
+
+      {/* Crear panaderías es solo del superadministrador (el servidor también lo impide) */}
+      <Route element={<ProtectedRoute rolesPermitidos={['superadministrador']} />}>
+        <Route element={<AppLayout />}>
+          <Route path="/panaderias" element={<PanaderiasPage />} />
         </Route>
       </Route>
 

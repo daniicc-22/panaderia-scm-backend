@@ -17,8 +17,14 @@ import { crearRouterConteos } from './routes/conteos';
 import { crearRouterProduccion } from './routes/produccion';
 import { crearRouterMermas } from './routes/mermas';
 import { crearRouterReposicion } from './routes/reposicion';
+import { crearRouterUsuarios } from './routes/usuarios';
+import { crearRouterCuenta } from './routes/cuenta';
+import { crearRouterPanaderias } from './routes/panaderias';
+import { interpretarIdentificador } from './utils/usuarios';
 
 interface CredencialesLogin {
+  // Nombre de usuario o correo. «email» se sigue aceptando para no romper clientes anteriores.
+  usuario?: string;
   email?: string;
   password?: string;
 }
@@ -62,6 +68,9 @@ export function crearApp(prisma: PrismaClient): Express {
     message: { error: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.' },
   });
 
+  // Cambiar la contraseña propia: mismo límite de intentos fallidos que el inicio de sesión
+  app.use('/cuenta', verificarToken, limitadorLogin, crearRouterCuenta(prisma));
+
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', mensaje: 'API panaderia-scm-backend funcionando' });
   });
@@ -77,15 +86,16 @@ export function crearApp(prisma: PrismaClient): Express {
   });
 
   app.post('/login', limitadorLogin, async (req, res) => {
-    const { email, password }: CredencialesLogin = req.body;
+    const { usuario: identificadorUsuario, email, password }: CredencialesLogin = req.body ?? {};
+    const identificador = interpretarIdentificador(identificadorUsuario ?? email);
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'El correo y la contraseña son obligatorios' });
+    if (!identificador || typeof password !== 'string' || !password) {
+      return res.status(400).json({ error: 'El usuario y la contraseña son obligatorios' });
     }
 
     try {
       const usuario = await prisma.usuario.findUnique({
-        where: { email },
+        where: identificador.campo === 'email' ? { email: identificador.valor } : { nombre_usuario: identificador.valor },
         include: { rol: true },
       });
 
@@ -106,7 +116,7 @@ export function crearApp(prisma: PrismaClient): Express {
       }
 
       const token = jwt.sign(
-        { id: usuario.id, email: usuario.email, rol: usuario.rol.codigo },
+        { id: usuario.id, email: usuario.email ?? null, rol: usuario.rol.codigo },
         jwtSecret,
         { expiresIn: (process.env.JWT_EXPIRES_IN ?? '8h') as jwt.SignOptions['expiresIn'] },
       );
@@ -115,8 +125,10 @@ export function crearApp(prisma: PrismaClient): Express {
         usuario: {
           id: usuario.id,
           nombre: usuario.nombre,
-          email: usuario.email,
+          nombre_usuario: usuario.nombre_usuario ?? null,
+          email: usuario.email ?? null,
           rol: usuario.rol.codigo,
+          debe_cambiar_password: usuario.debe_cambiar_password,
         },
         token,
       });
@@ -125,6 +137,16 @@ export function crearApp(prisma: PrismaClient): Express {
       res.status(500).json({ error: 'Error al iniciar sesión' });
     }
   });
+
+  app.use('/panaderias', verificarToken, autorizarRoles('superadministrador'), crearRouterPanaderias(prisma));
+
+  app.use(
+    '/usuarios',
+    verificarToken,
+    resolverPanaderia(prisma),
+    autorizarRoles('administrador', 'superadministrador'),
+    crearRouterUsuarios(prisma),
+  );
 
   app.use('/materias-primas', verificarToken, resolverPanaderia(prisma), crearRouterMateriasPrimas(prisma));
 
