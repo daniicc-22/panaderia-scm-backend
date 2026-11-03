@@ -42,12 +42,12 @@ export function RestablecerContrasenaForm({ usuario, panaderiaId, onTerminar }: 
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-grafito">
         Nueva contraseña para <span className="font-medium">{usuario.nombre}</span>
         {usuario.nombre_usuario ? ` (${usuario.nombre_usuario})` : ''}.
       </p>
       <PasswordInput id="rst-clave" label="Contraseña nueva" autoFocus autoComplete="new-password" error={errors.password?.message} {...register('password')} />
-      <p className="text-xs text-gray-500">Al entrar con ella, la persona tendrá que elegir una propia.</p>
+      <p className="text-xs text-gris-texto">Al entrar con ella, la persona tendrá que elegir una propia.</p>
       {errorServidor && <Alert variant="error">{errorServidor}</Alert>}
       <div className="flex justify-end">
         <Button type="submit" isLoading={guardar.isPending}>

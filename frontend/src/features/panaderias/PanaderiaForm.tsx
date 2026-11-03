@@ -65,7 +65,7 @@ export function PanaderiaForm({ onTerminar }: Props) {
   return (
     <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-sm font-semibold text-gray-900">La panadería</legend>
+        <legend className="mb-1 text-sm font-semibold text-grafito">La panadería</legend>
         <Input id="pan-nombre" label="Nombre" autoFocus maxLength={100} error={errors.nombre?.message} {...register('nombre')} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Input id="pan-ciudad" label="Ciudad (opcional)" placeholder="Pasto" error={errors.ciudad?.message} {...register('ciudad')} />
@@ -74,8 +74,8 @@ export function PanaderiaForm({ onTerminar }: Props) {
         <Input id="pan-direccion" label="Dirección (opcional)" error={errors.direccion?.message} {...register('direccion')} />
       </fieldset>
 
-      <fieldset className="flex flex-col gap-3 border-t border-gray-200 pt-4">
-        <legend className="mb-1 text-sm font-semibold text-gray-900">Administrador</legend>
+      <fieldset className="flex flex-col gap-3 border-t border-linea pt-4">
+        <legend className="mb-1 text-sm font-semibold text-grafito">Administrador</legend>
         <Input id="adm-nombre" label="Nombre de la persona" error={errors.administrador?.nombre?.message} {...register('administrador.nombre')} />
         <Input
           id="adm-usuario"
@@ -91,9 +91,9 @@ export function PanaderiaForm({ onTerminar }: Props) {
         <PasswordInput id="adm-clave" label="Contraseña inicial" autoComplete="new-password" error={errors.administrador?.password?.message} {...register('administrador.password')} />
       </fieldset>
 
-      <fieldset className="flex flex-col gap-3 border-t border-gray-200 pt-4">
-        <legend className="mb-1 text-sm font-semibold text-gray-900">Operario</legend>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+      <fieldset className="flex flex-col gap-3 border-t border-linea pt-4">
+        <legend className="mb-1 text-sm font-semibold text-grafito">Operario</legend>
+        <label className="flex items-center gap-2 text-sm text-grafito">
           <input type="checkbox" {...register('con_operario')} />
           Crear también un operario
         </label>
@@ -116,7 +116,7 @@ export function PanaderiaForm({ onTerminar }: Props) {
         )}
       </fieldset>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gris-texto">
         Contraseñas de mínimo 10 caracteres con letras y números. Cada persona tendrá que cambiarla al entrar por primera vez y solo verá esta
         panadería.
       </p>

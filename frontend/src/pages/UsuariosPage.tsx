@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -27,13 +28,13 @@ function crearColumnas(a: Acciones): ColumnaTabla<UsuarioPanaderia>[] {
       key: 'nombre',
       encabezado: 'Nombre',
       render: (u) => (
-        <span className={`font-medium ${u.activo ? 'text-gray-900' : 'text-gray-400'}`}>
+        <span className={`font-medium ${u.activo ? 'text-grafito' : 'text-gris-texto/70'}`}>
           {u.nombre}
-          {u.id === a.miId && <span className="ml-2 text-xs font-normal text-gray-500">(tú)</span>}
+          {u.id === a.miId && <span className="ml-2 text-xs font-normal text-gris-texto">(tú)</span>}
         </span>
       ),
     },
-    { key: 'usuario', encabezado: 'Usuario', render: (u) => u.nombre_usuario ?? <span className="text-amber-700">Sin usuario</span> },
+    { key: 'usuario', encabezado: 'Usuario', render: (u) => u.nombre_usuario ?? <span className="text-atencion-texto">Sin usuario</span> },
     { key: 'rol', encabezado: 'Rol', render: (u) => ETIQUETA_ROL[u.rol] ?? u.rol },
     {
       key: 'estado',
@@ -50,18 +51,18 @@ function crearColumnas(a: Acciones): ColumnaTabla<UsuarioPanaderia>[] {
       encabezado: 'Acciones',
       render: (u) =>
         u.id === a.miId ? (
-          <span className="text-xs text-gray-400">Tu cuenta</span>
+          <span className="text-xs text-gris-texto/70">Tu cuenta</span>
         ) : (
           <div className="flex gap-3 whitespace-nowrap text-sm">
-            <button type="button" className="font-medium text-blue-600 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onRestablecer(u)}>
+            <button type="button" className="font-medium text-pizarra hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onRestablecer(u)}>
               Nueva contraseña
             </button>
             {u.activo ? (
-              <button type="button" className="font-medium text-red-600 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(u, false)}>
+              <button type="button" className="font-medium text-critico-texto hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(u, false)}>
                 Desactivar
               </button>
             ) : (
-              <button type="button" className="font-medium text-green-700 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(u, true)}>
+              <button type="button" className="font-medium text-exito-texto hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(u, true)}>
                 Reactivar
               </button>
             )}
@@ -121,15 +122,15 @@ export function UsuariosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Usuarios</h1>
-          <p className="text-sm text-gray-500">Quién puede entrar a esta panadería</p>
-        </div>
-        <Button type="button" onClick={() => { setAviso(null); setCreando(true); }}>
+      <PageHeader
+        titulo="Usuarios"
+        subtitulo="Quién puede entrar a esta panadería"
+        acciones={
+          <Button type="button" onClick={() => { setAviso(null); setCreando(true); }}>
           Nuevo usuario
         </Button>
-      </div>
+        }
+      />
 
       {esSuper && (
         <div className="max-w-xs">
