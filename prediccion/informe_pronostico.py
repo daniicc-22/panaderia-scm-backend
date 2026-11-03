@@ -17,6 +17,7 @@ res = P.correr_experimento()
 
 # 1) WAPE a 1 semana por método y escenario (barras horizontales, un panel por escenario)
 fig, axs = plt.subplots(1, 4, figsize=(12, 3.4), sharex=True)
+LIM = 1.18 * max(P.resumir([x["wape"] for x in res[e]["metodos"][m][1]])[0] * 100 for e in P.ESCENARIOS for m in P.METODOS)
 for ax, (esc, nombre) in zip(axs, P.ESCENARIOS.items()):
     vals = [P.resumir([x["wape"] for x in res[esc]["metodos"][m][1]])[0] * 100 for m in P.METODOS]
     cols = [NARANJA if m == "prom12" else (GRIS if m == "declarada" else AZUL) for m in P.METODOS]
@@ -25,7 +26,7 @@ for ax, (esc, nombre) in zip(axs, P.ESCENARIOS.items()):
     for yi, v in zip(y, vals):
         ax.text(v + 0.2, yi, f"{v:.1f}".replace(".", ","), va="center", fontsize=8, color=TINTA)
     ax.set_yticks(y); ax.set_yticklabels([P.ETIQUETAS[m] if ax is axs[0] else "" for m in P.METODOS]); ax.invert_yaxis()
-    ax.set_title(nombre, fontsize=9, color=TINTA, loc="left"); ax.set_xlabel("WAPE (%)")
+    ax.set_xlim(0, LIM); ax.set_title(nombre, fontsize=9, color=TINTA, loc="left"); ax.set_xlabel("WAPE (%)")
 fig.suptitle("Error de pronóstico a 1 semana (menor es mejor) · naranja = método actual del sistema, gris = declarado · " + P.MARCADO_SIMULACION,
              fontsize=9, color=SUAVE, x=0.01, ha="left")
 fig.tight_layout(rect=(0, 0, 1, 0.93)); fig.savefig(SALIDA / "grafica_error_por_metodo.png", dpi=160); plt.close(fig)
