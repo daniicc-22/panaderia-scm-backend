@@ -24,7 +24,7 @@ const PESTANAS: Pestana[] = [
   { etiqueta: 'Insumos', ruta: '/materias-primas', icono: Wheat },
 ];
 
-// Interfaz del operario: fondo azul noche (clase tema-operario), pestañas grandes
+// Interfaz del operario: fondo claro con tarjetas trigo (clase tema-operario), barra superior azul noche, pestañas grandes
 // arriba y sin menú lateral. Nunca muestra dinero (lo garantiza también el backend).
 export function OperarioLayout() {
   const { usuario, cerrarSesion } = useAuth();
@@ -43,8 +43,8 @@ export function OperarioLayout() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="tema-operario min-h-screen bg-azul-noche text-white">
-        <header className="sticky top-0 z-20 border-b border-noche-tarjeta bg-azul-noche">
+      <div className="tema-operario min-h-screen bg-hueso text-grafito">
+        <header className="sticky top-0 z-20 border-b border-[#34495b] bg-[#22374a] shadow-[0_2px_10px_rgba(0,0,0,0.25)]">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
               <Logo size={34} />
@@ -58,7 +58,7 @@ export function OperarioLayout() {
               <button
                 type="button"
                 onClick={salir}
-                className="inline-flex size-11 items-center justify-center rounded-lg border border-grafico-neutro text-niebla transition-colors hover:bg-noche-tarjeta hover:text-white"
+                className="inline-flex size-11 items-center justify-center rounded-lg border border-[#5e7488] text-niebla transition-colors hover:bg-[#34495b] hover:text-white"
                 aria-label="Cerrar sesión"
                 title="Cerrar sesión"
               >

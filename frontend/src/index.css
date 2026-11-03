@@ -125,55 +125,39 @@
 }
 
 /*
-  Tema del operario (interfaz oscura). Se activa con la clase .tema-operario en el
-  contenedor de su interfaz. Las pantallas son las mismas que las del administrador:
-  aquí solo se cambian los colores de superficie y de texto por sus equivalentes oscuros.
+  Tema del operario (claro con tarjetas de color). Se activa con la clase .tema-operario
+  en el contenedor de su interfaz. Las pantallas son las mismas que las del administrador;
+  el azul queda en la barra superior y en las franjas de título, y las tarjetas pasan a
+  trigo suave para que la interfaz de planta se distinga de la de gestión.
 */
 .tema-operario {
-  --color-hueso: #22374a;
-  --color-tabla: #34495b;
-  --color-arena: #45596b;
-  --color-linea: #45596b;
-  --color-borde-campo: #5e7488;
-  --color-gris-texto: #c9d3db;
-  color: #ffffff;
+  color-scheme: light;
+  /* Botones de opción, casillas y deslizadores en terracota (contrastan sobre trigo suave) */
+  accent-color: var(--color-terracota);
 }
 
-/* Texto oscuro → claro */
-.tema-operario .text-grafito,
-.tema-operario .text-azul-noche {
-  color: #ffffff;
-}
-.tema-operario .text-pizarra {
-  color: var(--color-trigo);
+/* Tarjetas (Card y paneles redondeados): trigo suave con borde trigo */
+.tema-operario .rounded-tarjeta.bg-tabla {
+  background-color: var(--color-trigo-suave);
+  border-color: #ecd49a;
 }
 
-/* Donde el fondo sigue siendo claro, el texto vuelve a ser oscuro */
-.tema-operario .bg-trigo.text-grafito,
-.tema-operario .bg-trigo .text-grafito,
-.tema-operario .bg-clase-c.text-grafito,
-.tema-operario .bg-trigo-suave .text-grafito {
-  color: var(--color-grafito);
-}
-.tema-operario .bg-info-fondo.text-azul-noche,
-.tema-operario .bg-info-fondo .text-azul-noche {
-  color: var(--color-azul-noche);
+/* Campos de formulario: borde trigo para que se lean como zona de captura */
+.tema-operario .rounded-tarjeta.bg-tabla input:not([type='radio']):not([type='checkbox']),
+.tema-operario .rounded-tarjeta.bg-tabla select,
+.tema-operario .rounded-tarjeta.bg-tabla textarea {
+  border-color: var(--color-trigo);
 }
 
-/* Campos de formulario sobre tarjetas oscuras */
-.tema-operario .bg-white {
-  background-color: #1b2d3d;
+/* Etiquetas y texto secundario en café trigo dentro de las tarjetas */
+.tema-operario .rounded-tarjeta.bg-tabla label,
+.tema-operario .rounded-tarjeta.bg-tabla .text-gris-texto {
+  color: #6e4f10;
 }
 
-/* Acción principal del operario: botón trigo grande (mínimo 48 px de alto) */
+/* Acción principal del operario: botón terracota grande (mínimo 48 px de alto) */
 .tema-operario button.bg-terracota,
 .tema-operario a.bg-terracota {
   min-height: 48px;
-  background-color: var(--color-trigo);
-  color: var(--color-grafito);
   font-size: 16px;
-}
-.tema-operario button.bg-terracota:hover,
-.tema-operario a.bg-terracota:hover {
-  background-color: #d69b2e;
 }
