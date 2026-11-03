@@ -19,9 +19,9 @@ export function DetalleProduccion({ id }: { id: string }) {
       <BalanceDeMasas id={id} />
       <ul className="flex flex-col gap-2">
       {detalle.data.insumos.map((i) => (
-        <li key={i.materia_prima_id} className="rounded-md border border-gray-200 bg-white p-3">
+        <li key={i.materia_prima_id} className="rounded-md border border-linea bg-tabla p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <span className="font-medium text-gray-900">{i.nombre}</span>
+            <span className="font-medium text-grafito">{i.nombre}</span>
             {i.pesado === null ? (
               <Badge color="gray">Sin dato de pesaje</Badge>
             ) : i.pesado ? (
@@ -31,15 +31,15 @@ export function DetalleProduccion({ id }: { id: string }) {
             )}
           </div>
           {i.unidad && i.peso_real !== null && i.peso_estandar !== null && (
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-grafito">
               Usado {formatoCantidad(i.peso_real, i.unidad)}
               {i.pesado ? ` (receta: ${formatoCantidad(i.peso_estandar, i.unidad)})` : ' (se tomó el peso de la receta)'}
             </p>
           )}
-          {!i.controla_inventario && <p className="mt-1 text-xs text-gray-500">No se controla en inventario.</p>}
+          {!i.controla_inventario && <p className="mt-1 text-xs text-gris-texto">No se controla en inventario.</p>}
           {i.unidad &&
             i.lotes.map((l, n) => (
-              <p key={n} className="mt-0.5 text-xs text-gray-600">
+              <p key={n} className="mt-0.5 text-xs text-gris-texto">
                 {formatoCantidad(l.cantidad, i.unidad!)} del lote {l.codigo_lote ?? 'sin código'}
                 {l.fecha_vencimiento ? ` (vence ${formatoFecha(l.fecha_vencimiento)})` : ''}
               </p>

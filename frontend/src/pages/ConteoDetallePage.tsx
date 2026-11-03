@@ -84,7 +84,7 @@ export function ConteoDetallePage() {
     return noExiste ? (
       <div className="flex flex-col items-start gap-3">
         <Alert variant="warning">Ese conteo no existe.</Alert>
-        <Link to="/conteos" className="text-sm font-medium text-blue-600 hover:underline">
+        <Link to="/conteos" className="text-sm font-medium text-pizarra hover:underline">
           Volver a los conteos
         </Link>
       </div>
@@ -98,20 +98,20 @@ export function ConteoDetallePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link to="/conteos" className="text-sm font-medium text-blue-600 hover:underline">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <Link to="/conteos" className="text-sm font-medium text-niebla hover:text-white hover:underline">
           ← Conteos
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-900">Conteo n.º {c.numero}</h1>
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Conteo n.º {c.numero}</h1>
           <Badge color={COLOR_ESTADO_CONTEO[c.estado]}>{ETIQUETA_ESTADO_CONTEO[c.estado]}</Badge>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="mt-1 text-sm text-niebla">
           Abierto el {formatoFechaIso(c.creado_at)} por {c.creado_por}
           {c.observaciones ? ` · ${c.observaciones}` : ''}
         </p>
         {c.resuelto_at && c.resuelto_por && (
-          <p className="text-sm text-gray-500">
+          <p className="mt-1 text-sm text-niebla">
             {c.estado === 'aplicado' ? 'Aprobado' : 'Descartado'} el {formatoFechaIso(c.resuelto_at)} por {c.resuelto_por}
           </p>
         )}
@@ -131,7 +131,7 @@ export function ConteoDetallePage() {
 
       {c.puede_eliminar && (
         <div>
-          <button type="button" className="min-h-11 text-sm font-medium text-red-600 hover:underline" onClick={() => setEliminando(true)}>
+          <button type="button" className="min-h-11 text-sm font-medium text-critico-texto hover:underline" onClick={() => setEliminando(true)}>
             Eliminar este conteo
           </button>
         </div>
@@ -140,7 +140,7 @@ export function ConteoDetallePage() {
       {c.estado === 'en_curso' ? (
         <>
           <ContarLotes detalle={c} />
-          <div className="flex flex-col gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-2 border-t border-linea pt-4 sm:flex-row sm:justify-end">
             {esGestion && (
               <Button type="button" variant="secondary" className="min-h-11" onClick={() => { setError(null); setAccion('descartar'); }}>
                 Descartar conteo
@@ -155,7 +155,7 @@ export function ConteoDetallePage() {
         <>
           <ResultadoConteo detalle={c} />
           {c.estado === 'enviado' && esGestion && (
-            <div className="flex flex-col gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-2 border-t border-linea pt-4 sm:flex-row sm:justify-end">
               <Button type="button" variant="danger" className="min-h-11" onClick={() => { setError(null); setAccion('descartar'); }}>
                 Descartar
               </Button>
@@ -183,9 +183,9 @@ export function ConteoDetallePage() {
       <Modal isOpen={accion !== null} onClose={() => !ejecutar.isPending && setAccion(null)} title={texto?.titulo}>
         {accion && texto && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-600">{texto.mensaje}</p>
+            <p className="text-sm text-gris-texto">{texto.mensaje}</p>
             {accion === 'aplicar' && (
-              <p className="text-sm text-gray-900">
+              <p className="text-sm text-grafito">
                 Exactitud de este conteo: <span className="font-semibold">{formatoPorcentaje(c.resumen.eri)}</span> · Diferencias:{' '}
                 <span className="font-semibold">{c.resumen.faltantes + c.resumen.sobrantes}</span>
               </p>

@@ -77,10 +77,10 @@ export function InventarioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Inventario</h1>
-          <p className="text-sm text-gray-500">Existencias de materias primas por lote</p>
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Inventario</h1>
+          <p className="mt-1 text-sm text-niebla">Existencias de materias primas por lote</p>
         </div>
         <Button
           type="button"
@@ -132,7 +132,7 @@ export function InventarioPage() {
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre o código"
           aria-label="Buscar insumo"
-          className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base sm:max-w-xs sm:text-sm"
+          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
         />
         <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por estado">
           {FILTROS.map((f) => (
@@ -143,8 +143,8 @@ export function InventarioPage() {
               onClick={() => setFiltro(f.valor)}
               className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
                 filtro === f.valor
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'border-azul-noche bg-info-fondo text-pizarra'
+                  : 'border-borde-campo bg-tabla text-gris-texto hover:bg-arena'
               }`}
             >
               {f.etiqueta}
@@ -171,14 +171,14 @@ export function InventarioPage() {
                 <button
                   type="button"
                   onClick={() => setConLotes(i)}
-                  className="flex w-full flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4 text-left active:bg-gray-50"
+                  className="flex w-full flex-col gap-1 rounded-lg border border-linea bg-tabla p-4 text-left active:bg-arena"
                 >
                   <span className="flex items-start justify-between gap-2">
-                    <span className="font-medium text-gray-900">{i.nombre}</span>
+                    <span className="font-medium text-grafito">{i.nombre}</span>
                     <Badge color={COLOR_ESTADO[i.estado]}>{ETIQUETA_ESTADO[i.estado]}</Badge>
                   </span>
-                  <span className="text-lg font-semibold text-gray-900">{formatoCantidad(i.stock, i.unidad)}</span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-lg font-semibold text-grafito">{formatoCantidad(i.stock, i.unidad)}</span>
+                  <span className="text-xs text-gris-texto">
                     {i.lotes_activos > 0
                       ? `${i.lotes_activos} ${i.lotes_activos === 1 ? 'lote' : 'lotes'} · ${
                           i.proximo_vencimiento ? textoVencimiento(hoy, i.proximo_vencimiento) : 'Sin vencimiento'
@@ -192,33 +192,33 @@ export function InventarioPage() {
           </ul>
 
           {/* Pantalla ancha: tabla */}
-          <div className="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="hidden overflow-x-auto rounded-lg border border-linea md:block">
+            <table className="min-w-full divide-y divide-linea">
+              <thead className="bg-azul-noche">
                 <tr>
                   {['Código', 'Insumo', 'Existencias', 'Lotes', 'Próximo vencimiento', 'Estado', ...(verValor ? ['Valor'] : []), ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-linea bg-tabla">
                 {visibles.map((i) => (
-                  <tr key={i.materia_prima_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-700">{i.codigo}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{i.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{formatoCantidad(i.stock, i.unidad)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{i.lotes_activos}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                  <tr key={i.materia_prima_id} className="hover:bg-arena">
+                    <td className="px-4 py-3 text-sm text-grafito">{i.codigo}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-grafito">{i.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-grafito">{formatoCantidad(i.stock, i.unidad)}</td>
+                    <td className="px-4 py-3 text-sm text-grafito">{i.lotes_activos}</td>
+                    <td className="px-4 py-3 text-sm text-grafito">
                       {i.proximo_vencimiento ? `${formatoFecha(i.proximo_vencimiento)} · ${textoVencimiento(hoy, i.proximo_vencimiento)}` : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge color={COLOR_ESTADO[i.estado]}>{ETIQUETA_ESTADO[i.estado]}</Badge>
                     </td>
-                    {verValor && <td className="px-4 py-3 text-sm text-gray-700">{i.stock > 0 ? formatoDinero(i.valor ?? 0) : '—'}</td>}
+                    {verValor && <td className="px-4 py-3 text-sm text-grafito">{i.stock > 0 ? formatoDinero(i.valor ?? 0) : '—'}</td>}
                     <td className="px-4 py-3 text-sm">
-                      <button type="button" className="font-medium text-blue-600 hover:underline" onClick={() => setConLotes(i)}>
+                      <button type="button" className="font-medium text-pizarra hover:underline" onClick={() => setConLotes(i)}>
                         Ver lotes
                       </button>
                     </td>
@@ -242,11 +242,11 @@ export function InventarioPage() {
 }
 
 function Resumen({ titulo, valor, alerta }: { titulo: string; valor: string; alerta?: 'amarillo' | 'rojo' }) {
-  const color = alerta === 'rojo' ? 'border-red-200 bg-red-50' : alerta === 'amarillo' ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200 bg-white';
+  const color = alerta === 'rojo' ? 'border-[#f0c3c0] bg-critico-fondo' : alerta === 'amarillo' ? 'border-[#f1d9a6] bg-atencion-fondo' : 'border-linea bg-tabla';
   return (
     <div className={`rounded-lg border p-3 ${color}`}>
-      <p className="text-xs text-gray-500">{titulo}</p>
-      <p className="text-xl font-semibold text-gray-900">{valor}</p>
+      <p className="text-xs text-gris-texto">{titulo}</p>
+      <p className="text-xl font-semibold text-grafito">{valor}</p>
     </div>
   );
 }

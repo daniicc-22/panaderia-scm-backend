@@ -37,7 +37,7 @@ export function ProduccionesRecientes() {
 
   return (
     <section className="flex flex-col gap-3" aria-label="Producciones recientes">
-      <h2 className="text-lg font-semibold text-gray-900">Producciones recientes</h2>
+      <h2 className="text-lg font-semibold text-grafito">Producciones recientes</h2>
 
       {resultado && (
         <Alert variant={resultado.aviso ? 'warning' : 'success'}>
@@ -56,24 +56,24 @@ export function ProduccionesRecientes() {
       ) : (
         <ul className="flex flex-col gap-2">
           {(lista.data ?? []).map((p) => (
-            <li key={p.id} className="rounded-lg border border-gray-200 bg-white p-3">
+            <li key={p.id} className="rounded-lg border border-linea bg-tabla p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <span className="font-medium text-gray-900">{p.producto}</span>
-                  <p className="text-xs text-gray-500">
+                  <span className="font-medium text-grafito">{p.producto}</span>
+                  <p className="text-xs text-gris-texto">
                     {formatoFechaIso(p.fecha)} · {hora(p.fecha)} · {p.usuario}
                   </p>
                 </div>
                 <Badge color={COLOR[p.estado]}>{ETIQUETA[p.estado]}</Badge>
               </div>
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="mt-1 text-sm text-grafito">
                 {p.lotes !== null ? `${numero.format(p.lotes)} ${p.lotes === 1 ? 'lote' : 'lotes'} · ` : ''}
                 {p.cantidad_planificada !== null ? `Planificadas ${numero.format(p.cantidad_planificada)}` : 'Sin rendimiento planificado'}
                 {p.cantidad_producida !== null
                   ? ` · Producidas ${numero.format(p.cantidad_producida)}${p.rendimiento_pct !== null ? ` (${p.rendimiento_pct.toLocaleString('es-CO')} %)` : ''}`
                   : ''}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gris-texto">
                 {p.insumos_total === 0 ? 'Sin dato de pesaje' : `${p.insumos_pesados} de ${p.insumos_total} insumos pesados`}
               </p>
 

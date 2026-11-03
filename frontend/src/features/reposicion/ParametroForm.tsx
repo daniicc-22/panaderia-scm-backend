@@ -39,21 +39,21 @@ function CampoCantidad({
   const unidades = unidadesDisponibles(base);
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
+      <label htmlFor={id} className="text-sm font-medium text-grafito">
         {etiqueta}
       </label>
       <div className="flex gap-2">
         <input
           id={id}
           inputMode="decimal"
-          className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="min-w-0 flex-1 rounded-md border border-borde-campo px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-trigo"
           value={valor.texto}
           onChange={(e) => onCambio({ ...valor, texto: e.target.value })}
         />
         {unidades.length > 1 ? (
           <select
             aria-label={`Unidad de ${etiqueta}`}
-            className="rounded-md border border-gray-300 px-2 py-2 text-sm"
+            className="rounded-md border border-borde-campo px-2 py-2 text-sm"
             value={valor.unidad}
             onChange={(e) => onCambio({ ...valor, unidad: e.target.value })}
           >
@@ -64,10 +64,10 @@ function CampoCantidad({
             ))}
           </select>
         ) : (
-          <span className="flex items-center text-sm text-gray-500">{base}</span>
+          <span className="flex items-center text-sm text-gris-texto">{base}</span>
         )}
       </div>
-      {ayuda && <p className="text-xs text-gray-500">{ayuda}</p>}
+      {ayuda && <p className="text-xs text-gris-texto">{ayuda}</p>}
     </div>
   );
 }
@@ -174,25 +174,25 @@ export function ParametroForm({ item, onTerminar }: Props) {
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-gray-700">Cómo se maneja este insumo</legend>
-        <label className="flex min-h-11 items-start gap-2 rounded-md border border-gray-300 p-3 text-sm text-gray-700">
+        <legend className="text-sm font-medium text-grafito">Cómo se maneja este insumo</legend>
+        <label className="flex min-h-11 items-start gap-2 rounded-md border border-borde-campo p-3 text-sm text-grafito">
           <input type="radio" name="modo" className="mt-1" checked={modo === 'periodica'} onChange={() => setModo('periodica')} />
           <span>
             <span className="font-medium">Se calcula cuándo y cuánto pedir</span>
-            <span className="block text-xs text-gray-500">Con inventario, entrega semanal del proveedor y stock de seguridad.</span>
+            <span className="block text-xs text-gris-texto">Con inventario, entrega semanal del proveedor y stock de seguridad.</span>
           </span>
         </label>
-        <label className="flex min-h-11 items-start gap-2 rounded-md border border-gray-300 p-3 text-sm text-gray-700">
+        <label className="flex min-h-11 items-start gap-2 rounded-md border border-borde-campo p-3 text-sm text-grafito">
           <input type="radio" name="modo" className="mt-1" checked={modo === 'al_uso'} onChange={() => setModo('al_uso')} />
           <span>
             <span className="font-medium">Se compra según la producción</span>
-            <span className="block text-xs text-gray-500">Perecedero que no se guarda (p. ej. queso cuajada): no entra en las alertas de compra ni limita qué producir.</span>
+            <span className="block text-xs text-gris-texto">Perecedero que no se guarda (p. ej. queso cuajada): no entra en las alertas de compra ni limita qué producir.</span>
           </span>
         </label>
       </fieldset>
 
-      <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
-        <p className="font-medium text-gray-700">Consumo por semana de referencia</p>
+      <div className="rounded-md bg-hueso p-3 text-xs text-gris-texto">
+        <p className="font-medium text-grafito">Consumo por semana de referencia</p>
         <ul className="mt-1 list-disc pl-4">
           <li>Declarado: {declarado === null ? 'sin dato' : formatoCantidad(declarado, base)}</li>
           <li>Estimado con las recetas: {estimado_recetas === null ? 'sin dato' : formatoCantidad(estimado_recetas, base)}</li>
@@ -221,7 +221,7 @@ export function ParametroForm({ item, onTerminar }: Props) {
             value={diasSeguridad}
             onChange={(e) => setDiasSeguridad(e.target.value)}
           />
-          <p className="-mt-3 text-xs text-gray-500">Días de consumo que se quieren tener de colchón. Si no los defines, se usa el stock mínimo.</p>
+          <p className="-mt-3 text-xs text-gris-texto">Días de consumo que se quieren tener de colchón. Si no los defines, se usa el stock mínimo.</p>
           <CampoCantidad id="par-minimo" etiqueta="Stock mínimo (opcional)" base={base} valor={stockMinimo} onCambio={setStockMinimo} />
           <CampoCantidad id="par-maximo" etiqueta="Stock máximo (opcional)" base={base} valor={stockMaximo} onCambio={setStockMaximo} />
           <Input
@@ -231,9 +231,9 @@ export function ParametroForm({ item, onTerminar }: Props) {
             value={vidaUtil}
             onChange={(e) => setVidaUtil(e.target.value)}
           />
-          <p className="-mt-3 text-xs text-gray-500">Es el tiempo que prefieren tenerlo guardado, no el vencimiento real (ese sale de cada lote).</p>
+          <p className="-mt-3 text-xs text-gris-texto">Es el tiempo que prefieren tenerlo guardado, no el vencimiento real (ese sale de cada lote).</p>
           <Input id="par-plazo" label="Plazo de entrega, en días" inputMode="decimal" value={plazo} onChange={(e) => setPlazo(e.target.value)} />
-          <p className="-mt-3 text-xs text-gray-500">
+          <p className="-mt-3 text-xs text-gris-texto">
             0 si lo piden y lo reciben el mismo día.
             {plazoOferta !== null && ` La oferta del proveedor ya dice ${plazoOferta} día(s) y ese valor manda sobre este.`}
           </p>
@@ -251,7 +251,7 @@ export function ParametroForm({ item, onTerminar }: Props) {
             value={tasaPct}
             onChange={(e) => setTasaPct(e.target.value)}
           />
-          <p className="-mt-3 text-xs text-gray-500">Sin este dato no se calcula el EOQ. Es un supuesto del modelo que debe quedar documentado.</p>
+          <p className="-mt-3 text-xs text-gris-texto">Sin este dato no se calcula el EOQ. Es un supuesto del modelo que debe quedar documentado.</p>
         </>
       )}
 

@@ -61,15 +61,15 @@ export function ConteosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Conteo físico</h1>
-          <p className="text-sm text-gray-500">Compara lo que hay en la bodega con lo que dice el sistema</p>
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Conteo físico</h1>
+          <p className="mt-1 text-sm text-niebla">Compara lo que hay en la bodega con lo que dice el sistema</p>
         </div>
         {enCurso ? (
           <Link
             to={`/conteos/${enCurso.id}`}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-terracota px-4 py-2 text-sm font-medium text-white hover:bg-[#93502f] sm:w-auto"
           >
             Continuar el conteo n.º {enCurso.numero}
           </Link>
@@ -99,12 +99,12 @@ export function ConteosPage() {
             <Medida titulo="Promedio" valor={formatoPorcentaje(datos.promedio_eri)} color={colorEri(datos.promedio_eri, datos.meta_eri)} />
             <Medida titulo="Meta" valor={`${datos.meta_eri} %`} color="gray" />
           </div>
-          <p className="-mt-2 text-xs text-gray-500">
+          <p className="-mt-2 text-xs text-gris-texto">
             Exactitud del inventario: qué tanto coincide lo contado con lo registrado. Solo cuentan los conteos ya enviados.
           </p>
 
           {descartados > 0 && (
-            <label className="flex min-h-11 items-center gap-2 text-sm text-gray-700">
+            <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
               <input type="checkbox" checked={ocultar} onChange={(e) => cambiarOcultar(e.target.checked)} className="h-5 w-5" />
               Ocultar los conteos descartados ({descartados})
             </label>
@@ -119,21 +119,21 @@ export function ConteosPage() {
             <ul className="flex flex-col gap-2">
               {visibles.map((c) => (
                 <li key={c.id} className="flex items-stretch gap-2">
-                  <Link to={`/conteos/${c.id}`} className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:bg-gray-50">
+                  <Link to={`/conteos/${c.id}`} className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-linea bg-tabla p-3 hover:bg-arena">
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-gray-900">Conteo n.º {c.numero}</span>
+                        <span className="font-medium text-grafito">Conteo n.º {c.numero}</span>
                         <Badge color={COLOR_ESTADO_CONTEO[c.estado]}>{ETIQUETA_ESTADO_CONTEO[c.estado]}</Badge>
                       </span>
-                      <span className="block text-xs text-gray-500">
+                      <span className="block text-xs text-gris-texto">
                         {formatoFechaIso(c.creado_at)} · {c.creado_por} · {c.resumen.lotes} {c.resumen.lotes === 1 ? 'lote' : 'lotes'}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className="block text-lg font-semibold text-gray-900">
+                      <span className="block text-lg font-semibold text-grafito">
                         {c.estado === 'en_curso' || c.estado === 'descartado' ? '—' : formatoPorcentaje(c.resumen.eri)}
                       </span>
-                      <span className="block text-xs text-gray-500">{c.estado === 'descartado' ? 'no cuenta' : 'exactitud'}</span>
+                      <span className="block text-xs text-gris-texto">{c.estado === 'descartado' ? 'no cuenta' : 'exactitud'}</span>
                     </span>
                   </Link>
                   {c.puede_eliminar && (
@@ -141,7 +141,7 @@ export function ConteosPage() {
                       type="button"
                       aria-label={`Eliminar el conteo n.º ${c.numero}`}
                       onClick={() => setPorEliminar(c)}
-                      className="min-h-14 shrink-0 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-red-600 hover:bg-red-50"
+                      className="min-h-14 shrink-0 rounded-lg border border-linea bg-tabla px-3 text-sm font-medium text-critico-texto hover:bg-critico-fondo"
                     >
                       Eliminar
                     </button>
@@ -164,11 +164,11 @@ export function ConteosPage() {
             abrir.mutate();
           }}
         >
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gris-texto">
             Vas a contar los lotes que hay en la bodega. Mientras cuentas, sigue registrando entradas y producciones con normalidad.
           </p>
           <div className="flex flex-col gap-1">
-            <label htmlFor="obs-conteo" className="text-sm font-medium text-gray-700">
+            <label htmlFor="obs-conteo" className="text-sm font-medium text-grafito">
               Nota (opcional)
             </label>
             <input
@@ -177,7 +177,7 @@ export function ConteosPage() {
               onChange={(e) => setObservaciones(e.target.value)}
               maxLength={300}
               placeholder="Ej.: conteo de fin de mes"
-              className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base sm:text-sm"
+              className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:text-sm"
             />
           </div>
           {error && <Alert variant="error">{error}</Alert>}
@@ -191,11 +191,11 @@ export function ConteosPage() {
 }
 
 function Medida({ titulo, valor, color }: { titulo: string; valor: string; color: 'green' | 'yellow' | 'red' | 'gray' }) {
-  const clases = { green: 'border-green-200 bg-green-50', yellow: 'border-yellow-200 bg-yellow-50', red: 'border-red-200 bg-red-50', gray: 'border-gray-200 bg-white' }[color];
+  const clases = { green: 'border-[#c5dccb] bg-exito-fondo', yellow: 'border-[#f1d9a6] bg-atencion-fondo', red: 'border-[#f0c3c0] bg-critico-fondo', gray: 'border-linea bg-tabla' }[color];
   return (
     <div className={`rounded-lg border p-3 ${clases}`}>
-      <p className="text-xs text-gray-600">{titulo}</p>
-      <p className="text-xl font-semibold text-gray-900">{valor}</p>
+      <p className="text-xs text-gris-texto">{titulo}</p>
+      <p className="text-xl font-semibold text-grafito">{valor}</p>
     </div>
   );
 }

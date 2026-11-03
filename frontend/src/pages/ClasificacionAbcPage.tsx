@@ -9,9 +9,9 @@ const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'CO
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 
 const COLOR_CLASE: Record<ClaseAbc, string> = {
-  A: 'bg-red-100 text-red-700',
-  B: 'bg-amber-100 text-amber-700',
-  C: 'bg-gray-100 text-gray-600',
+  A: 'bg-critico-fondo text-critico-texto',
+  B: 'bg-atencion-fondo text-atencion-texto',
+  C: 'bg-arena text-gris-texto',
 };
 
 function Insignia({ clase }: { clase: ClaseAbc }) {
@@ -25,7 +25,7 @@ function Insignia({ clase }: { clase: ClaseAbc }) {
 const columnas: ColumnaTabla<ItemAbc>[] = [
   { key: 'clase', encabezado: 'Clase', render: (i) => <Insignia clase={i.clase} /> },
   { key: 'codigo', encabezado: 'Código', render: (i) => i.codigo },
-  { key: 'nombre', encabezado: 'Insumo', render: (i) => <span className="font-medium text-gray-900">{i.nombre}</span> },
+  { key: 'nombre', encabezado: 'Insumo', render: (i) => <span className="font-medium text-grafito">{i.nombre}</span> },
   { key: 'demanda', encabezado: 'Demanda anual', render: (i) => `${numero.format(i.demanda_anual_kg)} kg` },
   { key: 'costo', encabezado: 'Costo por kg', render: (i) => pesos0.format(i.costo_por_kg) },
   { key: 'valor', encabezado: 'Valor anual', render: (i) => pesos0.format(i.valor_anual) },
@@ -43,14 +43,14 @@ export function ClasificacionAbcPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Clasificación ABC</h1>
-        <p className="text-sm text-gray-500">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Clasificación ABC</h1>
+        <p className="mt-1 text-sm text-niebla">
           Insumos ordenados por valor anual de consumo (demanda × costo)
         </p>
       </div>
 
-      <div role="group" aria-label="Fuente de la demanda" className="inline-flex w-fit rounded-md border border-gray-200 bg-white p-0.5 text-sm">
+      <div role="group" aria-label="Fuente de la demanda" className="inline-flex w-fit rounded-md border border-linea bg-tabla p-0.5 text-sm">
         {(
           [
             ['estimada', 'Demanda estimada'],
@@ -63,7 +63,7 @@ export function ClasificacionAbcPage() {
             aria-pressed={fuente === valor}
             onClick={() => setFuente(valor)}
             className={`min-h-[40px] rounded px-3 py-1.5 font-medium ${
-              fuente === valor ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+              fuente === valor ? 'bg-terracota text-white' : 'text-gris-texto hover:bg-arena'
             }`}
           >
             {texto}
@@ -125,20 +125,20 @@ export function ClasificacionAbcPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
-              <div key={r.clase} className="rounded-lg border border-gray-200 bg-white p-4">
+              <div key={r.clase} className="rounded-lg border border-linea bg-tabla p-4">
                 <div className="flex items-center gap-2">
                   <Insignia clase={r.clase} />
-                  <p className="text-sm font-semibold text-gray-700">Clase {r.clase}</p>
+                  <p className="text-sm font-semibold text-grafito">Clase {r.clase}</p>
                 </div>
-                <p className="mt-2 text-xl font-semibold text-gray-900">{numero.format(r.porcentaje)} % del valor</p>
-                <p className="text-sm text-gray-500">
+                <p className="mt-2 text-xl font-semibold text-grafito">{numero.format(r.porcentaje)} % del valor</p>
+                <p className="text-sm text-gris-texto">
                   {r.insumos} insumos · {pesos0.format(r.valor_anual)} al año
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="rounded-md border border-[#c6d3de] bg-info-fondo px-4 py-3 text-sm text-pizarra">
             {esReal
               ? `Demanda calculada con lo que realmente se gastó al producir (promedio semanal × ${data.supuestos.semanas_al_anio} semanas), solo para insumos con al menos ${data.supuestos.semanas_minimas_consumo_real ?? 4} semanas de consumo registrado.`
               : `Demanda estimada a partir de las formulaciones, con ${data.supuestos.lotes_por_semana_por_defecto} lotes por semana por producto y ${data.supuestos.semanas_al_anio} semanas al año. Cuando haya consumo real suficiente, compárala en la pestaña «Consumo real».`}{' '}

@@ -19,7 +19,7 @@ export function AlertasVencimiento({ compacto = false }: Props) {
 
   if (alertas.isError) {
     return (
-      <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+      <div className="rounded-lg border border-[#f1d9a6] bg-atencion-fondo px-4 py-3 text-sm text-atencion-texto">
         No se pudieron cargar las alertas de vencimiento.{' '}
         <button type="button" className="font-medium underline" onClick={() => alertas.refetch()}>
           Reintentar
@@ -33,7 +33,7 @@ export function AlertasVencimiento({ compacto = false }: Props) {
 
   if (datos.items.length === 0) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+      <div className="rounded-lg border border-[#c5dccb] bg-exito-fondo px-4 py-3 text-sm text-exito-texto">
         Sin lotes vencidos ni por vencer en los próximos {datos.dias_alerta} días.
       </div>
     );
@@ -45,15 +45,15 @@ export function AlertasVencimiento({ compacto = false }: Props) {
 
   return (
     <section
-      className={`rounded-lg border bg-white p-4 ${resumen.vencidos > 0 ? 'border-red-200' : 'border-yellow-200'}`}
+      className={`rounded-lg border bg-tabla p-4 ${resumen.vencidos > 0 ? 'border-[#f0c3c0]' : 'border-[#f1d9a6]'}`}
       aria-label="Alertas de vencimiento"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-semibold text-gray-900">Alertas de vencimiento</h2>
+        <h2 className="text-base font-semibold text-grafito">Alertas de vencimiento</h2>
         {resumen.vencidos > 0 && <Badge color="red">{resumen.vencidos} vencidos</Badge>}
         {resumen.por_vencer > 0 && <Badge color="yellow">{resumen.por_vencer} por vencer</Badge>}
       </div>
-      <p className="mb-3 text-sm text-gray-500">
+      <p className="mb-3 text-sm text-gris-texto">
         Lotes con existencias que vencen en los próximos {datos.dias_alerta} días o ya vencieron.
         {resumen.valor_vencido !== undefined && resumen.vencidos > 0 && ` Valor vencido: ${formatoDinero(resumen.valor_vencido)}.`}
       </p>
@@ -63,18 +63,18 @@ export function AlertasVencimiento({ compacto = false }: Props) {
           <li
             key={a.lote_id}
             className={`flex flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-md border p-3 ${
-              a.estado === 'vencido' ? 'border-red-200 bg-red-50' : 'border-yellow-200 bg-yellow-50'
+              a.estado === 'vencido' ? 'border-[#f0c3c0] bg-critico-fondo' : 'border-[#f1d9a6] bg-atencion-fondo'
             }`}
           >
             <div className="min-w-0">
-              <p className="font-medium text-gray-900">{a.nombre}</p>
-              <p className="text-xs text-gray-600">
+              <p className="font-medium text-grafito">{a.nombre}</p>
+              <p className="text-xs text-gris-texto">
                 Lote {a.codigo_lote ?? 'sin código'} · {formatoFecha(a.fecha_vencimiento)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">{formatoCantidad(a.cantidad_disponible, a.unidad)}</p>
-              <p className={`text-xs font-medium ${a.estado === 'vencido' ? 'text-red-700' : 'text-yellow-800'}`}>
+              <p className="text-sm font-semibold text-grafito">{formatoCantidad(a.cantidad_disponible, a.unidad)}</p>
+              <p className={`text-xs font-medium ${a.estado === 'vencido' ? 'text-critico-texto' : 'text-atencion-texto'}`}>
                 {textoVencimiento(datos.fecha, a.fecha_vencimiento)}
                 {a.valor !== undefined ? ` · ${formatoDinero(a.valor)}` : ''}
               </p>
@@ -84,7 +84,7 @@ export function AlertasVencimiento({ compacto = false }: Props) {
       </ul>
 
       {compacto && (
-        <Link to="/inventario" className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline">
+        <Link to="/inventario" className="mt-3 inline-block text-sm font-medium text-pizarra hover:underline">
           {ocultas > 0 ? `Ver ${ocultas} más en Inventario →` : 'Ir a Inventario →'}
         </Link>
       )}

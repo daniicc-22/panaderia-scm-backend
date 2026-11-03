@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import type { TableroProduccion } from '../../types/produccion.types';
 
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
@@ -30,7 +31,7 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
 
   const max = Math.max(...datos.map((d) => d.producidas), 0);
   if (max === 0 && datos.every((d) => d.producciones === 0)) {
-    return <p className="py-8 text-center text-sm text-gray-500">Sin producciones cerradas en los últimos 7 días.</p>;
+    return <p className="py-8 text-center text-sm text-niebla">Sin producciones cerradas en los últimos 7 días.</p>;
   }
   const techo = techoRedondo(max);
   // Solo se rotula el día más alto (no un número por barra)
@@ -40,13 +41,13 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
     <div>
       <div className="flex">
         {/* Eje vertical: solo cero y techo, lo que basta para leer la escala */}
-        <div className="flex h-44 w-10 shrink-0 flex-col justify-between pb-9 pr-2 text-right text-xs text-gray-500" aria-hidden="true">
+        <div className="flex h-44 w-10 shrink-0 flex-col justify-between pb-9 pr-2 text-right text-xs text-niebla" aria-hidden="true">
           <span>{numero.format(techo)}</span>
           <span>0</span>
         </div>
         <div className="relative h-44 flex-1">
-          <div className="absolute inset-x-0 top-0 border-t border-gray-200" aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-9 border-t border-gray-300" aria-hidden="true" />
+          <div className="absolute inset-x-0 top-0 border-t border-noche-borde" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-9 border-t border-grafico-neutro" aria-hidden="true" />
           <ul className="absolute inset-0 grid grid-cols-7 gap-1">
             {datos.map((d, i) => {
               const alto = (d.producidas / techo) * 100;
@@ -55,7 +56,7 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
                 <li key={d.fecha} className="relative flex h-full flex-col">
                   <button
                     type="button"
-                    className="group relative flex min-h-0 flex-1 flex-col items-center justify-end rounded-md pb-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    className="group relative flex min-h-0 flex-1 flex-col items-center justify-end rounded-md pb-0 outline-hidden focus-visible:ring-2 focus-visible:ring-trigo"
                     onMouseEnter={() => setActivo(i)}
                     onMouseLeave={() => setActivo(null)}
                     onFocus={() => setActivo(i)}
@@ -63,28 +64,33 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
                     aria-label={`${etiquetaDia(d.fecha)}: ${d.producciones} ${d.producciones === 1 ? 'producción' : 'producciones'}, ${numero.format(d.producidas)} unidades`}
                   >
                     <div className="flex w-full flex-1 flex-col justify-end" style={{ paddingBottom: '2.25rem' }}>
-                      <div
-                        className={`relative mx-auto w-full max-w-6 rounded-t-[4px] bg-[#2a78d6] transition-opacity ${activo !== null && !visible ? 'opacity-50' : ''}`}
-                        style={{ height: `${alto}%`, minHeight: d.producidas > 0 ? 3 : 0 }}
+                      <motion.div
+                        className={`relative mx-auto w-full max-w-7 rounded-t-[4px] transition-[opacity,background-color] ${
+                          visible ? 'bg-[#f1c97a]' : i === indiceMax ? 'bg-trigo' : 'bg-grafico-neutro'
+                        } ${activo !== null && !visible ? 'opacity-50' : ''}`}
+                        style={{ minHeight: d.producidas > 0 ? 3 : 0 }}
+                        initial={{ height: '0%' }}
+                        animate={{ height: `${alto}%` }}
+                        transition={{ duration: 0.8, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
                       >
                         {i === indiceMax && max > 0 && (
-                          <span className="absolute bottom-full left-1/2 mb-0.5 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-gray-700">
+                          <span className="absolute bottom-full left-1/2 mb-0.5 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-trigo">
                             {numero.format(d.producidas)}
                           </span>
                         )}
-                      </div>
+                      </motion.div>
                     </div>
-                    <span className="absolute inset-x-0 bottom-0 flex h-9 flex-col items-center justify-center text-xs leading-4 text-gray-500">
+                    <span className="absolute inset-x-0 bottom-0 flex h-9 flex-col items-center justify-center text-xs leading-4 text-niebla">
                       <span>{partesDia(d.fecha)[0]}</span>
-                      <span className="font-medium text-gray-700">{partesDia(d.fecha)[1]}</span>
+                      <span className="font-semibold text-white">{partesDia(d.fecha)[1]}</span>
                     </span>
                   </button>
                   {visible && (
                     <div
                       role="tooltip"
-                      className={`pointer-events-none absolute bottom-full z-10 mb-1 w-40 rounded-md bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg ${i >= 5 ? 'right-0' : i <= 1 ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
+                      className={`pointer-events-none absolute bottom-full z-10 mb-1 w-40 rounded-lg bg-trigo px-2.5 py-1.5 text-xs text-grafito shadow-lg ${i >= 5 ? 'right-0' : i <= 1 ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
                     >
-                      <p className="font-medium">{etiquetaDia(d.fecha)}</p>
+                      <p className="font-semibold">{etiquetaDia(d.fecha)}</p>
                       <p>
                         {numero.format(d.producidas)} unidades · {d.producciones} {d.producciones === 1 ? 'producción' : 'producciones'}
                       </p>
@@ -97,24 +103,24 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
         </div>
       </div>
 
-      <button type="button" className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-blue-600 hover:underline" onClick={() => setTabla(!tabla)}>
+      <button type="button" className="mt-2 inline-flex min-h-11 items-center text-xs font-semibold text-trigo hover:underline" onClick={() => setTabla(!tabla)}>
         {tabla ? 'Ocultar tabla' : 'Ver como tabla'}
       </button>
       {tabla && (
         <table className="mt-1 w-full text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr className="text-left text-xs text-niebla">
               <th className="py-1 font-medium">Día</th>
               <th className="py-1 text-right font-medium">Producciones</th>
               <th className="py-1 text-right font-medium">Unidades</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="cifras divide-y divide-noche-borde">
             {datos.map((d) => (
               <tr key={d.fecha}>
-                <td className="py-1 text-gray-700">{etiquetaDia(d.fecha)}</td>
-                <td className="py-1 text-right text-gray-900">{d.producciones}</td>
-                <td className="py-1 text-right text-gray-900">{numero.format(d.producidas)}</td>
+                <td className="py-1 text-niebla">{etiquetaDia(d.fecha)}</td>
+                <td className="py-1 text-right text-white">{d.producciones}</td>
+                <td className="py-1 text-right text-white">{numero.format(d.producidas)}</td>
               </tr>
             ))}
           </tbody>

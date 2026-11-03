@@ -18,11 +18,11 @@ export function CortesGuardados() {
   const r = guardar.data;
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm" aria-label="Cortes guardados">
+    <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Cortes guardados">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
-          <h2 className="text-base font-semibold text-gray-900">Guardar el análisis de hoy</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-base font-semibold text-grafito">Guardar el análisis de hoy</h2>
+          <p className="text-sm text-gris-texto">
             Deja una copia con fecha de lo que el sistema calculó hoy (demanda, EOQ, costos y advertencias de cada insumo). Sirve para comparar el
             antes y el después del piloto. Si ya guardaste hoy, se reemplaza.
           </p>
@@ -54,16 +54,16 @@ export function CortesGuardados() {
       )}
 
       <div className="mt-4">
-        <h3 className="text-sm font-medium text-gray-900">Cortes guardados</h3>
-        {cortes.isLoading && <p className="mt-1 text-sm text-gray-500">Cargando...</p>}
-        {cortes.isError && <p className="mt-1 text-sm text-red-600">No se pudieron cargar los cortes.</p>}
-        {cortes.data && cortes.data.length === 0 && <p className="mt-1 text-sm text-gray-500">Todavía no has guardado ninguno.</p>}
+        <h3 className="text-sm font-medium text-grafito">Cortes guardados</h3>
+        {cortes.isLoading && <p className="mt-1 text-sm text-gris-texto">Cargando...</p>}
+        {cortes.isError && <p className="mt-1 text-sm text-critico-texto">No se pudieron cargar los cortes.</p>}
+        {cortes.data && cortes.data.length === 0 && <p className="mt-1 text-sm text-gris-texto">Todavía no has guardado ninguno.</p>}
         {cortes.data && cortes.data.length > 0 && (
-          <ul className="mt-1 divide-y divide-gray-100 text-sm">
+          <ul className="mt-1 divide-y divide-linea text-sm">
             {cortes.data.map((c) => (
               <li key={c.fecha} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="font-medium text-gray-900">{aFecha(c.fecha)}</span>
-                <span className="text-gray-600">
+                <span className="font-medium text-grafito">{aFecha(c.fecha)}</span>
+                <span className="text-gris-texto">
                   {c.insumos} insumos · {c.calculados} con EOQ · {c.datos_insuficientes} con datos insuficientes
                 </span>
               </li>

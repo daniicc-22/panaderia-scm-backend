@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -23,17 +24,22 @@ export function Modal({ isOpen, onClose, title, size = 'md', children }: ModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex animate-[entra_160ms_ease-out_both] items-center justify-center bg-grafito/50 p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div
-        className={`max-h-full w-full overflow-y-auto rounded-lg bg-white p-6 shadow-lg ${size === 'lg' ? 'max-w-4xl' : 'max-w-md'}`}
+        className={`max-h-full w-full animate-entra overflow-y-auto rounded-xl bg-hueso shadow-xl ${size === 'lg' ? 'max-w-4xl' : 'max-w-md'}`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Cerrar">
-            ✕
+        <div className="flex items-center justify-between gap-3 bg-azul-noche px-6 py-4">
+          {title && <h2 className="font-display text-lg font-semibold text-white">{title}</h2>}
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto rounded-md p-1.5 text-niebla transition-colors hover:bg-noche-tarjeta hover:text-white"
+            aria-label="Cerrar"
+          >
+            <X size={20} />
           </button>
         </div>
-        {children}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );

@@ -22,25 +22,25 @@ function textoCobertura(i: ItemRecomendacion): string {
 function FilaInsumo({ i }: { i: ItemRecomendacion }) {
   const estado = ESTADOS[i.estado];
   return (
-    <li className="rounded-lg border border-gray-200 bg-white p-3">
+    <li className="rounded-lg border border-linea bg-tabla p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-grafito">
             {i.nombre}
             {i.clase_abc && <Badge color={i.clase_abc === 'A' ? 'red' : i.clase_abc === 'B' ? 'yellow' : 'gray'}>Clase {i.clase_abc}</Badge>}
             <Badge color={estado.color}>{estado.etiqueta}</Badge>
           </p>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gris-texto">
             Hay {formatoCantidad(i.existencia, i.unidad)} · {textoCobertura(i)}
             {i.fecha_agotamiento && ` · se acaba el ${formatoFecha(i.fecha_agotamiento)}`}
           </p>
         </div>
         {i.cantidad_recomendada > 0 && (
           <div className="text-right text-sm">
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-grafito">
               Pedir {i.presentaciones_a_pedir?.toLocaleString('es-CO', { maximumFractionDigits: 2 })} × {i.presentacion}
             </p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gris-texto">
               {formatoCantidad(i.cantidad_recomendada, i.unidad)}
               {i.costos && ` · ${formatoDinero(i.costos.valor_pedido)}`}
             </p>
@@ -49,23 +49,23 @@ function FilaInsumo({ i }: { i: ItemRecomendacion }) {
       </div>
 
       {i.cantidad_recomendada > 0 && (i.proveedor || i.fecha_limite_pedido) && (
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="mt-1 text-xs text-gris-texto">
           {i.proveedor && `Proveedor: ${i.proveedor.nombre}`}
           {i.fecha_limite_pedido && ` · pedir a más tardar el ${formatoFecha(i.fecha_limite_pedido)}`}
           {i.proxima_entrega && ` · llega el ${formatoFecha(i.proxima_entrega)}`}
         </p>
       )}
 
-      {i.faltantes.length > 0 && <p className="mt-1 text-xs text-gray-600">Falta: {i.faltantes.map(etiquetaFaltante).join(', ')}.</p>}
+      {i.faltantes.length > 0 && <p className="mt-1 text-xs text-gris-texto">Falta: {i.faltantes.map(etiquetaFaltante).join(', ')}.</p>}
       {i.advertencias.length > 0 && (
-        <ul className="mt-1 list-disc pl-4 text-xs text-amber-700">
+        <ul className="mt-1 list-disc pl-4 text-xs text-atencion-texto">
           {i.advertencias.map((a) => (
             <li key={a}>{etiquetaAdvertencia(a)}</li>
           ))}
         </ul>
       )}
 
-      <details className="mt-1 text-xs text-gray-500">
+      <details className="mt-1 text-xs text-gris-texto">
         <summary className="cursor-pointer">Ver cómo se calculó</summary>
         <ul className="mt-1 grid gap-x-4 sm:grid-cols-2">
           <li>
@@ -93,10 +93,10 @@ export function ReposicionPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Reposición</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Reposición</h1>
+          <p className="mt-1 text-sm text-niebla">
             Qué pedir, cuándo y cuánto{data ? ` · cálculo de hoy, ${formatoFecha(data.fecha)}` : ''}
           </p>
         </div>
@@ -123,7 +123,7 @@ export function ReposicionPage() {
             <button
               type="button"
               onClick={() => setEstado(null)}
-              className={`min-h-11 rounded-full border px-3 text-sm ${estado === null ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}
+              className={`min-h-11 rounded-full border px-3 text-sm ${estado === null ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo text-grafito'}`}
             >
               Todos ({data.items.length})
             </button>
@@ -132,7 +132,7 @@ export function ReposicionPage() {
                 key={e}
                 type="button"
                 onClick={() => setEstado(estado === e ? null : e)}
-                className={`min-h-11 rounded-full border px-3 text-sm ${estado === e ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}
+                className={`min-h-11 rounded-full border px-3 text-sm ${estado === e ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo text-grafito'}`}
               >
                 {ESTADOS[e].etiqueta} ({data.resumen[e]})
               </button>
@@ -141,34 +141,34 @@ export function ReposicionPage() {
 
           {data.pedidos.length > 0 && (
             <section className="flex flex-col gap-2" aria-label="Pedidos por proveedor">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pedidos por proveedor</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gris-texto">Pedidos por proveedor</h2>
               <ul className="grid gap-3 md:grid-cols-2">
                 {data.pedidos.map((p) => {
                   const min = p.costos.pedido_minimo;
                   return (
-                    <li key={p.proveedor.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <li key={p.proveedor.id} className="rounded-xl border border-linea bg-tabla p-4 shadow-xs">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-base font-semibold text-gray-900">{p.proveedor.nombre}</p>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-base font-semibold text-grafito">{p.proveedor.nombre}</p>
+                          <p className="text-xs text-gris-texto">
                             {p.fecha_limite_pedido && `Pedir a más tardar el ${formatoFecha(p.fecha_limite_pedido)}`}
                             {p.proxima_entrega && ` · llega el ${formatoFecha(p.proxima_entrega)}`}
                           </p>
                         </div>
-                        <p className="text-base font-semibold text-gray-900">{formatoDinero(p.costos.total)}</p>
+                        <p className="text-base font-semibold text-grafito">{formatoDinero(p.costos.total)}</p>
                       </div>
                       {min.cumple === false && (
-                        <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                        <p className="mt-2 rounded-md bg-atencion-fondo px-2 py-1 text-xs text-atencion-texto">
                           No llega al pedido mínimo de {formatoDinero(min.minimo ?? 0)}: faltan {formatoDinero(min.faltante)}.
                         </p>
                       )}
-                      {min.cumple === true && <p className="mt-2 text-xs text-green-700">Cumple el pedido mínimo de {formatoDinero(min.minimo ?? 0)}.</p>}
-                      {min.cumple === null && <p className="mt-2 text-xs text-gray-500">Sin pedido mínimo definido para este proveedor.</p>}
-                      <ul className="mt-2 divide-y divide-gray-100 text-sm">
+                      {min.cumple === true && <p className="mt-2 text-xs text-exito-texto">Cumple el pedido mínimo de {formatoDinero(min.minimo ?? 0)}.</p>}
+                      {min.cumple === null && <p className="mt-2 text-xs text-gris-texto">Sin pedido mínimo definido para este proveedor.</p>}
+                      <ul className="mt-2 divide-y divide-linea text-sm">
                         {p.items.map((it) => (
                           <li key={it.materia_prima_id} className="flex justify-between gap-2 py-1">
-                            <span className="text-gray-700">{it.nombre}</span>
-                            <span className="whitespace-nowrap text-gray-600">
+                            <span className="text-grafito">{it.nombre}</span>
+                            <span className="whitespace-nowrap text-gris-texto">
                               {it.presentaciones.toLocaleString('es-CO', { maximumFractionDigits: 2 })} · {formatoDinero(it.valor)}
                             </span>
                           </li>
@@ -182,7 +182,7 @@ export function ReposicionPage() {
           )}
 
           <section className="flex flex-col gap-2" aria-label="Por insumo">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Por insumo ({visibles.length})</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gris-texto">Por insumo ({visibles.length})</h2>
             {visibles.length === 0 ? <EmptyState titulo="Sin insumos" mensaje="Ningún insumo tiene ese estado." /> : (
               <ul className="flex flex-col gap-2">
                 {visibles.map((i) => (
@@ -194,13 +194,13 @@ export function ReposicionPage() {
 
           {data.al_uso.length > 0 && (
             <section className="flex flex-col gap-2" aria-label="Se compran según la producción">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Se compran según la producción</h2>
-              <p className="text-xs text-gray-500">Perecederos que no se guardan: no se calcula cuándo pedirlos, se compran para lo que se va a producir.</p>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gris-texto">Se compran según la producción</h2>
+              <p className="text-xs text-gris-texto">Perecederos que no se guardan: no se calcula cuándo pedirlos, se compran para lo que se va a producir.</p>
               <ul className="grid gap-2 md:grid-cols-2">
                 {data.al_uso.map((i) => (
-                  <li key={i.materia_prima_id} className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
-                    <p className="font-medium text-gray-900">{i.nombre}</p>
-                    <p className="text-xs text-gray-600">
+                  <li key={i.materia_prima_id} className="rounded-lg border border-linea bg-tabla p-3 text-sm">
+                    <p className="font-medium text-grafito">{i.nombre}</p>
+                    <p className="text-xs text-gris-texto">
                       Hay {formatoCantidad(i.existencia, i.unidad)}
                       {i.demanda_semanal !== null && ` · consumo por semana: ${formatoCantidad(i.demanda_semanal, i.unidad)}`}
                     </p>

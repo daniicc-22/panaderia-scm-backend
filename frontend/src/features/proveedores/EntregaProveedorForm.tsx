@@ -54,16 +54,16 @@ export function EntregaProveedorForm({ proveedor, onTerminar }: Props) {
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-gray-700">Días en que entrega</legend>
+        <legend className="text-sm font-medium text-grafito">Días en que entrega</legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {ORDEN_SEMANA.map((d) => (
-            <label key={d} className="flex min-h-11 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm capitalize text-gray-700">
+            <label key={d} className="flex min-h-11 items-center gap-2 rounded-md border border-borde-campo px-3 text-sm capitalize text-grafito">
               <input type="checkbox" checked={dias.includes(d)} onChange={() => alternarDia(d)} />
               {NOMBRE_DIA[d]}
             </label>
           ))}
         </div>
-        <p className="text-xs text-gray-500">Sin ningún día marcado, el sistema avisa que falta el calendario y no calcula pedidos.</p>
+        <p className="text-xs text-gris-texto">Sin ningún día marcado, el sistema avisa que falta el calendario y no calcula pedidos.</p>
       </fieldset>
 
       <Input
@@ -73,7 +73,7 @@ export function EntregaProveedorForm({ proveedor, onTerminar }: Props) {
         value={hora}
         onChange={(e) => setHora(e.target.value)}
       />
-      <p className="-mt-3 text-xs text-gray-500">
+      <p className="-mt-3 text-xs text-gris-texto">
         Si un pedido se hace después de esta hora cuenta como del día siguiente. Déjala vacía si el proveedor no tiene hora límite.
       </p>
 

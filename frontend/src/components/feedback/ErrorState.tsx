@@ -1,3 +1,4 @@
+import { OctagonAlert } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface ErrorStateProps {
@@ -10,8 +11,11 @@ export function ErrorState({
   onReintentar,
 }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <span className="text-sm text-red-600">{mensaje}</span>
+    <div className="flex animate-entra flex-col items-center justify-center gap-3 py-12 text-center" role="alert">
+      <span className="flex size-12 items-center justify-center rounded-full bg-critico-fondo text-critico-texto">
+        <OctagonAlert size={22} aria-hidden="true" />
+      </span>
+      <span className="text-sm font-medium text-critico-texto">{mensaje}</span>
       {onReintentar && (
         <Button variant="secondary" onClick={onReintentar}>
           Reintentar

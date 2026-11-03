@@ -1,3 +1,220 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/*
+  Sistema de diseño Panadería SCM (ver el sistema de diseño "Panadería SCM").
+  Cada color de la paleta es una clase de Tailwind: bg-azul-noche, text-trigo,
+  border-linea, bg-terracota, etc. Las fuentes se cargan en main.tsx.
+*/
+@theme {
+  /* Tipografía */
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Fraunces, Georgia, serif;
+
+  /* Paleta base */
+  --color-hueso: #f5f3ee;
+  --color-azul-noche: #22374a;
+  --color-pizarra: #2f4a5e;
+  --color-trigo: #e2ae45;
+  --color-terracota: #a85c3e;
+  --color-verde-bosque: #4a7a5a;
+  --color-grafito: #2a2d30;
+
+  /* Apoyo */
+  --color-gris-texto: #5a6066;
+  --color-niebla: #c9d3db;
+  --color-tabla: #f7f4ee;
+  --color-arena: #e8e2d6;
+  --color-linea: #e3dccf;
+  --color-borde-campo: #d3cbbc;
+  --color-noche-tarjeta: #34495b;
+  --color-noche-borde: #45596b;
+  --color-grafico-neutro: #5e7488;
+  --color-clase-c: #d8d2c6;
+
+  /* Tintes */
+  --color-trigo-suave: #f6e7c6;
+  --color-terracota-suave: #f1ddd3;
+  --color-verde-suave: #dce8df;
+  --color-azul-suave: #dce3ea;
+
+  /* Estados: siempre color + ícono + texto */
+  --color-exito-fondo: #e5efe8;
+  --color-exito-texto: #2f5a3e;
+  --color-atencion-fondo: #fcefd6;
+  --color-atencion-texto: #7e5209;
+  --color-critico-fondo: #fbe4e3;
+  --color-critico-texto: #9e2a26;
+  --color-info-fondo: #e3eaf0;
+
+  /* Inicio de sesión */
+  --color-login-fondo: #8f4c32;
+  --color-login-espiga: #a86749;
+
+  /* Forma */
+  --radius-tarjeta: 10px;
+  --shadow-elevada: 0 6px 16px rgb(34 55 74 / 0.18);
+  --shadow-login: 0 20px 44px rgb(40 16 6 / 0.45);
+
+  /* Movimiento (150–400 ms; se apaga con "reducir movimiento") */
+  --animate-entra: entra 380ms ease-out both;
+  --animate-desliza: desliza 320ms ease-out both;
+  --animate-late: late 1.2s ease-in-out infinite;
+  --animate-crece: crece 2.6s ease-in-out infinite;
+  --animate-flota: flota 7s linear infinite;
+  --animate-hornea: hornea 700ms ease-in-out infinite;
+
+  @keyframes entra {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes desliza {
+    from { opacity: 0; transform: translateX(-14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes late {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  @keyframes crece {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+  @keyframes flota {
+    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.85; }
+    100% { transform: translateY(-760px) rotate(90deg); opacity: 0; }
+  }
+  @keyframes hornea {
+    0%, 100% { transform: scale(0.85); }
+    50% { transform: scale(1.12); }
+  }
+}
+
+/*
+  Tailwind v4 cambió el color por defecto de los bordes a `currentcolor`.
+  Se mantiene un color por defecto, ahora el tono "linea" de la paleta.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-linea, currentcolor);
+  }
+
+  body {
+    @apply bg-hueso font-sans text-grafito antialiased;
+  }
+}
+
+/* Cifras alineadas en tablas e indicadores */
+@utility cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+  Tema del operario (claro con tarjetas de color). Se activa con la clase .tema-operario
+  en el contenedor de su interfaz. Las pantallas son las mismas que las del administrador;
+  el azul queda en la barra superior y en las franjas de título, y las tarjetas pasan a
+  trigo suave para que la interfaz de planta se distinga de la de gestión.
+*/
+.tema-operario {
+  color-scheme: light;
+  /* Botones de opción, casillas y deslizadores en terracota (contrastan sobre trigo suave) */
+  accent-color: var(--color-terracota);
+}
+
+/*
+  Color por tipo de bloque (igual en todas las pantallas del operario):
+  - Resúmenes y tarjetas informativas → azul suave
+  - Formularios (bloques con campos)   → trigo suave
+  - Tablas                             → cabecera verde bosque, filas alternas verde claro
+  - Avisos informativos                → terracota suave
+  Los avisos de estado (éxito, atención, crítico) conservan su color propio.
+*/
+
+/* Bloques: tarjetas (Card) y paneles redondeados de las páginas → resumen (azul suave) */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg) {
+  background-color: var(--color-azul-suave);
+  border-color: #c3d0dc;
+}
+
+/* Formularios */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):has(input, select, textarea),
+.tema-operario form:is(.rounded-tarjeta, .rounded-xl, .rounded-lg) {
+  background-color: var(--color-trigo-suave);
+  border-color: #ecd49a;
+}
+
+/* Bloques cuyo contenido principal es una tabla: fondo blanco con borde verde */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):has(table):not(:has(input, select, textarea)) {
+  background-color: #ffffff;
+  border-color: #c7dacb;
+}
+
+/* Bloques dentro de otro bloque (por ejemplo, cada producto de una lista): blancos,
+   para que se separen del color del bloque que los contiene */
+.tema-operario :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg) :where(div, section, article, li, form):is(.bg-tabla, .bg-white):is(.rounded-tarjeta, .rounded-xl, .rounded-lg):not(:has(input, select, textarea)) {
+  background-color: #ffffff;
+  border-color: #d8e0e8;
+}
+
+/* Campos dentro de formularios: borde trigo para que se lean como zona de captura */
+.tema-operario :is(.rounded-tarjeta, form) :is(input:not([type='radio']):not([type='checkbox']), select, textarea):not([aria-invalid='true']) {
+  border-color: var(--color-trigo);
+}
+
+/* Etiquetas y texto secundario en café trigo dentro de los formularios */
+.tema-operario .rounded-tarjeta:has(input, select, textarea) label,
+.tema-operario .rounded-tarjeta:has(input, select, textarea) .text-gris-texto {
+  color: #6e4f10;
+}
+
+/* Tablas */
+.tema-operario div:has(> table) {
+  border-color: #c7dacb;
+}
+.tema-operario thead,
+.tema-operario thead.bg-azul-noche {
+  background-color: var(--color-verde-bosque);
+}
+.tema-operario tbody {
+  background-color: #ffffff;
+}
+.tema-operario tbody tr:nth-child(even) {
+  background-color: #eef4f0;
+}
+.tema-operario tbody tr:hover {
+  background-color: var(--color-verde-suave);
+}
+.tema-operario tbody :is(td, th) {
+  border-color: #dbe7de;
+}
+
+/* Avisos informativos */
+.tema-operario .bg-info-fondo {
+  background-color: var(--color-terracota-suave);
+  color: #7a3f28;
+}
+.tema-operario .bg-info-fondo :is(.text-azul-noche, .text-grafito, svg) {
+  color: #7a3f28;
+}
+
+/* Acción principal del operario: botón terracota grande (mínimo 48 px de alto) */
+.tema-operario button.bg-terracota,
+.tema-operario a.bg-terracota {
+  min-height: 48px;
+  font-size: 16px;
+}

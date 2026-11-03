@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -21,7 +22,7 @@ function crearColumnas(a: Acciones): ColumnaTabla<PanaderiaResumen>[] {
     {
       key: 'nombre',
       encabezado: 'Panadería',
-      render: (p) => <span className={`font-medium ${p.activa ? 'text-gray-900' : 'text-gray-400'}`}>{p.nombre}</span>,
+      render: (p) => <span className={`font-medium ${p.activa ? 'text-grafito' : 'text-gris-texto/70'}`}>{p.nombre}</span>,
     },
     { key: 'ciudad', encabezado: 'Ciudad', render: (p) => p.ciudad },
     { key: 'telefono', encabezado: 'Teléfono', render: (p) => p.telefono ?? '—' },
@@ -34,15 +35,15 @@ function crearColumnas(a: Acciones): ColumnaTabla<PanaderiaResumen>[] {
       render: (p) => (
         <div className="flex gap-3 whitespace-nowrap text-sm">
           {p.activa ? (
-            <button type="button" className="font-medium text-blue-600 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(p, false)}>
+            <button type="button" className="font-medium text-pizarra hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(p, false)}>
               Desactivar
             </button>
           ) : (
-            <button type="button" className="font-medium text-green-700 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(p, true)}>
+            <button type="button" className="font-medium text-exito-texto hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onCambiarEstado(p, true)}>
               Reactivar
             </button>
           )}
-          <button type="button" className="font-medium text-red-600 hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onEliminar(p)}>
+          <button type="button" className="font-medium text-critico-texto hover:underline disabled:opacity-50" disabled={a.ocupado} onClick={() => a.onEliminar(p)}>
             Eliminar
           </button>
         </div>
@@ -120,14 +121,11 @@ export function PanaderiasPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Panaderías</h1>
-          <p className="text-sm text-gray-500">
-            {data ? `${data.length} ${data.length === 1 ? 'panadería' : 'panaderías'}` : 'Las panaderías que usan el sistema'}
-          </p>
-        </div>
-        <Button
+      <PageHeader
+        titulo="Panaderías"
+        subtitulo={data ? `${data.length} ${data.length === 1 ? 'panadería' : 'panaderías'}` : 'Las panaderías que usan el sistema'}
+        acciones={
+          <Button
           type="button"
           onClick={() => {
             setCreada(null);
@@ -137,7 +135,8 @@ export function PanaderiasPage() {
         >
           Nueva panadería
         </Button>
-      </div>
+        }
+      />
 
       {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
@@ -166,14 +165,14 @@ export function PanaderiasPage() {
 
       <Modal isOpen={porEliminar !== null} onClose={() => setPorEliminar(null)} title="Eliminar panadería">
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-grafito">
             Vas a eliminar <span className="font-medium">{porEliminar?.nombre}</span> y a los usuarios que solo pertenecen a ella. No se puede deshacer.
           </p>
           <Alert variant="warning">
             Solo se puede eliminar si la panadería no tiene datos de trabajo (inventario, producción, proveedores u otros). Si ya los tiene, usa Desactivar: sus
             usuarios no podrán entrar y los datos se conservan.
           </Alert>
-          <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+          <label className="flex flex-col gap-1 text-sm font-medium text-grafito">
             Escribe el nombre de la panadería para confirmar
             <input
               type="text"
@@ -181,7 +180,7 @@ export function PanaderiasPage() {
               onChange={(e) => setConfirmacion(e.target.value)}
               autoComplete="off"
               placeholder={porEliminar?.nombre}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-borde-campo bg-white px-3 py-2 text-sm font-normal focus:outline-hidden focus:ring-2 focus:ring-trigo"
             />
           </label>
           {eliminar.isError && <Alert variant="error">{mensajeDeError(eliminar.error, 'No se pudo eliminar la panadería.')}</Alert>}

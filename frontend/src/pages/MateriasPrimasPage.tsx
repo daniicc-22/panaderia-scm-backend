@@ -46,13 +46,13 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
       key: 'nombre',
       encabezado: 'Materia prima',
       render: (m) => (
-        <span className={`font-medium ${m.activa ? 'text-gray-900' : 'text-gray-400'}`}>
+        <span className={`font-medium ${m.activa ? 'text-grafito' : 'text-gris-texto'}`}>
           {m.nombre}
           {!m.activa && (
-            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Inactiva</span>
+            <span className="ml-2 rounded-sm bg-arena px-1.5 py-0.5 text-xs font-normal text-gris-texto">Inactiva</span>
           )}
           {!m.controla_inventario && (
-            <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-normal text-blue-700">Sin inventario</span>
+            <span className="ml-2 rounded-sm bg-info-fondo px-1.5 py-0.5 text-xs font-normal text-pizarra">Sin inventario</span>
           )}
         </span>
       ),
@@ -102,7 +102,7 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
         <div className="flex gap-3 whitespace-nowrap text-sm">
           <button
             type="button"
-            className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+            className="font-medium text-pizarra hover:underline disabled:opacity-50"
             disabled={acciones.ocupado}
             onClick={() => acciones.onEditar(m)}
           >
@@ -110,7 +110,7 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
           </button>
           <button
             type="button"
-            className="font-medium text-gray-700 hover:underline disabled:opacity-50"
+            className="font-medium text-grafito hover:underline disabled:opacity-50"
             disabled={acciones.ocupado}
             onClick={() => acciones.onPrecios(m)}
           >
@@ -119,7 +119,7 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
           {m.activa ? (
             <button
               type="button"
-              className="font-medium text-red-600 hover:underline disabled:opacity-50"
+              className="font-medium text-critico-texto hover:underline disabled:opacity-50"
               disabled={acciones.ocupado}
               onClick={() => acciones.onDesactivar(m)}
             >
@@ -128,7 +128,7 @@ function crearColumnas(verPrecios: boolean, acciones: AccionesFila | null): Colu
           ) : (
             <button
               type="button"
-              className="font-medium text-green-700 hover:underline disabled:opacity-50"
+              className="font-medium text-exito-texto hover:underline disabled:opacity-50"
               disabled={acciones.ocupado}
               onClick={() => acciones.onReactivar(m)}
             >
@@ -244,10 +244,10 @@ export function MateriasPrimasPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Materias primas</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Materias primas</h1>
+          <p className="mt-1 text-sm text-niebla">
             {data ? `${filtradas.length} de ${visibles.length} materias primas` : 'Catálogo de insumos de la panadería'}
           </p>
         </div>
@@ -274,12 +274,12 @@ export function MateriasPrimasPage() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre o código"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
         />
         <select
           value={categoria}
           onChange={(e) => setCategoria(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
         >
           <option value="">Todas las categorías</option>
           {categorias.map((c) => (
@@ -289,7 +289,7 @@ export function MateriasPrimasPage() {
           ))}
         </select>
         {puedeGestionar && (
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-grafito">
             <input
               type="checkbox"
               checked={mostrarInactivas}
@@ -339,7 +339,7 @@ export function MateriasPrimasPage() {
 
       <Modal isOpen={porDesactivar !== null} onClose={() => setPorDesactivar(null)} title="Desactivar materia prima">
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-grafito">
             ¿Desactivar <span className="font-medium">{porDesactivar?.nombre}</span>? Dejará de aparecer en el catálogo.
             Podrás reactivarla cuando quieras.
           </p>

@@ -39,25 +39,22 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="animate-entra overflow-x-auto rounded-tarjeta border border-linea">
+      <table className="cifras min-w-full">
+        <thead className="bg-azul-noche">
           <tr>
             {columnas.map((columna) => (
-              <th
-                key={columna.key}
-                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-              >
+              <th key={columna.key} scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white">
                 {columna.encabezado}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
+        <tbody className="divide-y divide-linea bg-tabla">
           {datos.map((fila) => (
-            <tr key={obtenerKeyFila(fila)} className="hover:bg-gray-50">
+            <tr key={obtenerKeyFila(fila)} className="transition-colors hover:bg-arena">
               {columnas.map((columna) => (
-                <td key={columna.key} className="px-4 py-3 text-sm text-gray-700">
+                <td key={columna.key} className="px-4 py-3 text-sm text-grafito">
                   {columna.render(fila)}
                 </td>
               ))}

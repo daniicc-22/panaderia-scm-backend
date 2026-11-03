@@ -19,7 +19,7 @@ interface Props {
 }
 
 const CANTIDAD_MAX = 1_000_000;
-const CAMPO = 'min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm';
+const CAMPO = 'min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm';
 
 // Para cuando el registro quedó mal (p. ej. se digitó un peso equivocado). No sobrescribe: deja un ajuste con su motivo.
 export function CorregirLoteForm({ loteId, codigoLote, nombre, unidad, cantidadActual, onTerminar }: Props) {
@@ -58,17 +58,17 @@ export function CorregirLoteForm({ loteId, codigoLote, nombre, unidad, cantidadA
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
-      <div className="text-sm text-gray-600">
-        <p className="font-medium text-gray-900">
+      <div className="text-sm text-gris-texto">
+        <p className="font-medium text-grafito">
           {nombre} · Lote {codigoLote ?? 'sin código'}
         </p>
         <p>
-          El sistema dice <span className="font-semibold text-gray-900">{formatoCantidad(cantidadActual, unidad)}</span>.
+          El sistema dice <span className="font-semibold text-grafito">{formatoCantidad(cantidadActual, unidad)}</span>.
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="cantidad-real" className="text-sm font-medium text-gray-700">
+        <label htmlFor="cantidad-real" className="text-sm font-medium text-grafito">
           ¿Cuánto hay realmente?
         </label>
         <div className="flex gap-2">
@@ -93,17 +93,17 @@ export function CorregirLoteForm({ loteId, codigoLote, nombre, unidad, cantidadA
                 setUnidadEntrada(e.target.value);
                 setTexto('');
               }}
-              className="min-h-11 rounded-md border border-gray-300 px-2 text-base sm:text-sm"
+              className="min-h-11 rounded-md border border-borde-campo px-2 text-base sm:text-sm"
             >
               <option value="kg">kg</option>
               <option value="g">g</option>
             </select>
           ) : (
-            <span className="flex min-h-11 items-center px-1 text-sm text-gray-600">{unidad}</span>
+            <span className="flex min-h-11 items-center px-1 text-sm text-gris-texto">{unidad}</span>
           )}
         </div>
         {valida && dif !== 0 && (
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gris-texto">
             Se registrará un ajuste de {dif > 0 ? '+' : '−'}
             {formatoCantidad(Math.abs(dif), unidad)}.
           </p>
@@ -111,7 +111,7 @@ export function CorregirLoteForm({ loteId, codigoLote, nombre, unidad, cantidadA
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="motivo-correccion" className="text-sm font-medium text-gray-700">
+        <label htmlFor="motivo-correccion" className="text-sm font-medium text-grafito">
           Motivo
         </label>
         <select id="motivo-correccion" value={motivo} onChange={(e) => setMotivo(e.target.value)} className={CAMPO}>
@@ -124,13 +124,13 @@ export function CorregirLoteForm({ loteId, codigoLote, nombre, unidad, cantidadA
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="obs-correccion" className="text-sm font-medium text-gray-700">
+        <label htmlFor="obs-correccion" className="text-sm font-medium text-grafito">
           Observaciones {motivo === 'otro' ? '' : '(opcional)'}
         </label>
         <textarea id="obs-correccion" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} maxLength={300} rows={2} className={CAMPO} />
       </div>
 
-      <p className="text-xs text-gray-500">La corrección queda en el historial del lote con tu nombre y el motivo.</p>
+      <p className="text-xs text-gris-texto">La corrección queda en el historial del lote con tu nombre y el motivo.</p>
 
       {error && <Alert variant="error">{error}</Alert>}
 

@@ -70,7 +70,7 @@ function FormPresentacion({
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3" noValidate>
+    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-md border border-linea bg-hueso p-3" noValidate>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input label="Nombre (ej. Bulto 50 kg)" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={120} />
         <Input
@@ -130,7 +130,7 @@ function FormOferta({ presentacion, onTerminar }: { presentacion: PresentacionPr
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3" noValidate>
+    <form onSubmit={enviar} className="flex flex-col gap-3 rounded-md border border-linea bg-hueso p-3" noValidate>
       {proveedores.isLoading ? (
         <Spinner />
       ) : proveedores.isError ? (
@@ -211,13 +211,13 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
 
   return (
     <>
-      <tr className="border-t border-gray-100">
-        <td className="py-2 pr-3 font-medium text-gray-900">{oferta.proveedor}</td>
-        <td className="py-2 pr-3">
+      <tr className="border-t border-linea">
+        <td className="px-3 py-2 font-medium text-grafito">{oferta.proveedor}</td>
+        <td className="px-3 py-2">
           {editando ? (
             <input
               aria-label="Precio"
-              className="w-28 rounded-md border border-gray-300 px-2 py-1 text-sm"
+              className="w-28 rounded-md border border-borde-campo px-2 py-1 text-sm"
               inputMode="decimal"
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
@@ -226,14 +226,14 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
             formatoPesos.format(oferta.precio)
           )}
         </td>
-        <td className="py-2 pr-3 text-gray-600">
+        <td className="px-3 py-2 text-gris-texto">
           {oferta.costo_por_unidad_base == null ? '—' : formatoPesos.format(oferta.costo_por_unidad_base)}
         </td>
-        <td className="py-2 pr-3">
+        <td className="px-3 py-2">
           {editando ? (
             <input
               aria-label="Entrega en días"
-              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
+              className="w-16 rounded-md border border-borde-campo px-2 py-1 text-sm"
               inputMode="decimal"
               value={entrega}
               onChange={(e) => setEntrega(e.target.value)}
@@ -244,14 +244,14 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
             `${formatoCantidad.format(oferta.tiempo_entrega_dias)} d`
           )}
         </td>
-        <td className="py-2 pr-3">{estado}</td>
-        <td className="py-2">
+        <td className="px-3 py-2">{estado}</td>
+        <td className="px-3 py-2">
           <div className="flex gap-3 whitespace-nowrap text-sm">
             {editando ? (
               <>
                 <button
                   type="button"
-                  className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+                  className="font-medium text-pizarra hover:underline disabled:opacity-50"
                   disabled={cambiar.isPending}
                   onClick={guardarEdicion}
                 >
@@ -259,7 +259,7 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
                 </button>
                 <button
                   type="button"
-                  className="font-medium text-gray-600 hover:underline"
+                  className="font-medium text-gris-texto hover:underline"
                   disabled={cambiar.isPending}
                   onClick={() => {
                     setEditando(false);
@@ -273,7 +273,7 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
               <>
                 <button
                   type="button"
-                  className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+                  className="font-medium text-pizarra hover:underline disabled:opacity-50"
                   disabled={cambiar.isPending}
                   onClick={() => setEditando(true)}
                 >
@@ -281,7 +281,7 @@ function FilaOferta({ oferta, aplicada }: { oferta: OfertaPrecio; aplicada: bool
                 </button>
                 <button
                   type="button"
-                  className={`font-medium hover:underline disabled:opacity-50 ${oferta.vigente ? 'text-red-600' : 'text-green-700'}`}
+                  className={`font-medium hover:underline disabled:opacity-50 ${oferta.vigente ? 'text-critico-texto' : 'text-exito-texto'}`}
                   disabled={cambiar.isPending}
                   onClick={() => {
                     setError(null);
@@ -331,13 +331,13 @@ function TarjetaPresentacion({
   });
 
   return (
-    <div className={`rounded-lg border p-4 ${presentacion.activa ? 'border-gray-200' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded-lg border p-4 ${presentacion.activa ? 'border-linea' : 'border-linea bg-hueso'}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h3 className={`font-semibold ${presentacion.activa ? 'text-gray-900' : 'text-gray-400'}`}>
+          <h3 className={`font-semibold ${presentacion.activa ? 'text-grafito' : 'text-gris-texto'}`}>
             {presentacion.nombre}
           </h3>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gris-texto">
             {formatoCantidad.format(presentacion.contenido)} {unidad}
           </span>
           {!presentacion.activa && <Badge color="gray">Inactiva</Badge>}
@@ -345,14 +345,14 @@ function TarjetaPresentacion({
         <div className="flex gap-3 text-sm">
           <button
             type="button"
-            className="font-medium text-blue-600 hover:underline"
+            className="font-medium text-pizarra hover:underline"
             onClick={() => setEditando((v) => !v)}
           >
             {editando ? 'Cerrar edición' : 'Editar'}
           </button>
           <button
             type="button"
-            className={`font-medium hover:underline disabled:opacity-50 ${presentacion.activa ? 'text-red-600' : 'text-green-700'}`}
+            className={`font-medium hover:underline disabled:opacity-50 ${presentacion.activa ? 'text-critico-texto' : 'text-exito-texto'}`}
             disabled={cambiarEstado.isPending}
             onClick={() => {
               setError(null);
@@ -382,18 +382,18 @@ function TarjetaPresentacion({
       )}
 
       {presentacion.ofertas.length === 0 ? (
-        <p className="text-sm text-gray-500">Aún no hay precios de proveedores para esta presentación.</p>
+        <p className="text-sm text-gris-texto">Aún no hay precios de proveedores para esta presentación.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase text-gray-500">
-                <th className="pb-1 pr-3 font-medium">Proveedor</th>
-                <th className="pb-1 pr-3 font-medium">Precio</th>
-                <th className="pb-1 pr-3 font-medium">Por {unidad}</th>
-                <th className="pb-1 pr-3 font-medium">Entrega</th>
-                <th className="pb-1 pr-3 font-medium">Estado</th>
-                <th className="pb-1 font-medium">Acciones</th>
+            <thead className="bg-azul-noche">
+              <tr className="text-left text-xs text-white">
+                <th className="px-3 py-2 font-semibold">Proveedor</th>
+                <th className="px-3 py-2 font-semibold">Precio</th>
+                <th className="px-3 py-2 font-semibold">Por {unidad}</th>
+                <th className="px-3 py-2 font-semibold">Entrega</th>
+                <th className="px-3 py-2 font-semibold">Estado</th>
+                <th className="px-3 py-2 font-semibold">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -461,13 +461,13 @@ export function PanelPrecios({ materiaId }: { materiaId: string }) {
         </Alert>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gris-texto">
         Se usa la presentación activa de mayor contenido que tenga un precio vigente de un proveedor activo y, dentro de
         ella, el precio más bajo.
       </p>
 
       {presentaciones.length === 0 && (
-        <p className="text-sm text-gray-500">Esta materia prima aún no tiene presentaciones.</p>
+        <p className="text-sm text-gris-texto">Esta materia prima aún no tiene presentaciones.</p>
       )}
 
       {presentaciones.map((p) => (

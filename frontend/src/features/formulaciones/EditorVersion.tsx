@@ -124,7 +124,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
             onChange={(e) => setNombre(e.target.value)}
             error={errorNombre}
           />
-          <label className="flex items-start gap-2 text-sm text-gray-700">
+          <label className="flex items-start gap-2 text-sm text-grafito">
             <input
               type="checkbox"
               className="mt-0.5"
@@ -133,7 +133,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
             />
             <span>
               <span className="font-medium">Es un producto intermedio</span>
-              <span className="block text-xs text-gray-500">
+              <span className="block text-xs text-gris-texto">
                 Una masa base o una galleta que se usa como ingrediente de otros productos. Su cantidad se mide en gramos.
               </span>
             </span>
@@ -153,7 +153,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="hidden gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div className="hidden gap-2 text-xs font-semibold uppercase tracking-wide text-gris-texto sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <span>Ingrediente</span>
           <span>Cantidad</span>
           <span>Tolerancia %</span>
@@ -169,7 +169,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
           return (
             <div
               key={fila.clave}
-              className="grid grid-cols-1 gap-2 rounded-md border border-gray-200 p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start sm:border-0 sm:p-0"
+              className="grid grid-cols-1 gap-2 rounded-md border border-linea p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start sm:border-0 sm:p-0"
             >
               <Select
                 aria-label={`Ingrediente ${i + 1}`}
@@ -237,7 +237,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
               />
               <button
                 type="button"
-                className="w-16 py-2 text-left text-sm font-medium text-red-600 hover:underline"
+                className="w-16 py-2 text-left text-sm font-medium text-critico-texto hover:underline"
                 onClick={() => setFilas((actuales) => actuales.filter((f) => f.clave !== fila.clave))}
               >
                 Quitar
@@ -246,7 +246,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
           );
         })}
 
-        {errores.general && <span className="text-xs text-red-600">{errores.general}</span>}
+        {errores.general && <span className="text-xs text-critico-texto">{errores.general}</span>}
 
         <div>
           <Button

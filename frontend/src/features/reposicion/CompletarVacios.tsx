@@ -100,7 +100,7 @@ export function CompletarVacios({ items, onTerminar }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-grafito">
         Llena un mismo valor en todos los insumos donde ese dato esté vacío. Los datos que ya cargaste no se tocan y los insumos que se
         compran según la producción se saltan.
       </p>
@@ -139,7 +139,7 @@ export function CompletarVacios({ items, onTerminar }: Props) {
         onChange={(e) => setTasaPct(e.target.value)}
         disabled={ocupado}
       />
-      <p className="text-xs text-gray-500">Se aplicaría a {cuantos} de {candidatos.length} insumos.</p>
+      <p className="text-xs text-gris-texto">Se aplicaría a {cuantos} de {candidatos.length} insumos.</p>
 
       {error && <Alert variant="error">{error}</Alert>}
       {avance && <Alert variant="info">Guardando {avance.hechos + 1} de {avance.total}…</Alert>}

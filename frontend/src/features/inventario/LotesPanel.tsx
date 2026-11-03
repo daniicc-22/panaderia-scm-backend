@@ -81,36 +81,36 @@ export function LotesPanel({ materiaId, hoy }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {aviso && <Alert variant="success">{aviso}</Alert>}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gris-texto">
         <span>
-          Existencias: <span className="font-semibold text-gray-900">{formatoCantidad(resumen.stock, unidad)}</span>
+          Existencias: <span className="font-semibold text-grafito">{formatoCantidad(resumen.stock, unidad)}</span>
         </span>
         {resumen.valor !== undefined && (
           <span>
-            Valor: <span className="font-semibold text-gray-900">{formatoDinero(resumen.valor)}</span>
+            Valor: <span className="font-semibold text-grafito">{formatoDinero(resumen.valor)}</span>
           </span>
         )}
         <Badge color={COLOR_ESTADO[resumen.estado]}>{ETIQUETA_ESTADO[resumen.estado]}</Badge>
       </div>
-      <p className="text-xs text-gray-500">{criterio_rotacion ? ROTACION[criterio_rotacion] : 'Criterio de uso sin definir.'}</p>
+      <p className="text-xs text-gris-texto">{criterio_rotacion ? ROTACION[criterio_rotacion] : 'Criterio de uso sin definir.'}</p>
 
       {lotes.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">No hay lotes con existencias.</p>
+        <p className="py-6 text-center text-sm text-gris-texto">No hay lotes con existencias.</p>
       ) : (
         <ol className="flex flex-col gap-2">
           {lotes.map((l, i) => (
-            <li key={l.id} className="rounded-lg border border-gray-200 p-3">
+            <li key={l.id} className="rounded-lg border border-linea p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {i === 0 && lotes.length > 1 && <span className="mr-2 text-xs font-medium text-blue-600">Usar primero</span>}
+                  <p className="text-sm font-semibold text-grafito">
+                    {i === 0 && lotes.length > 1 && <span className="mr-2 text-xs font-medium text-pizarra">Usar primero</span>}
                     Lote {l.codigo_lote ?? 'sin código'}
                   </p>
-                  <p className="text-xs text-gray-500">Entró el {formatoFechaIso(l.created_at)}</p>
+                  <p className="text-xs text-gris-texto">Entró el {formatoFechaIso(l.created_at)}</p>
                 </div>
-                <p className="text-sm font-medium text-gray-900">{formatoCantidad(l.cantidad_disponible, unidad)}</p>
+                <p className="text-sm font-medium text-grafito">{formatoCantidad(l.cantidad_disponible, unidad)}</p>
               </div>
-              <p className="mt-1 text-xs text-gray-600">
+              <p className="mt-1 text-xs text-gris-texto">
                 {l.fecha_vencimiento ? `${formatoFecha(l.fecha_vencimiento)} · ` : ''}
                 {textoVencimiento(hoy, l.fecha_vencimiento)}
                 {l.costo_unitario !== undefined && ` · ${formatoCosto(l.costo_unitario)} por ${unidad}`}
@@ -119,7 +119,7 @@ export function LotesPanel({ materiaId, hoy }: Props) {
                 <div className="mt-1 flex flex-wrap gap-x-4">
                   <button
                     type="button"
-                    className="min-h-11 text-sm font-medium text-blue-600 hover:underline"
+                    className="min-h-11 text-sm font-medium text-pizarra hover:underline"
                     onClick={() => {
                       setAviso(null);
                       setCorrigiendo({ id: l.id, que: 'cantidad' });
@@ -129,7 +129,7 @@ export function LotesPanel({ materiaId, hoy }: Props) {
                   </button>
                   <button
                     type="button"
-                    className="min-h-11 text-sm font-medium text-blue-600 hover:underline"
+                    className="min-h-11 text-sm font-medium text-pizarra hover:underline"
                     onClick={() => {
                       setAviso(null);
                       setCorrigiendo({ id: l.id, que: 'fecha' });

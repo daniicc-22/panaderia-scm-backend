@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { PageHeader } from '../components/layout/PageHeader';
 import { PasswordInput } from '../components/ui/PasswordInput';
 import { useAuth } from '../features/auth/useAuth';
 import { esquemaCambioContrasena, type ValoresCambioContrasena } from '../features/auth/esquemaContrasena';
@@ -47,16 +48,17 @@ export function CambiarContrasenaPage() {
   });
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Cambiar contraseña</h1>
-        <p className="text-sm text-gray-500">
-          {obligatorio
+    <div className="flex flex-col">
+      <PageHeader
+        titulo="Cambiar contraseña"
+        subtitulo={
+          obligatorio
             ? 'La contraseña que te dieron es temporal. Elige una propia para continuar.'
-            : 'Usa una contraseña que solo tú conozcas.'}
-        </p>
-      </div>
+            : 'Usa una contraseña que solo tú conozcas.'
+        }
+      />
 
+      <div className="mx-auto w-full max-w-md">
       <Card>
         <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
           {listo && <Alert variant="success">Contraseña cambiada.</Alert>}
@@ -65,13 +67,14 @@ export function CambiarContrasenaPage() {
           <PasswordInput id="cc-actual" label="Contraseña actual" autoComplete="current-password" error={errors.actual?.message} {...register('actual')} />
           <PasswordInput id="cc-nueva" label="Contraseña nueva" autoComplete="new-password" error={errors.nueva?.message} {...register('nueva')} />
           <PasswordInput id="cc-confirmar" label="Repite la contraseña nueva" autoComplete="new-password" error={errors.confirmar?.message} {...register('confirmar')} />
-          <p className="text-xs text-gray-500">Mínimo 10 caracteres, con letras y números.</p>
+          <p className="text-xs text-gris-texto">Mínimo 10 caracteres, con letras y números.</p>
 
           <Button type="submit" isLoading={guardar.isPending}>
             Guardar contraseña
           </Button>
         </form>
       </Card>
+      </div>
     </div>
   );
 }

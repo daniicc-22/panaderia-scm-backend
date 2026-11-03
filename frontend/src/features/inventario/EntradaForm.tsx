@@ -145,7 +145,7 @@ export function EntradaForm({ opciones, onTerminar }: Props) {
           {...register('cantidad')}
         />
         {materia && presentacion && Number.isFinite(cantidad) && cantidad > 0 && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gris-texto">
             Entran {formatoCantidad(Math.round(cantidad * presentacion.contenido * 1000) / 1000, materia.unidad)} al inventario.
           </span>
         )}

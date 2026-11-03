@@ -1,55 +1,25 @@
-import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../../features/auth/useAuth';
-import { getMiPanaderia } from '../../services/panaderiaService';
-import { Button } from '../ui/Button';
+import { Menu } from 'lucide-react';
+import { Logo } from '../brand/Logo';
 
 interface HeaderProps {
   onAbrirMenu: () => void;
 }
 
+// Barra superior solo para pantallas pequeñas. En PC el menú lateral queda siempre visible
+// y ya muestra la panadería, el usuario y el botón de cerrar sesión.
 export function Header({ onAbrirMenu }: HeaderProps) {
-  const { usuario, cerrarSesion } = useAuth();
-  const queryClient = useQueryClient();
-
-  // La clave incluye al usuario para no mostrar la panadería de otra sesión
-  const { data: panaderia } = useQuery({
-    queryKey: ['mi-panaderia', usuario?.id],
-    queryFn: getMiPanaderia,
-    enabled: !!usuario,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const salir = () => {
-    queryClient.clear(); // evita que la siguiente sesión vea datos en caché de la anterior
-    cerrarSesion();
-  };
-
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onAbrirMenu}
-          className="rounded-md p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
-          aria-label="Abrir menú"
-        >
-          ☰
-        </button>
-        <span className="text-sm font-medium text-gray-700">{panaderia?.nombre ?? ''}</span>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium text-gray-900">{usuario?.nombre}</p>
-          <p className="text-xs text-gray-500">{usuario?.nombre_usuario ?? usuario?.rol}</p>
-        </div>
-        <Link to="/cambiar-contrasena" className="hidden text-sm font-medium text-blue-600 hover:underline md:inline">
-          Cambiar contraseña
-        </Link>
-        <Button variant="secondary" onClick={salir}>
-          Cerrar sesión
-        </Button>
-      </div>
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bg-azul-noche px-4 text-white lg:hidden">
+      <button
+        type="button"
+        onClick={onAbrirMenu}
+        className="rounded-md p-2 text-niebla hover:bg-noche-tarjeta"
+        aria-label="Abrir menú"
+      >
+        <Menu size={22} />
+      </button>
+      <Logo size={28} />
+      <span className="font-display text-base font-semibold">Panadería SCM</span>
     </header>
   );
 }

@@ -15,7 +15,7 @@ export function MermasRecientes() {
 
   return (
     <section className="flex flex-col gap-3" aria-label="Mermas recientes">
-      <h2 className="text-lg font-semibold text-gray-900">Mermas recientes</h2>
+      <h2 className="text-lg font-semibold text-grafito">Mermas recientes</h2>
       {lista.isLoading ? (
         <LoadingState mensaje="Cargando mermas..." />
       ) : lista.isError ? (
@@ -25,14 +25,14 @@ export function MermasRecientes() {
       ) : (
         <ul className="flex flex-col gap-2">
           {(lista.data ?? []).map((m) => (
-            <li key={m.id} className="rounded-lg border border-gray-200 bg-white p-3">
+            <li key={m.id} className="rounded-lg border border-linea bg-tabla p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-grafito">
                     {m.insumo ?? m.producto ?? 'Merma'}
                     {m.insumo === null && m.producto ? ' (producción)' : ''}
                   </span>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gris-texto">
                     {formatoFechaIso(m.fecha)} · {hora(m.fecha)} · {m.usuario}
                   </p>
                 </div>
@@ -41,7 +41,7 @@ export function MermasRecientes() {
                   <Badge color="yellow">{m.causa}</Badge>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="mt-1 text-sm text-grafito">
                 {formatoCantidad(m.cantidad, m.unidad)}
                 {m.codigo_lote ? ` · lote ${m.codigo_lote}` : ''}
                 {m.costo_estimado != null ? ` · ${formatoDinero(m.costo_estimado)}` : ''}

@@ -78,7 +78,7 @@ export function UsuarioForm({ puedeElegirRol, panaderiaId, onTerminar }: Props) 
         error={errors.password?.message}
         {...register('password')}
       />
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gris-texto">
         Mínimo 10 caracteres con letras y números. Entrégasela a la persona: al entrar por primera vez tendrá que cambiarla.
       </p>
       {errorServidor && <Alert variant="error">{errorServidor}</Alert>}

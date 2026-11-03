@@ -21,13 +21,13 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
       encabezado: 'Producto',
       render: (f) => (
         <div className="flex flex-col">
-          <span className={`font-medium ${f.producto_activo ? 'text-gray-900' : 'text-gray-400'}`}>
+          <span className={`font-medium ${f.producto_activo ? 'text-grafito' : 'text-gris-texto'}`}>
             {f.producto}
             {!f.producto_activo && (
-              <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">Dado de baja</span>
+              <span className="ml-2 rounded-sm bg-arena px-1.5 py-0.5 text-xs font-normal text-gris-texto">Dado de baja</span>
             )}
           </span>
-          {f.es_intermedio && <span className="text-xs text-gray-500">Producto intermedio</span>}
+          {f.es_intermedio && <span className="text-xs text-gris-texto">Producto intermedio</span>}
         </div>
       ),
     },
@@ -45,7 +45,7 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
           render: (f) => (
             <div className="flex flex-col">
               <span>{f.costo_lote == null ? '—' : pesos0.format(f.costo_lote)}</span>
-              {f.costo_incompleto && <span className="text-xs text-amber-600">Costo incompleto</span>}
+              {f.costo_incompleto && <span className="text-xs text-atencion-texto">Costo incompleto</span>}
             </div>
           ),
         },
@@ -61,7 +61,7 @@ function crearColumnas(verCostos: boolean): ColumnaTabla<FormulacionResumen>[] {
     key: 'detalle',
     encabezado: '',
     render: (f) => (
-      <Link to={`/formulaciones/${f.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+      <Link to={`/formulaciones/${f.id}`} className="text-sm font-medium text-pizarra hover:underline">
         Ver detalle
       </Link>
     ),
@@ -92,10 +92,10 @@ export function FormulacionesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Formulaciones</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Formulaciones</h1>
+          <p className="mt-1 text-sm text-niebla">
             {data ? `${filtradas.length} de ${data.length} recetas estandarizadas` : 'Recetas estandarizadas'}
           </p>
         </div>
@@ -112,10 +112,10 @@ export function FormulacionesPage() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar producto"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:max-w-xs"
+          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
         />
         {puedeGestionar && (
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-grafito">
             <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
             Mostrar dados de baja
           </label>
