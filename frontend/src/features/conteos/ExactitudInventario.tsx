@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getConteos } from '../../services/conteosService';
 import { colorEri, formatoPorcentaje } from './etiquetas';
 
+const BARRA = { green: 'bg-verde-bosque', yellow: 'bg-trigo', red: 'bg-terracota', gray: 'bg-grafico-neutro' };
 const FONDO = { green: 'border-[#c5dccb] bg-exito-fondo', yellow: 'border-[#f1d9a6] bg-atencion-fondo', red: 'border-[#f0c3c0] bg-critico-fondo', gray: 'border-linea bg-tabla' };
 
 // Indicador de exactitud del inventario (ERI) del último conteo enviado, con la meta del proyecto
@@ -21,6 +22,19 @@ export function ExactitudInventario() {
             ? 'Aún no hay un conteo físico enviado. Cuenta la bodega para medirla.'
             : `Último conteo. Promedio: ${formatoPorcentaje(datos.promedio_eri)} · Meta: ${datos.meta_eri} %`}
         </p>
+        {datos.ultimo_eri !== null && (
+          <div
+            className="mt-2 w-full max-w-xs"
+            role="img"
+            aria-label={`Exactitud ${formatoPorcentaje(datos.ultimo_eri)} frente a la meta de ${datos.meta_eri} %`}
+          >
+            <div className="relative h-2 rounded-full bg-arena">
+              <div className={`h-2 rounded-full ${BARRA[color]}`} style={{ width: `${Math.min(Math.max(datos.ultimo_eri, 0), 100)}%` }} />
+              <span className="absolute -top-1 h-4 w-0.5 bg-grafito" style={{ left: `${Math.min(datos.meta_eri, 100)}%` }} aria-hidden="true" />
+            </div>
+            <p className="mt-1 text-xs text-gris-texto">La marca oscura es la meta</p>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-4">
         {datos.ultimo_eri !== null && <span className="text-3xl font-semibold text-grafito">{formatoPorcentaje(datos.ultimo_eri)}</span>}

@@ -6,6 +6,7 @@ import { LoadingState } from '../components/feedback/LoadingState';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { DesviacionBarras } from '../features/produccion/DesviacionBarras';
 import { colorDesviacion, textoDesviacion } from '../features/produccion/pesos';
 import { getDesviacionesPesaje } from '../services/produccionService';
 
@@ -83,6 +84,8 @@ export function DesviacionPesajePage() {
               <dd className="text-xs text-gris-texto">Promedio de cuánto se aleja cada pesaje de la receta, para arriba o para abajo.</dd>
             </div>
           </dl>
+
+          <DesviacionBarras insumos={datos.data.insumos} />
 
           <ul className="flex flex-col gap-2" aria-label="Desviación por insumo">
             {datos.data.insumos.map((i) => (
