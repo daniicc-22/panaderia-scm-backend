@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Alert } from '../components/ui/Alert';
 import { getClasificacionAbc } from '../services/abcService';
+import { ParetoAbc } from '../features/abc/ParetoAbc';
 import type { ClaseAbc, FuenteAbc, ItemAbc } from '../types/abc.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
@@ -137,6 +138,8 @@ export function ClasificacionAbcPage() {
               </div>
             ))}
           </div>
+
+          {!data.datos_insuficientes && data.items.length > 0 && <ParetoAbc datos={data} />}
 
           <div className="rounded-md border border-[#c6d3de] bg-info-fondo px-4 py-3 text-sm text-pizarra">
             {esReal
