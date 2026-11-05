@@ -5,9 +5,11 @@ import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { ErrorState } from '../components/feedback/ErrorState';
+import { EsqueletoIndicadores } from '../components/feedback/Esqueleto';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ESTADOS, etiquetaAdvertencia, etiquetaFaltante, ORIGEN_DEMANDA } from '../features/reposicion/etiquetas';
 import { formatoCantidad, formatoDinero, formatoFecha } from '../features/inventario/formatos';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
 import { Indicador, Seccion } from '../features/inicio/Panel';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { getRecomendaciones } from '../services/reposicionService';
@@ -139,10 +141,16 @@ export function ReposicionPage() {
             Qué pedir, cuándo y cuánto{data ? ` · cálculo de hoy, ${formatoFecha(data.fecha)}` : ''}
           </p>
         </div>
+        <BotonImprimir />
       </div>
       <NavReposicion />
 
-      {isLoading && <LoadingState mensaje="Calculando..." />}
+      {isLoading && (
+        <>
+          <EsqueletoIndicadores />
+          <LoadingState mensaje="Calculando..." />
+        </>
+      )}
       {isError && <ErrorState onReintentar={() => refetch()} />}
 
       {data && (

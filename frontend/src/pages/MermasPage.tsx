@@ -1,3 +1,4 @@
+import { MermasPorCausa } from '../features/mermas/MermasPorCausa';
 import { MermasRecientes } from '../features/mermas/MermasRecientes';
 import { RegistrarMerma } from '../features/mermas/RegistrarMerma';
 
@@ -8,6 +9,7 @@ export function MermasPage() {
         <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Mermas</h1>
         <p className="mt-1 text-sm text-niebla">Registra lo que se pierde y por qué, para saber dónde se va el desperdicio.</p>
       </div>
+      <MermasPorCausa />
       <RegistrarMerma />
       <MermasRecientes />
     </div>

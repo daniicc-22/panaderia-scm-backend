@@ -9,7 +9,7 @@ interface HeaderProps {
 // y ya muestra la panadería, el usuario y el botón de cerrar sesión.
 export function Header({ onAbrirMenu }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bg-azul-noche px-4 text-white lg:hidden">
+    <header className="print:hidden sticky top-0 z-20 flex h-14 items-center gap-3 bg-azul-noche px-4 text-white lg:hidden">
       <button
         type="button"
         onClick={onAbrirMenu}
