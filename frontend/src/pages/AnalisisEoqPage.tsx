@@ -63,7 +63,7 @@ export function AnalisisEoqPage() {
       </div>
       <NavReposicion />
 
-      <details className="rounded-lg border border-linea bg-tabla p-3 text-sm text-grafito">
+      <details className="rounded-tarjeta border border-linea bg-tabla p-3 text-sm text-grafito">
         <summary className="cursor-pointer font-medium text-grafito">¿Cómo se lee esta pantalla?</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p>
@@ -179,13 +179,13 @@ export function AnalisisEoqPage() {
           </section>
           <p className="-mt-2 text-xs text-gris-texto">Solo costo de pedir y guardar; no incluye el precio de compra del producto.</p>
 
-          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Dónde se concentra el costo">
+          <section className="rounded-tarjeta border border-linea bg-tabla p-4" aria-label="Dónde se concentra el costo">
             <h2 className="text-base font-semibold text-grafito">Dónde se concentra el costo de pedir y guardar</h2>
             <p className="mb-2 text-sm text-gris-texto">Los 10 insumos que más cuestan al año. Toca uno para ver su curva.</p>
             <BarrasCostoAnual items={lista} seleccionadoId={elegido.materia_prima_id} onSeleccionar={setSeleccionId} />
           </section>
 
-          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Curva de costos">
+          <section className="rounded-tarjeta border border-linea bg-tabla p-4" aria-label="Curva de costos">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h2 className="text-base font-semibold text-grafito">Curva de costos de {elegido.nombre}</h2>
@@ -217,7 +217,7 @@ export function AnalisisEoqPage() {
             </div>
           </section>
 
-          <details className="rounded-lg border border-linea bg-tabla p-3">
+          <details className="rounded-tarjeta border border-linea bg-tabla p-3">
             <summary className="cursor-pointer text-sm font-medium text-grafito">Ver todos los números en una tabla</summary>
             <div className="mt-3">
               <TablaEoq items={lista} />

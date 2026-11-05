@@ -10,7 +10,7 @@ const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 
 function Fila({ i }: { i: ItemProducible }) {
   return (
-    <li className="rounded-lg border border-linea bg-tabla p-3">
+    <li className="rounded-tarjeta border border-linea bg-tabla p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-grafito">{i.producto}</p>
         {i.estado === 'puede' && <Badge color="green">Alcanza para {i.lotes_posibles} {i.lotes_posibles === 1 ? 'lote' : 'lotes'}</Badge>}
@@ -45,7 +45,7 @@ export function QueProducir() {
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['produccion', 'que-producir'], queryFn: getQueProducir });
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-linea bg-tabla p-4 shadow-xs sm:p-5" aria-label="Qué se puede producir">
+    <section className="flex flex-col gap-2 rounded-tarjeta border border-linea bg-tabla p-4 sm:p-5" aria-label="Qué se puede producir">
       <div>
         <h2 className="text-lg font-semibold text-grafito">Qué se puede producir hoy</h2>
         <p className="text-sm text-gris-texto">Con las existencias vigentes (los lotes vencidos no cuentan).</p>

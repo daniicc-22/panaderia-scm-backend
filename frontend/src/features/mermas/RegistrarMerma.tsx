@@ -104,7 +104,7 @@ export function RegistrarMerma() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
+    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
       {exito && <Alert variant="success">{exito}</Alert>}
 
       <fieldset className="flex flex-col gap-2">

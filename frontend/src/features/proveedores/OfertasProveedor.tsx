@@ -158,7 +158,7 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
           {/* Celular: una tarjeta por oferta */}
           <ul className="flex flex-col gap-2 md:hidden">
             {filtradas.map((o) => (
-              <li key={o.oferta_id} className={`rounded-lg border border-linea bg-tabla p-3 ${o.cuenta ? '' : 'opacity-70'}`}>
+              <li key={o.oferta_id} className={`rounded-tarjeta border border-linea bg-tabla p-3 ${o.cuenta ? '' : 'opacity-70'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium text-grafito">{o.materia}</p>

@@ -103,7 +103,7 @@ export function ProduccionPage() {
       ) : formulaciones.isError ? (
         <ErrorState onReintentar={() => formulaciones.refetch()} />
       ) : (
-        <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
+        <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
           <div className="flex flex-col gap-1">
             <label htmlFor="pr-producto" className="text-sm font-medium text-grafito">
               Producto

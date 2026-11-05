@@ -46,7 +46,7 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
         <>
           <ul className="flex flex-col gap-2 md:hidden">
             {lineas.map((l) => (
-              <li key={l.lote_id} className="rounded-lg border border-linea bg-tabla p-3">
+              <li key={l.lote_id} className="rounded-tarjeta border border-linea bg-tabla p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-grafito">{l.nombre}</p>
@@ -110,7 +110,7 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
 
 function Tarjeta({ titulo, valor, detalle }: { titulo: string; valor: string; detalle?: string }) {
   return (
-    <div className="rounded-lg border border-linea bg-tabla p-3">
+    <div className="rounded-tarjeta border border-linea bg-tabla p-3">
       <p className="text-xs text-gris-texto">{titulo}</p>
       <p className="text-xl font-semibold text-grafito">{valor}</p>
       {detalle && <p className="text-xs text-gris-texto">{detalle}</p>}

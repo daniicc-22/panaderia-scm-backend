@@ -119,7 +119,7 @@ export function ConteosPage() {
             <ul className="flex flex-col gap-2">
               {visibles.map((c) => (
                 <li key={c.id} className="flex items-stretch gap-2">
-                  <Link to={`/conteos/${c.id}`} className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-linea bg-tabla p-3 hover:bg-arena">
+                  <Link to={`/conteos/${c.id}`} className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-tarjeta border border-linea bg-tabla p-3 hover:bg-arena">
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-grafito">Conteo n.º {c.numero}</span>
@@ -141,7 +141,7 @@ export function ConteosPage() {
                       type="button"
                       aria-label={`Eliminar el conteo n.º ${c.numero}`}
                       onClick={() => setPorEliminar(c)}
-                      className="min-h-14 shrink-0 rounded-lg border border-linea bg-tabla px-3 text-sm font-medium text-critico-texto hover:bg-critico-fondo"
+                      className="min-h-14 shrink-0 rounded-tarjeta border border-linea bg-tabla px-3 text-sm font-medium text-critico-texto hover:bg-critico-fondo"
                     >
                       Eliminar
                     </button>

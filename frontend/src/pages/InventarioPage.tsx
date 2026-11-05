@@ -171,7 +171,7 @@ export function InventarioPage() {
                 <button
                   type="button"
                   onClick={() => setConLotes(i)}
-                  className="flex w-full flex-col gap-1 rounded-lg border border-linea bg-tabla p-4 text-left active:bg-arena"
+                  className="flex w-full flex-col gap-1 rounded-tarjeta border border-linea bg-tabla p-4 text-left active:bg-arena"
                 >
                   <span className="flex items-start justify-between gap-2">
                     <span className="font-medium text-grafito">{i.nombre}</span>

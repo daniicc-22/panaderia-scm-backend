@@ -25,7 +25,7 @@ export function MermasRecientes() {
       ) : (
         <ul className="flex flex-col gap-2">
           {(lista.data ?? []).map((m) => (
-            <li key={m.id} className="rounded-lg border border-linea bg-tabla p-3">
+            <li key={m.id} className="rounded-tarjeta border border-linea bg-tabla p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <span className="font-medium text-grafito">

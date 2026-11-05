@@ -18,7 +18,7 @@ export function CortesGuardados() {
   const r = guardar.data;
 
   return (
-    <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Cortes guardados">
+    <section className="rounded-tarjeta border border-linea bg-tabla p-4" aria-label="Cortes guardados">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
           <h2 className="text-base font-semibold text-grafito">Guardar el análisis de hoy</h2>
