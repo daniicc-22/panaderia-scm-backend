@@ -22,6 +22,15 @@ import { ConteoDetallePage } from '../../pages/ConteoDetallePage';
 import { CambiarContrasenaPage } from '../../pages/CambiarContrasenaPage';
 import { UsuariosPage } from '../../pages/UsuariosPage';
 import { PanaderiasPage } from '../../pages/PanaderiasPage';
+import { PorRol } from '../../components/layout/PorRol';
+import { TableroOperario } from '../../features/operario/TableroOperario';
+import { ExistenciasOperario } from '../../features/operario/ExistenciasOperario';
+import { RecetasOperario } from '../../features/operario/RecetasOperario';
+import { RecetaOperario } from '../../features/operario/RecetaOperario';
+import { MermaOperario } from '../../features/operario/MermaOperario';
+import { ProducirOperario } from '../../features/operario/ProducirOperario';
+import { ConteosOperario } from '../../features/operario/ConteosOperario';
+import { ConteoOperario } from '../../features/operario/ConteoOperario';
 
 export function AppRouter() {
   return (
@@ -30,18 +39,19 @@ export function AppRouter() {
       <Route path="/403" element={<ForbiddenPage />} />
 
       <Route element={<ProtectedRoute />}>
+        {/* El operario ve en algunas rutas su propia pantalla simple (PorRol); el resto de roles, la de gestión */}
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/inicio" replace />} />
-          <Route path="/inicio" element={<HomePage />} />
+          <Route path="/inicio" element={<PorRol operario={<TableroOperario />} gestion={<HomePage />} />} />
           <Route path="/cambiar-contrasena" element={<CambiarContrasenaPage />} />
-          <Route path="/materias-primas" element={<MateriasPrimasPage />} />
-          <Route path="/inventario" element={<InventarioPage />} />
-          <Route path="/produccion" element={<ProduccionPage />} />
-          <Route path="/mermas" element={<MermasPage />} />
-          <Route path="/conteos" element={<ConteosPage />} />
-          <Route path="/conteos/:id" element={<ConteoDetallePage />} />
-          <Route path="/formulaciones" element={<FormulacionesPage />} />
-          <Route path="/formulaciones/:id" element={<FormulacionDetallePage />} />
+          <Route path="/materias-primas" element={<PorRol operario={<ExistenciasOperario />} gestion={<MateriasPrimasPage />} />} />
+          <Route path="/inventario" element={<PorRol operario={<ExistenciasOperario />} gestion={<InventarioPage />} />} />
+          <Route path="/produccion" element={<PorRol operario={<ProducirOperario />} gestion={<ProduccionPage />} />} />
+          <Route path="/mermas" element={<PorRol operario={<MermaOperario />} gestion={<MermasPage />} />} />
+          <Route path="/conteos" element={<PorRol operario={<ConteosOperario />} gestion={<ConteosPage />} />} />
+          <Route path="/conteos/:id" element={<PorRol operario={<ConteoOperario />} gestion={<ConteoDetallePage />} />} />
+          <Route path="/formulaciones" element={<PorRol operario={<RecetasOperario />} gestion={<FormulacionesPage />} />} />
+          <Route path="/formulaciones/:id" element={<PorRol operario={<RecetaOperario />} gestion={<FormulacionDetallePage />} />} />
           <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />
         </Route>
       </Route>
