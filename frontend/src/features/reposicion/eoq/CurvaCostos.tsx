@@ -58,7 +58,9 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
   }
 
   // Si las dos cantidades quedan casi juntas, la segunda etiqueta va debajo para que no se pisen
-  const juntas = qp !== null && Math.abs(x(qp) - x(item.eoq)) < 90;
+  const juntas = qp !== null && Math.abs(x(qp) - x(item.eoq)) < 120;
+  // Cada etiqueta se abre hacia su lado: la del EOQ hacia afuera de la otra marca
+  const eoqADerecha = qp === null || x(item.eoq) >= x(qp);
 
   return (
     <div className="relative">
@@ -123,6 +125,19 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
           Costo al año
         </text>
 
+        {/* Franja entre el EOQ y la cantidad con calendario: lo que cuesta ajustarse al proveedor */}
+        {qp !== null && costoPol !== null && Math.abs(x(qp) - x(item.eoq)) > 2 && (
+          <rect
+            x={Math.min(x(qp), x(item.eoq))}
+            y={M.t}
+            width={Math.abs(x(qp) - x(item.eoq))}
+            height={H - M.t - M.b}
+            fill="#E2AE45"
+            opacity={0.16}
+            aria-hidden="true"
+          />
+        )}
+
         <g clipPath={`url(#${idClip})`}>
           <path d={trazo('pedir')} fill="none" stroke={COLOR_PEDIR} strokeWidth={2} strokeLinecap="round" />
           <path d={trazo('mantener')} fill="none" stroke={COLOR_GUARDAR} strokeWidth={2} strokeLinecap="round" />
@@ -132,7 +147,17 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         {/* EOQ: punto más bajo de la curva total */}
         <line x1={x(item.eoq)} x2={x(item.eoq)} y1={y(minimo)} y2={H - M.b} stroke={COLOR_TOTAL} strokeWidth={1} strokeDasharray="3 3" />
         <circle cx={x(item.eoq)} cy={y(minimo)} r={5.5} fill={COLOR_TOTAL} stroke="#fff" strokeWidth={2} />
-        <text x={x(item.eoq)} y={y(minimo) - 12} textAnchor={juntas ? 'end' : 'middle'} fontSize={12} fontWeight={600} fill={TINTA}>
+        <text
+          x={juntas ? x(item.eoq) + (eoqADerecha ? 12 : -12) : x(item.eoq)}
+          y={y(minimo) - 12}
+          textAnchor={juntas ? (eoqADerecha ? 'start' : 'end') : 'middle'}
+          fontSize={12}
+          fontWeight={600}
+          fill={TINTA}
+          stroke="#F7F4EE"
+          strokeWidth={4}
+          paintOrder="stroke"
+        >
           EOQ
         </text>
 
@@ -141,7 +166,17 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
           <g>
             <line x1={x(qp)} x2={x(qp)} y1={y(costoPol)} y2={H - M.b} stroke={TINTA} strokeWidth={1} strokeDasharray="3 3" />
             <rect x={x(qp) - 5} y={y(costoPol) - 5} width={10} height={10} transform={`rotate(45 ${x(qp)} ${y(costoPol)})`} fill="#fff" stroke={TINTA} strokeWidth={2} />
-            <text x={x(qp)} y={juntas ? y(costoPol) + 24 : y(costoPol) - 12} textAnchor={juntas ? 'start' : 'middle'} fontSize={12} fontWeight={600} fill={TINTA}>
+            <text
+              x={juntas ? x(qp) + (eoqADerecha ? -12 : 12) : x(qp)}
+              y={y(costoPol) - 12}
+              textAnchor={juntas ? (eoqADerecha ? 'end' : 'start') : 'middle'}
+              fontSize={12}
+              fontWeight={600}
+              fill={TINTA}
+              stroke="#F7F4EE"
+              strokeWidth={4}
+              paintOrder="stroke"
+            >
               Con calendario
             </text>
           </g>
