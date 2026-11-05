@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatoCantidad, formatoDinero } from '../../inventario/formatos';
 import { costoEoq, costoPolitica, costosEn, marcas, puntosCurva, rangoCurva, techoNice, type ItemConEoq } from './eoqCalculos';
 
-const W_ANCHO = 640;
+const W_ANCHO = 960;
 const M = { l: 64, r: 16, t: 14, b: 40 };
 // Colores de la paleta categórica del Inicio (ranuras 1 a 3); cada curva también se rotula, no depende solo del color
 export const COLOR_TOTAL = '#22374A';
@@ -30,7 +30,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
-  const H = W < 480 ? 280 : 320;
+  const H = W < 480 ? 280 : W < 720 ? 320 : 360;
 
   const puntos = useMemo(() => puntosCurva(item), [item]);
   const { lo, hi } = rangoCurva(item);
