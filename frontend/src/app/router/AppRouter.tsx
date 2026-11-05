@@ -30,6 +30,7 @@ import { RecetaOperario } from '../../features/operario/RecetaOperario';
 import { MermaOperario } from '../../features/operario/MermaOperario';
 import { ProducirOperario } from '../../features/operario/ProducirOperario';
 import { ConteosOperario } from '../../features/operario/ConteosOperario';
+import { ConteoOperario } from '../../features/operario/ConteoOperario';
 
 export function AppRouter() {
   return (
@@ -48,7 +49,7 @@ export function AppRouter() {
           <Route path="/produccion" element={<PorRol operario={<ProducirOperario />} gestion={<ProduccionPage />} />} />
           <Route path="/mermas" element={<PorRol operario={<MermaOperario />} gestion={<MermasPage />} />} />
           <Route path="/conteos" element={<PorRol operario={<ConteosOperario />} gestion={<ConteosPage />} />} />
-          <Route path="/conteos/:id" element={<ConteoDetallePage />} />
+          <Route path="/conteos/:id" element={<PorRol operario={<ConteoOperario />} gestion={<ConteoDetallePage />} />} />
           <Route path="/formulaciones" element={<PorRol operario={<RecetasOperario />} gestion={<FormulacionesPage />} />} />
           <Route path="/formulaciones/:id" element={<PorRol operario={<RecetaOperario />} gestion={<FormulacionDetallePage />} />} />
           <Route path="/clasificacion-abc" element={<ClasificacionAbcPage />} />
