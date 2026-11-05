@@ -145,11 +145,11 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         </g>
 
         {/* EOQ: punto más bajo de la curva total */}
-        <line x1={x(item.eoq)} x2={x(item.eoq)} y1={y(minimo)} y2={H - M.b} stroke={COLOR_TOTAL} strokeWidth={1} strokeDasharray="3 3" />
+        <line x1={x(item.eoq)} x2={x(item.eoq)} y1={juntas ? M.t : y(minimo)} y2={H - M.b} stroke={COLOR_TOTAL} strokeWidth={1} strokeDasharray="3 3" />
         <circle cx={x(item.eoq)} cy={y(minimo)} r={5.5} fill={COLOR_TOTAL} stroke="#fff" strokeWidth={2} />
         <text
-          x={juntas ? x(item.eoq) + (eoqADerecha ? 12 : -12) : x(item.eoq)}
-          y={y(minimo) - 12}
+          x={juntas ? x(item.eoq) + (eoqADerecha ? 8 : -8) : x(item.eoq)}
+          y={juntas ? M.t + 16 : y(minimo) - 12}
           textAnchor={juntas ? (eoqADerecha ? 'start' : 'end') : 'middle'}
           fontSize={12}
           fontWeight={600}
@@ -164,11 +164,11 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         {/* Lo que recomienda el sistema con el calendario del proveedor */}
         {qp !== null && costoPol !== null && (
           <g>
-            <line x1={x(qp)} x2={x(qp)} y1={y(costoPol)} y2={H - M.b} stroke={TINTA} strokeWidth={1} strokeDasharray="3 3" />
+            <line x1={x(qp)} x2={x(qp)} y1={juntas ? M.t : y(costoPol)} y2={H - M.b} stroke={TINTA} strokeWidth={1} strokeDasharray="3 3" />
             <rect x={x(qp) - 5} y={y(costoPol) - 5} width={10} height={10} transform={`rotate(45 ${x(qp)} ${y(costoPol)})`} fill="#fff" stroke={TINTA} strokeWidth={2} />
             <text
-              x={juntas ? x(qp) + (eoqADerecha ? -12 : 12) : x(qp)}
-              y={y(costoPol) - 12}
+              x={juntas ? x(qp) + (eoqADerecha ? -8 : 8) : x(qp)}
+              y={juntas ? M.t + 16 : y(costoPol) - 12}
               textAnchor={juntas ? (eoqADerecha ? 'end' : 'start') : 'middle'}
               fontSize={12}
               fontWeight={600}
