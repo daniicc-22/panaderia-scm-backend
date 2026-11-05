@@ -9,12 +9,12 @@ import type { LucideIcon } from 'lucide-react';
 // Color de cada sección: el mismo del botón del tablero, para que el operario sepa siempre dónde está
 export type Seccion = 'producir' | 'merma' | 'existencias' | 'contar' | 'recetas';
 
-export const COLOR_SECCION: Record<Seccion, { banda: string; texto: string; suave: string; borde: string; acento: string }> = {
-  producir: { banda: 'bg-[#a85c3e]', texto: 'text-white', suave: 'bg-terracota-suave', borde: 'border-[#e3bfae]', acento: 'text-[#7a3f28]' },
-  merma: { banda: 'bg-critico-texto', texto: 'text-white', suave: 'bg-critico-fondo', borde: 'border-[#f0c3c0]', acento: 'text-critico-texto' },
-  existencias: { banda: 'bg-verde-bosque', texto: 'text-white', suave: 'bg-verde-suave', borde: 'border-[#c7dacb]', acento: 'text-exito-texto' },
-  contar: { banda: 'bg-pizarra', texto: 'text-white', suave: 'bg-azul-suave', borde: 'border-[#c3d0dc]', acento: 'text-azul-noche' },
-  recetas: { banda: 'bg-trigo', texto: 'text-grafito', suave: 'bg-trigo-suave', borde: 'border-[#ecd49a]', acento: 'text-[#6e4f10]' },
+export const COLOR_SECCION: Record<Seccion, { banda: string; texto: string; suave: string; borde: string; acento: string; franja: string }> = {
+  producir: { banda: 'bg-[#a85c3e]', texto: 'text-white', suave: 'bg-terracota-suave', borde: 'border-[#e3bfae]', acento: 'text-[#7a3f28]', franja: 'border-l-[#a85c3e]' },
+  merma: { banda: 'bg-critico-texto', texto: 'text-white', suave: 'bg-critico-fondo', borde: 'border-[#f0c3c0]', acento: 'text-critico-texto', franja: 'border-l-critico-texto' },
+  existencias: { banda: 'bg-verde-bosque', texto: 'text-white', suave: 'bg-verde-suave', borde: 'border-[#c7dacb]', acento: 'text-exito-texto', franja: 'border-l-verde-bosque' },
+  contar: { banda: 'bg-pizarra', texto: 'text-white', suave: 'bg-azul-suave', borde: 'border-[#c3d0dc]', acento: 'text-azul-noche', franja: 'border-l-pizarra' },
+  recetas: { banda: 'bg-trigo', texto: 'text-grafito', suave: 'bg-trigo-suave', borde: 'border-[#ecd49a]', acento: 'text-[#6e4f10]', franja: 'border-l-trigo' },
 };
 
 // Espiga de trigo decorativa (toma el color del texto donde se pone)
@@ -201,7 +201,8 @@ export function CargandoGrande() {
   );
 }
 
-// Botón de opción grande para los pasos (una respuesta por toque)
+// Botón de opción grande para los pasos (una respuesta por toque). Lleva el color de su sección:
+// tinte suave con franja de color a la izquierda y, al elegirlo, el color sólido.
 export function OpcionGrande({
   titulo,
   detalle,
@@ -222,20 +223,25 @@ export function OpcionGrande({
     <motion.button
       type="button"
       whileTap={{ scale: 0.97 }}
+      whileHover={{ y: -2 }}
       onClick={onElegir}
       aria-pressed={seleccionada}
-      className={`flex min-h-20 w-full items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left shadow-xs transition-colors ${
-        seleccionada ? `${c.suave} ${c.borde} ring-4 ring-current/20 ${c.acento}` : 'border-linea bg-[#fff] text-grafito hover:border-borde-campo'
+      className={`flex min-h-20 w-full items-center gap-4 rounded-2xl border-2 border-l-8 px-5 py-4 text-left shadow-xs transition-colors ${
+        seleccionada ? `${c.banda} ${c.texto} border-transparent` : `${c.suave} ${c.borde} ${c.franja}`
       }`}
     >
       {Icono && (
-        <span className={`inline-flex size-14 shrink-0 items-center justify-center rounded-full ${seleccionada ? `${c.banda} ${c.texto}` : `${c.suave} ${c.acento}`}`}>
+        <span
+          className={`inline-flex size-14 shrink-0 items-center justify-center rounded-full ${
+            seleccionada ? 'bg-current/15' : `${c.banda} ${c.texto}`
+          }`}
+        >
           <Icono size={28} aria-hidden="true" />
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block text-xl font-semibold text-grafito">{titulo}</span>
-        {detalle && <span className="block text-base text-gris-texto">{detalle}</span>}
+        <span className={`block text-xl font-semibold ${seleccionada ? '' : 'text-grafito'}`}>{titulo}</span>
+        {detalle && <span className={`block text-base ${seleccionada ? 'opacity-90' : c.acento}`}>{detalle}</span>}
       </span>
     </motion.button>
   );

@@ -10,23 +10,23 @@ import { mensajeDeError } from '../../services/errores';
 import type { EstadoConteo } from '../../types/conteo.types';
 import { CargandoGrande, MensajeGrande, PantallaOperario } from './ui';
 
-const ESTILO_ESTADO: Record<EstadoConteo, { borde: string; chip: string }> = {
-  en_curso: { borde: 'border-l-pizarra', chip: 'bg-azul-suave text-azul-noche' },
-  enviado: { borde: 'border-l-trigo', chip: 'bg-atencion-fondo text-atencion-texto' },
-  aplicado: { borde: 'border-l-verde-bosque', chip: 'bg-exito-fondo text-exito-texto' },
-  descartado: { borde: 'border-l-grafico-neutro', chip: 'bg-arena text-gris-texto' },
+const ESTILO_ESTADO: Record<EstadoConteo, { borde: string; chip: string; tinte: string }> = {
+  en_curso: { borde: 'border-l-pizarra', chip: 'bg-pizarra text-white', tinte: 'bg-[#eef2f6]' },
+  enviado: { borde: 'border-l-trigo', chip: 'bg-trigo text-grafito', tinte: 'bg-[#fdf4e1]' },
+  aplicado: { borde: 'border-l-verde-bosque', chip: 'bg-verde-bosque text-white', tinte: 'bg-[#eef5f0]' },
+  descartado: { borde: 'border-l-grafico-neutro', chip: 'bg-grafico-neutro text-white', tinte: 'bg-[#f1ede6]' },
 };
 
 const TONO_ERI = {
-  green: 'bg-exito-fondo text-exito-texto',
-  yellow: 'bg-atencion-fondo text-atencion-texto',
-  red: 'bg-critico-fondo text-critico-texto',
-  gray: 'bg-azul-suave text-azul-noche',
+  green: 'bg-verde-bosque text-white',
+  yellow: 'bg-trigo text-grafito',
+  red: 'bg-critico-texto text-white',
+  gray: 'bg-pizarra text-white',
 } as const;
 
 function Medida({ titulo, valor, tono, icono: Icono }: { titulo: string; valor: string; tono: keyof typeof TONO_ERI; icono: LucideIcon }) {
   return (
-    <div className={`flex min-h-28 flex-col justify-between rounded-2xl p-4 shadow-xs ${TONO_ERI[tono]}`}>
+    <div className={`flex min-h-28 flex-col justify-between rounded-2xl p-4 shadow-elevada ${TONO_ERI[tono]}`}>
       <Icono size={26} aria-hidden="true" />
       <span>
         <span className="block font-display text-[32px] leading-none font-semibold cifras">{valor}</span>
@@ -111,7 +111,7 @@ export function ConteosOperario() {
           {visibles.length === 0 ? (
             <MensajeGrande>Aún no hay conteos. Empieza el primero.</MensajeGrande>
           ) : (
-            <ul className="flex flex-col gap-3 rounded-2xl bg-azul-suave/70 p-3">
+            <ul className="flex flex-col gap-3 rounded-2xl bg-azul-suave p-3">
               {visibles.map((c, n) => {
                 const e = ESTILO_ESTADO[c.estado];
                 return (
@@ -123,7 +123,7 @@ export function ConteosOperario() {
                   >
                     <Link
                       to={`/conteos/${c.id}`}
-                      className={`flex min-h-20 items-center justify-between gap-3 rounded-xl border-l-8 bg-[#fff] px-5 py-4 shadow-xs active:scale-[0.99] ${e.borde}`}
+                      className={`flex min-h-20 items-center justify-between gap-3 rounded-xl border-l-8 px-5 py-4 shadow-xs active:scale-[0.99] ${e.borde} ${e.tinte}`}
                     >
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2">

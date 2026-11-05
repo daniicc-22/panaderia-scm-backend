@@ -195,9 +195,9 @@ export function TableroOperario() {
       clase: 'bg-[#a85c3e] text-white',
     },
     { etiqueta: 'Registrar merma', detalle: 'Algo se perdió o se dañó', ruta: '/mermas', icono: Trash2, clase: 'bg-critico-texto text-white' },
-    { etiqueta: 'Recetas', detalle: 'Cuánto lleva cada pan', ruta: '/formulaciones', icono: BookOpen, clase: `bg-[#22374a]/85 text-white ${VIDRIO}` },
-    { etiqueta: 'Existencias', detalle: 'Qué hay en bodega', ruta: '/inventario', icono: Package, clase: `bg-[#2f4a5e]/75 text-white ${VIDRIO}` },
-    { etiqueta: 'Contar', detalle: 'Conteo físico', ruta: '/conteos', icono: ClipboardCheck, clase: `bg-[#f6e7c6]/90 text-[#6e4f10] ${VIDRIO}` },
+    { etiqueta: 'Recetas', detalle: 'Cuánto lleva cada pan', ruta: '/formulaciones', icono: BookOpen, clase: 'bg-trigo text-grafito' },
+    { etiqueta: 'Existencias', detalle: 'Qué hay en bodega', ruta: '/inventario', icono: Package, clase: 'bg-verde-bosque text-white' },
+    { etiqueta: 'Contar', detalle: 'Conteo físico', ruta: '/conteos', icono: ClipboardCheck, clase: 'bg-pizarra text-white' },
   ];
 
   const h = ahora.getHours();

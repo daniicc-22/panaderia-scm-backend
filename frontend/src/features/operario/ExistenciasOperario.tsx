@@ -10,15 +10,19 @@ import { BuscadorGrande, CargandoGrande, COLOR_SEMAFORO, MensajeGrande, Pantalla
 
 const SEMAFORO: Record<EstadoStock, Semaforo> = { ok: 'verde', por_vencer: 'amarillo', vencido: 'rojo', sin_stock: 'gris' };
 const ICONO: Record<EstadoStock, LucideIcon> = { ok: CircleCheck, por_vencer: Clock, vencido: OctagonAlert, sin_stock: PackageX };
+// Fondo de cada tarjeta según su estado
+const TINTE: Record<EstadoStock, string> = { ok: 'bg-[#eef5f0]', por_vencer: 'bg-[#fdf4e1]', vencido: 'bg-[#fcecea]', sin_stock: 'bg-[#f1ede6]' };
+// Etiqueta de estado en color sólido
+const CHIP: Record<EstadoStock, string> = { ok: 'bg-verde-bosque text-white', por_vencer: 'bg-trigo text-grafito', vencido: 'bg-critico-texto text-white', sin_stock: 'bg-grafico-neutro text-white' };
 // Primero lo que pide atención
 const ORDEN: Record<EstadoStock, number> = { vencido: 0, por_vencer: 1, sin_stock: 2, ok: 3 };
 
 // Contadores de colores arriba: también sirven de filtro
-const CONTADORES: { estado: EstadoStock; etiqueta: string; clase: string; activo: string }[] = [
-  { estado: 'vencido', etiqueta: 'Vencidos', clase: 'bg-critico-fondo text-critico-texto', activo: 'ring-critico-texto' },
-  { estado: 'por_vencer', etiqueta: 'Por vencer', clase: 'bg-atencion-fondo text-atencion-texto', activo: 'ring-trigo' },
-  { estado: 'sin_stock', etiqueta: 'No hay', clase: 'bg-arena text-grafito', activo: 'ring-grafico-neutro' },
-  { estado: 'ok', etiqueta: 'Bien', clase: 'bg-exito-fondo text-exito-texto', activo: 'ring-verde-bosque' },
+const CONTADORES: { estado: EstadoStock; etiqueta: string; clase: string }[] = [
+  { estado: 'vencido', etiqueta: 'Vencidos', clase: 'bg-critico-texto text-white' },
+  { estado: 'por_vencer', etiqueta: 'Por vencer', clase: 'bg-trigo text-grafito' },
+  { estado: 'sin_stock', etiqueta: 'No hay', clase: 'bg-grafico-neutro text-white' },
+  { estado: 'ok', etiqueta: 'Bien', clase: 'bg-verde-bosque text-white' },
 ];
 
 function estadoTexto(i: ItemInventario, hoy: string): string {
@@ -63,8 +67,8 @@ export function ExistenciasOperario() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: n * 0.05 }}
                 whileTap={{ scale: 0.96 }}
-                className={`flex min-h-24 flex-col items-start justify-between rounded-2xl p-4 text-left shadow-xs ${c.clase} ${
-                  activo ? `ring-4 ${c.activo}` : ''
+                className={`flex min-h-24 flex-col items-start justify-between rounded-2xl p-4 text-left shadow-elevada ${c.clase} ${
+                  activo ? 'ring-4 ring-azul-noche ring-offset-2 ring-offset-hueso' : filtro ? 'opacity-60' : ''
                 }`}
               >
                 <Icono size={26} aria-hidden="true" />
@@ -102,7 +106,7 @@ export function ExistenciasOperario() {
         </MensajeGrande>
       )}
 
-      <ul className="flex flex-col gap-3 rounded-2xl bg-verde-suave/60 p-3 empty:hidden">
+      <ul className="flex flex-col gap-3 rounded-2xl bg-verde-suave p-3 empty:hidden">
         {data &&
           visibles.map((i, n) => {
             const s = COLOR_SEMAFORO[SEMAFORO[i.estado]];
@@ -113,12 +117,12 @@ export function ExistenciasOperario() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(n, 12) * 0.03, duration: 0.25 }}
-                className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border-l-8 bg-[#fff] px-5 py-4 shadow-xs ${s.borde}`}
+                className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border-l-8 px-5 py-4 shadow-xs ${s.borde} ${TINTE[i.estado]}`}
               >
                 <span className="min-w-0 text-xl font-semibold text-grafito">{i.nombre}</span>
                 <span className="flex items-center gap-3">
                   <span className="font-display text-2xl font-semibold text-azul-noche cifras">{formatoCantidad(i.stock, i.unidad)}</span>
-                  <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold ${s.fondo} ${s.texto}`}>
+                  <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold ${CHIP[i.estado]}`}>
                     <Icono size={20} aria-hidden="true" />
                     {estadoTexto(i, data.fecha)}
                   </span>
