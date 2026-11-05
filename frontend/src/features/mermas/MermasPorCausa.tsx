@@ -33,7 +33,15 @@ export function MermasPorCausa() {
       subtitulo={resumen.conCosto ? 'Costo estimado de las mermas registradas, por causa' : 'Mermas registradas, por causa'}
     >
       <p className="mb-3 font-display text-lg font-semibold text-azul-noche">
-        <span className="text-terracota">{principal.causa}</span> explica el {pctPrincipal} % de {resumen.conCosto ? 'lo perdido' : 'las mermas'}
+        {resumen.filas.length === 1 ? (
+          <>
+            Todas las mermas registradas son por <span className="text-terracota">{principal.causa}</span>
+          </>
+        ) : (
+          <>
+            <span className="text-terracota">{principal.causa}</span> explica el {pctPrincipal} % de {resumen.conCosto ? 'lo perdido' : 'las mermas'}
+          </>
+        )}
       </p>
       <ul className="flex flex-col gap-2" aria-label="Mermas por causa">
         {resumen.filas.map((f) => (

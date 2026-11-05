@@ -130,8 +130,8 @@
   main {
     padding: 0 !important;
   }
-  section,
-  li,
+  /* Solo se evita partir los bloques chicos; las tarjetas largas (con listas dentro) sí pueden seguir en la otra página */
+  li:not(:has(ul)),
   tr {
     break-inside: avoid;
   }
