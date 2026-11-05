@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/useAuth';
 import { getMateriasPrimas } from '../services/materiasPrimasService';
@@ -50,6 +51,8 @@ export function HomePage() {
       titulo="Inicio"
       subtitulo={`Hola, ${usuario?.nombre ?? ''}. ${fechaLarga()}`}
       acciones={
+        <>
+        <BotonImprimir />
         <button
           type="button"
           onClick={() => queryClient.invalidateQueries()}
@@ -59,6 +62,7 @@ export function HomePage() {
           <RefreshCw size={16} className={actualizando ? 'animate-spin' : ''} aria-hidden="true" />
           {actualizando ? 'Actualizando…' : 'Actualizar'}
         </button>
+        </>
       }
     />
     <div className="mx-auto flex max-w-7xl flex-col gap-6">

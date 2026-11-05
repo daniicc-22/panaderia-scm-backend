@@ -6,7 +6,9 @@
   border-linea, bg-terracota, etc. Las fuentes se cargan en main.tsx.
 */
 @theme {
-  /* Tipografía */
+  /* Tipografía: el texto pequeño sube de 12 a 13 px para leerse mejor en el celular */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
   --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
   --font-display: 'Fraunces Variable', Fraunces, Georgia, serif;
 
@@ -111,6 +113,28 @@
 /* Cifras alineadas en tablas e indicadores */
 @utility cifras {
   font-variant-numeric: tabular-nums;
+}
+
+/* Hoja de impresión: solo el informe, sin menú ni botones, con los colores de la app */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    background: #fff;
+  }
+  main {
+    padding: 0 !important;
+  }
+  section,
+  li,
+  tr {
+    break-inside: avoid;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

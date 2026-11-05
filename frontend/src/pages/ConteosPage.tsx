@@ -9,6 +9,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EliminarConteo } from '../features/conteos/EliminarConteo';
+import { TendenciaExactitud } from '../features/conteos/TendenciaExactitud';
+import { Indicador } from '../features/inicio/Panel';
 import { COLOR_ESTADO_CONTEO, colorEri, ETIQUETA_ESTADO_CONTEO, formatoPorcentaje } from '../features/conteos/etiquetas';
 import { formatoFechaIso } from '../features/inventario/formatos';
 import { abrirConteo, getConteos } from '../services/conteosService';
@@ -16,6 +18,8 @@ import { mensajeDeError } from '../services/errores';
 import type { ItemConteo } from '../types/conteo.types';
 
 const CLAVE_OCULTAR = 'conteos_ocultar_descartados';
+// Color del indicador según qué tan cerca está de la meta de exactitud
+const TONO_ERI = { green: 'verde', yellow: 'amarillo', red: 'rojo', gray: 'gris' } as const;
 
 // Preferencia de este navegador; si el almacenamiento no está disponible, simplemente no se recuerda
 function leerOcultar(): boolean {
@@ -95,10 +99,11 @@ export function ConteosPage() {
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <Medida titulo="Último" valor={formatoPorcentaje(datos.ultimo_eri)} color={colorEri(datos.ultimo_eri, datos.meta_eri)} />
-            <Medida titulo="Promedio" valor={formatoPorcentaje(datos.promedio_eri)} color={colorEri(datos.promedio_eri, datos.meta_eri)} />
-            <Medida titulo="Meta" valor={`${datos.meta_eri} %`} color="gray" />
+            <Indicador indice={0} tono={TONO_ERI[colorEri(datos.ultimo_eri, datos.meta_eri)]} etiqueta="Último" valor={formatoPorcentaje(datos.ultimo_eri)} />
+            <Indicador indice={1} tono={TONO_ERI[colorEri(datos.promedio_eri, datos.meta_eri)]} etiqueta="Promedio" valor={formatoPorcentaje(datos.promedio_eri)} />
+            <Indicador indice={2} tono="azul" etiqueta="Meta" valor={`${datos.meta_eri} %`} />
           </div>
+          <TendenciaExactitud />
           <p className="-mt-2 text-xs text-gris-texto">
             Exactitud del inventario: qué tanto coincide lo contado con lo registrado. Solo cuentan los conteos ya enviados.
           </p>
@@ -186,16 +191,6 @@ export function ConteosPage() {
           </Button>
         </form>
       </Modal>
-    </div>
-  );
-}
-
-function Medida({ titulo, valor, color }: { titulo: string; valor: string; color: 'green' | 'yellow' | 'red' | 'gray' }) {
-  const clases = { green: 'border-[#c5dccb] bg-exito-fondo', yellow: 'border-[#f1d9a6] bg-atencion-fondo', red: 'border-[#f0c3c0] bg-critico-fondo', gray: 'border-linea bg-tabla' }[color];
-  return (
-    <div className={`rounded-lg border p-3 ${clases}`}>
-      <p className="text-xs text-gris-texto">{titulo}</p>
-      <p className="text-xl font-semibold text-grafito">{valor}</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { LoadingState } from '../components/feedback/LoadingState';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
 import { DesviacionBarras } from '../features/produccion/DesviacionBarras';
 import { colorDesviacion, textoDesviacion } from '../features/produccion/pesos';
 import { getDesviacionesPesaje } from '../services/produccionService';
@@ -30,11 +31,14 @@ export function DesviacionPesajePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
-        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Desviación de pesaje</h1>
-        <p className="mt-1 text-sm text-niebla">
-          Qué tanto se aleja lo que se pesa de lo que pide la receta. Solo cuentan los insumos que se pesaron; los que van «al ojo» se anotan aparte.
-        </p>
+      <div className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Desviación de pesaje</h1>
+          <p className="mt-1 text-sm text-niebla">
+            Qué tanto se aleja lo que se pesa de lo que pide la receta. Solo cuentan los insumos que se pesaron; los que van «al ojo» se anotan aparte.
+          </p>
+        </div>
+        <BotonImprimir />
       </div>
 
       <div className="flex flex-col gap-3 rounded-tarjeta border border-linea bg-tabla p-4 sm:flex-row sm:items-end">

@@ -14,7 +14,7 @@ export function ExactitudInventario() {
 
   const color = colorEri(datos.ultimo_eri, datos.meta_eri);
   return (
-    <section className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 ${FONDO[color]}`} aria-label="Exactitud del inventario">
+    <section className={`flex flex-wrap items-center justify-between gap-3 rounded-tarjeta border p-4 ${FONDO[color]}`} aria-label="Exactitud del inventario">
       <div>
         <h2 className="text-base font-semibold text-grafito">Exactitud del inventario</h2>
         <p className="text-sm text-gris-texto">
@@ -37,7 +37,7 @@ export function ExactitudInventario() {
         )}
       </div>
       <div className="flex items-center gap-4">
-        {datos.ultimo_eri !== null && <span className="text-3xl font-semibold text-grafito">{formatoPorcentaje(datos.ultimo_eri)}</span>}
+        {datos.ultimo_eri !== null && <span className="cifras font-display text-3xl font-semibold text-azul-noche">{formatoPorcentaje(datos.ultimo_eri)}</span>}
         <Link to="/conteos" className="inline-flex min-h-11 items-center text-sm font-medium text-pizarra hover:underline">
           {datos.ultimo_eri === null ? 'Ir al conteo físico →' : 'Ver conteos →'}
         </Link>
