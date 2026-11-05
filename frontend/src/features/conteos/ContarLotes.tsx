@@ -122,7 +122,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
               <button
                 type="button"
                 onClick={() => setElegida(f)}
-                className="flex min-h-14 w-full items-start justify-between gap-3 rounded-lg border border-linea bg-tabla p-3 text-left active:bg-arena"
+                className="flex min-h-14 w-full items-start justify-between gap-3 rounded-tarjeta border border-linea bg-tabla p-3 text-left active:bg-arena"
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium text-grafito">{f.nombre}</span>

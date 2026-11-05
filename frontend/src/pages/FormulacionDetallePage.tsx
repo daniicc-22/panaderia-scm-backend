@@ -24,7 +24,7 @@ function fechaCorta(iso: string): string {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-linea bg-tabla p-4">
+    <div className="rounded-tarjeta border border-linea bg-tabla p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-gris-texto">{etiqueta}</p>
       <p className="mt-1 text-xl font-semibold text-grafito">{valor}</p>
     </div>

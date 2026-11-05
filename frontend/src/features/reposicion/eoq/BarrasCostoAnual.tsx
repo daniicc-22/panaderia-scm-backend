@@ -57,7 +57,7 @@ export function BarrasCostoAnual({ items, seleccionadoId, onSeleccionar }: Props
                 </span>
                 <span className="whitespace-nowrap text-right text-xs text-grafito">
                   {formatoDinero(valor)}
-                  {politica === null && <span className="block text-[11px] text-gris-texto">solo mínimo</span>}
+                  {politica === null && <span className="block text-xs text-gris-texto">solo mínimo</span>}
                 </span>
               </button>
             </li>

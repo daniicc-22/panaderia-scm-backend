@@ -126,7 +126,7 @@ export function ClasificacionAbcPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
-              <div key={r.clase} className="rounded-lg border border-linea bg-tabla p-4">
+              <div key={r.clase} className="rounded-tarjeta border border-linea bg-tabla p-4">
                 <div className="flex items-center gap-2">
                   <Insignia clase={r.clase} />
                   <p className="text-sm font-semibold text-grafito">Clase {r.clase}</p>
