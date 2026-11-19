@@ -120,7 +120,16 @@ export function EntregaProveedorForm({ proveedor, onTerminar }: Props) {
             <CalendarClock size={17} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
             <input id="entrega-hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} className={`${campo} pl-10`} />
           </div>
-          <span className="text-xs text-gris-texto">Un pedido hecho después de esta hora cuenta como del día siguiente.</span>
+          <span className="text-xs text-gris-texto">
+            {hora === ''
+              ? 'Sin hora límite: un pedido cuenta como del mismo día a cualquier hora.'
+              : 'Un pedido hecho después de esta hora cuenta como del día siguiente.'}
+          </span>
+          {hora !== '' && (
+            <button type="button" onClick={() => setHora('')} className="self-start text-xs font-semibold text-azul-noche underline">
+              Quitar la hora límite
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
