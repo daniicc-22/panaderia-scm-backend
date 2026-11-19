@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ErrorState } from '../../components/feedback/ErrorState';
 import { LoadingState } from '../../components/feedback/LoadingState';
+import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
+import { useAuth } from '../auth/useAuth';
+import { mensajeDeError } from '../../services/errores';
 import { formatoCantidad, formatoDinero, formatoFechaIso } from '../inventario/formatos';
-import { getMermas } from '../../services/mermasService';
+import { eliminarMerma, getMermas } from '../../services/mermasService';
 import { ETIQUETA_ETAPA } from './etiquetas';
 
 type FiltroEtapa = 'todas' | 'recepcion' | 'almacenamiento' | 'produccion';
@@ -17,6 +22,21 @@ export function MermasRecientes() {
   const lista = useQuery({ queryKey: ['mermas', 'lista'], queryFn: () => getMermas() });
   const [filtro, setFiltro] = useState<FiltroEtapa>('todas');
   const [verTodas, setVerTodas] = useState(false);
+  const [aEliminar, setAEliminar] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const { usuario } = useAuth();
+  const esGestion = usuario?.rol === 'administrador' || usuario?.rol === 'superadministrador';
+  const queryClient = useQueryClient();
+  const eliminar = useMutation({
+    mutationFn: (id: string) => eliminarMerma(id),
+    onSuccess: async (r) => {
+      await queryClient.invalidateQueries();
+      setAEliminar(null);
+      setAviso(r.repuesto ? 'Merma eliminada. La cantidad volvió a su lote.' : 'Merma eliminada.');
+    },
+    onError: (e) => setError(mensajeDeError(e, 'No se pudo eliminar la merma.')),
+  });
   const todas = lista.data ?? [];
   const filtradas = todas.filter((m) => filtro === 'todas' || m.etapa === filtro);
   const visibles = verTodas ? filtradas : filtradas.slice(0, INICIAL);
@@ -41,6 +61,7 @@ export function MermasRecientes() {
           ))}
         </div>
       )}
+      {aviso && <Alert variant="success">{aviso}</Alert>}
       {lista.isLoading ? (
         <LoadingState mensaje="Cargando mermas..." />
       ) : lista.isError ? (
@@ -71,10 +92,27 @@ export function MermasRecientes() {
                 {m.codigo_lote ? ` · lote ${m.codigo_lote}` : ''}
                 {m.costo_estimado != null ? ` · ${formatoDinero(m.costo_estimado)}` : ''}
               </p>
+              {esGestion && (
+                <button type="button" className="mt-1 min-h-11 text-sm font-semibold text-critico hover:underline" onClick={() => { setError(null); setAviso(null); setAEliminar(m.id); }}>
+                  Eliminar
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
+      <Modal isOpen={aEliminar !== null} onClose={() => !eliminar.isPending && setAEliminar(null)} title="Eliminar merma">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gris-texto">
+            Se borra la merma. Si descontó de un lote, <span className="font-medium text-grafito">la cantidad vuelve a ese lote</span>. No se puede deshacer.
+          </p>
+          {error && <Alert variant="error">{error}</Alert>}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="min-h-11" disabled={eliminar.isPending} onClick={() => setAEliminar(null)}>Cancelar</Button>
+            <Button type="button" variant="danger" className="min-h-11" isLoading={eliminar.isPending} onClick={() => aEliminar && eliminar.mutate(aEliminar)}>Eliminar merma</Button>
+          </div>
+        </div>
+      </Modal>
       {filtradas.length > INICIAL && (
         <button type="button" onClick={() => setVerTodas((v) => !v)} className="min-h-11 w-fit text-sm font-semibold text-pizarra hover:underline">
           {verTodas ? 'Ver menos' : `Ver las ${filtradas.length} mermas`}

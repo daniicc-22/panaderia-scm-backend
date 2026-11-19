@@ -25,6 +25,7 @@ const TIPO = '77777777-7777-4777-8777-777777777777';
 type Fila = Record<string, any>;
 let materias: Fila[], formulaciones: Fila[], productos: Fila[], lotes: Fila[];
 let producciones: Fila[], consumos: Fila[], movimientos: Fila[], pesajes: Fila[];
+let desperdicios: Fila[] = [], detallesConteo: Fila[] = [];
 let asignado: boolean, hayTipo: boolean;
 let fallarEnConsumo: boolean;
 let contador = 0;
@@ -70,7 +71,24 @@ const prismaFalso: any = {
     findMany: async ({ where }: any) =>
       materias.filter((m) => coincide(m, where)).map((m) => ({ ...m, unidad_medida: { codigo: 'g' } })),
   },
-  lote: { findMany: async ({ where }: any) => lotes.filter((l) => coincide(l, where)) },
+  lote: {
+    findMany: async ({ where }: any) => lotes.filter((l) => coincide(l, where)),
+    count: async ({ where }: any) => lotes.filter((l) => coincide(l, where)).length,
+    update: async ({ where, data }: any) => {
+      const l = lotes.find((x) => x.id === where.id)!;
+      l.cantidad_disponible = Number(l.cantidad_disponible) + Number(data.cantidad_disponible.increment);
+      return l;
+    },
+  },
+  desperdicio: {
+    findMany: async ({ where }: any) => desperdicios.filter((x) => coincide(x, where)),
+    deleteMany: async ({ where }: any) => {
+      const antes = desperdicios.length;
+      desperdicios = desperdicios.filter((x) => !where.id.in.includes(x.id));
+      return { count: antes - desperdicios.length };
+    },
+  },
+  detalle_conteo: { count: async ({ where }: any) => detallesConteo.filter((d) => where.movimiento_id.in.includes(d.movimiento_id)).length },
   tipo_movimiento_inventario: { findUnique: async () => (hayTipo ? { id: TIPO, codigo: 'salida_produccion' } : null) },
   produccion: {
     create: async ({ data }: any) => {
@@ -89,6 +107,10 @@ const prismaFalso: any = {
         .slice(0, take ?? 1000)
         .map(conRelaciones),
     // Imita el disparador de la base: una producción cerrada no se modifica
+    delete: async ({ where }: any) => {
+      producciones = producciones.filter((x) => x.id !== where.id);
+      return {};
+    },
     update: async ({ where, data }: any) => {
       const f = producciones.find((x) => x.id === where.id)!;
       if (f.estado === 'finalizada' || f.estado === 'cancelada') throw new Error(`La producción ${f.id} ya está cerrada y no se puede modificar`);
@@ -102,6 +124,10 @@ const prismaFalso: any = {
       return { count: data.length };
     },
     findMany: async ({ where }: any) => pesajes.filter((x) => coincide(x, where)),
+    deleteMany: async ({ where }: any) => {
+      pesajes = pesajes.filter((x) => x.produccion_id !== where.produccion_id);
+      return {};
+    },
   },
   consumo_produccion: {
     create: async ({ data }: any) => {
@@ -109,6 +135,10 @@ const prismaFalso: any = {
       const f = { id: `con-${++contador}`, ...data };
       consumos.push(f);
       return f;
+    },
+    deleteMany: async ({ where }: any) => {
+      consumos = consumos.filter((c) => !where.id.in.includes(c.id));
+      return {};
     },
     findMany: async ({ where }: any) =>
       consumos
@@ -120,6 +150,14 @@ const prismaFalso: any = {
   },
   // Imita el disparador de la base: descuenta del lote y rechaza dejarlo en negativo
   movimiento_inventario: {
+    findMany: async ({ where }: any) => {
+      const [a, b] = where.OR;
+      return movimientos.filter((m) => a.consumo_produccion_id.in.includes(m.consumo_produccion_id) || b.desperdicio_id.in.includes(m.desperdicio_id));
+    },
+    deleteMany: async ({ where }: any) => {
+      movimientos = movimientos.filter((m) => !where.id.in.includes(m.id));
+      return {};
+    },
     create: async ({ data }: any) => {
       const l = lotes.find((x) => x.id === data.lote_id)!;
       const nuevo = Number(l.cantidad_disponible) - Number(data.cantidad);
@@ -219,6 +257,8 @@ beforeEach(() => {
   consumos = [];
   movimientos = [];
   pesajes = [];
+  desperdicios = [];
+  detallesConteo = [];
 });
 
 const enviar = async (ruta: string, cuerpo: unknown) => {
@@ -815,5 +855,71 @@ describe('GET /produccion y GET /produccion/:id', () => {
     expect((await obtener(`/${producciones[0].id}`)).status).toBe(404);
     expect((await obtener('/99999999-9999-4999-8999-999999999990')).status).toBe(404);
     expect((await obtener('/xyz')).status).toBe(404);
+  });
+});
+
+describe('DELETE /produccion/:id', () => {
+  const borrar = async (id: string) => {
+    const r = await fetch(`${base}/produccion/${id}`, { method: 'DELETE' });
+    return { status: r.status, body: (await r.json()) as any };
+  };
+
+  test('devuelve el stock a los lotes y borra consumo, movimientos y pesaje', async () => {
+    rol = 'administrador';
+    await producir(pan(1));
+    expect(disponible('a1')).toBe(200);
+    const r = await borrar(producciones[0].id);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ eliminada: true, lotes_repuestos: 2, mermas_eliminadas: 0 });
+    expect(disponible('a1')).toBe(500);
+    expect(disponible('h1')).toBe(1000);
+    expect(producciones).toHaveLength(0);
+    expect(consumos).toHaveLength(0);
+    expect(movimientos).toHaveLength(0);
+    expect(pesajes).toHaveLength(0);
+  });
+
+  test('las mermas ligadas se eliminan y su cantidad también vuelve al lote', async () => {
+    rol = 'administrador';
+    await producir(pan(1));
+    const prod = producciones[0];
+    desperdicios.push({ id: 'd1', panaderia_id: PAN, produccion_id: prod.id });
+    lotes.find((l) => l.id === 'a1')!.cantidad_disponible = 150;
+    movimientos.push({ id: 'mm', panaderia_id: PAN, lote_id: 'a1', cantidad: 50, desperdicio_id: 'd1', consumo_produccion_id: null });
+    const r = await borrar(prod.id);
+    expect(r.body.mermas_eliminadas).toBe(1);
+    expect(disponible('a1')).toBe(500);
+    expect(desperdicios).toHaveLength(0);
+  });
+
+  test('un operario no puede eliminar', async () => {
+    await producir(pan(1));
+    expect((await borrar(producciones[0].id)).status).toBe(403);
+    expect(producciones).toHaveLength(1);
+  });
+
+  test('no existe, de otra panadería o id inválido: 404', async () => {
+    rol = 'administrador';
+    expect((await borrar('00000000-0000-4000-8000-0000000000ff')).status).toBe(404);
+    expect((await borrar('no-es-uuid')).status).toBe(404);
+  });
+
+  test('409 si salieron lotes de intermedio de la producción', async () => {
+    rol = 'administrador';
+    await producir(pan(1));
+    lotes.push({ ...crearLote('i1', HARINA, 10), produccion_origen_id: producciones[0].id });
+    const r = await borrar(producciones[0].id);
+    expect(r.status).toBe(409);
+    expect(producciones).toHaveLength(1);
+  });
+
+  test('409 si un conteo físico usó sus movimientos; nada cambia', async () => {
+    rol = 'administrador';
+    await producir(pan(1));
+    detallesConteo.push({ movimiento_id: movimientos[0].id });
+    const r = await borrar(producciones[0].id);
+    expect(r.status).toBe(409);
+    expect(disponible('a1')).toBe(200);
+    expect(movimientos).toHaveLength(2);
   });
 });

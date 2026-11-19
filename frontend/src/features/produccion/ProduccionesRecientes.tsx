@@ -8,8 +8,10 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getProducciones } from '../../services/produccionService';
 import type { EstadoProduccion, ProduccionFinalizada } from '../../types/produccion.types';
+import { useAuth } from '../auth/useAuth';
 import { formatoFechaIso } from '../inventario/formatos';
 import { DetalleProduccion } from './DetalleProduccion';
+import { EliminarProduccion } from './EliminarProduccion';
 import { FinalizarProduccion } from './FinalizarProduccion';
 
 const ETIQUETA: Record<EstadoProduccion, string> = {
@@ -36,6 +38,10 @@ export function ProduccionesRecientes() {
   const [filtro, setFiltro] = useState<'todas' | EstadoProduccion>('todas');
   const [verTodas, setVerTodas] = useState(false);
   const [resultado, setResultado] = useState<ProduccionFinalizada | null>(null);
+  const [aEliminar, setAEliminar] = useState<{ id: string; producto: string; fecha: string } | null>(null);
+  const [avisoBorrado, setAvisoBorrado] = useState<string | null>(null);
+  const { usuario } = useAuth();
+  const esGestion = usuario?.rol === 'administrador' || usuario?.rol === 'superadministrador';
 
   const todas = lista.data ?? [];
   const filtradas = todas.filter((p) => filtro === 'todas' || p.estado === filtro);
@@ -71,6 +77,8 @@ export function ProduccionesRecientes() {
           {resultado.aviso ? ` ${resultado.aviso}` : ''}
         </Alert>
       )}
+
+      {avisoBorrado && <Alert variant="success">{avisoBorrado}</Alert>}
 
       {lista.isLoading ? (
         <LoadingState mensaje="Cargando producciones..." />
@@ -118,6 +126,16 @@ export function ProduccionesRecientes() {
                 <Button type="button" variant="secondary" className="min-h-11" onClick={() => setAbierta(abierta === p.id ? null : p.id)}>
                   {abierta === p.id ? 'Ocultar detalle' : 'Ver detalle'}
                 </Button>
+                {esGestion && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 sm:ml-auto"
+                    onClick={() => { setAvisoBorrado(null); setAEliminar({ id: p.id, producto: p.producto, fecha: formatoFechaIso(p.fecha) }); }}
+                  >
+                    Eliminar
+                  </Button>
+                )}
               </div>
 
               {cerrando === p.id && (
@@ -136,6 +154,11 @@ export function ProduccionesRecientes() {
           ))}
         </ul>
       )}
+      <EliminarProduccion
+        produccion={aEliminar}
+        onCerrar={() => setAEliminar(null)}
+        onEliminada={(m) => { setAEliminar(null); setAbierta(null); setAvisoBorrado(m); }}
+      />
       {filtradas.length > 8 && (
         <button type="button" onClick={() => setVerTodas((v) => !v)} className="min-h-11 w-fit text-sm font-semibold text-pizarra hover:underline">
           {verTodas ? 'Ver menos' : `Ver las ${filtradas.length} producciones`}
