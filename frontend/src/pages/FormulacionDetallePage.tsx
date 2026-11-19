@@ -85,7 +85,7 @@ export function FormulacionDetallePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="ficha-impresion flex flex-col gap-4">
       {isError && (
         <Alert variant="error">
           No se pudo cargar la formulación.{' '}
@@ -177,7 +177,7 @@ export function FormulacionDetallePage() {
             </Alert>
           )}
 
-          <div className={`grid grid-cols-2 gap-3 ${verCostos ? (data.margen_pct != null ? 'lg:grid-cols-5' : 'lg:grid-cols-4') : 'lg:grid-cols-3'}`}>
+          <div className={`kpis grid grid-cols-2 gap-3 ${verCostos ? (data.margen_pct != null ? 'lg:grid-cols-5' : 'lg:grid-cols-4') : 'lg:grid-cols-3'}`}>
             <Indicador etiqueta="Rinde" valor={data.rendimiento == null ? '—' : String(data.rendimiento)} detalle="unidades por lote" tono="azul" indice={0} />
             <Indicador
               etiqueta="Peso del lote"
