@@ -136,6 +136,45 @@
   tr {
     break-inside: avoid;
   }
+
+  /* Ficha técnica de una fórmula: sobria, con fondo blanco y poca tinta, para que quepa en menos hojas */
+  .ficha-impresion {
+    gap: 10px;
+  }
+  .ficha-impresion .kpis {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .ficha-impresion .kpis > * {
+    background: #fff !important;
+    border: 1px solid var(--color-linea);
+    padding: 6px 10px !important;
+    animation: none !important;
+  }
+  .ficha-impresion .kpis > * * {
+    color: var(--color-grafito) !important;
+  }
+  .ficha-impresion .kpis > * p:first-child {
+    font-size: 11px !important;
+    color: var(--color-gris-texto) !important;
+  }
+  .ficha-impresion .kpis p.font-display {
+    margin-top: 0 !important;
+    font-size: 18px !important;
+  }
+  .ficha-impresion .kpis > * p:last-child:not(:first-child) {
+    font-size: 10px !important;
+    margin-top: 0 !important;
+  }
+  .ficha-impresion section {
+    background: #fff !important;
+    padding: 8px 10px !important;
+    animation: none !important;
+  }
+  .ficha-impresion .bg-hueso {
+    background: #fff !important;
+    border: 1px solid var(--color-linea);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
