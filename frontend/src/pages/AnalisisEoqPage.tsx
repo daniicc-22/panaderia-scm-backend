@@ -11,7 +11,7 @@ import { TablaEoq } from '../features/reposicion/eoq/TablaEoq';
 import { conEoq, costoEoq, costoPolitica, costoReferencia, explicacion, insumosSinEoq, motivosSinCalendario, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
 import { Indicador } from '../features/inicio/Panel';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
-import { formatoCantidad, formatoDinero } from '../features/inventario/formatos';
+import { formatoCantidadPlan, formatoDinero } from '../features/inventario/formatos';
 import { getRecomendaciones } from '../services/reposicionService';
 
 // Las dos cantidades que importan, antes de mirar la curva: el pedido ideal y el que recomienda el sistema con el calendario
@@ -23,12 +23,12 @@ function CifrasClave({ item }: { item: ReturnType<typeof conEoq>[number] }) {
     <dl className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
       <div className="rounded-tarjeta bg-azul-noche p-3 text-white">
         <dt className="text-xs font-medium text-niebla">Pedido ideal (EOQ)</dt>
-        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{formatoCantidad(item.eoq, item.unidad)}</dd>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{formatoCantidadPlan(item.eoq, item.unidad)}</dd>
         <dd className="text-xs text-niebla">{formatoDinero(costoEoq(item))} al año</dd>
       </div>
       <div className="rounded-tarjeta bg-trigo p-3 text-grafito">
         <dt className="text-xs font-medium text-[#4a3509]">Recomendado con el calendario</dt>
-        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{qp === null ? '—' : formatoCantidad(qp, item.unidad)}</dd>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{qp === null ? '—' : formatoCantidadPlan(qp, item.unidad)}</dd>
         <dd className="text-xs text-[#4a3509]">{polit === null ? 'Falta el calendario del proveedor' : `${formatoDinero(polit)} al año`}</dd>
       </div>
       <div className="rounded-tarjeta border border-linea bg-hueso p-3 text-grafito">
@@ -190,7 +190,7 @@ export function AnalisisEoqPage() {
               <div>
                 <h2 className="text-base font-semibold text-grafito">Curva de costos de {elegido.nombre}</h2>
                 <p className="text-sm text-gris-texto">
-                  Consumo de {elegido.demanda_semanal === null ? '—' : formatoCantidad(elegido.demanda_semanal, elegido.unidad)} por semana
+                  Consumo de {elegido.demanda_semanal === null ? '—' : formatoCantidadPlan(elegido.demanda_semanal, elegido.unidad)} por semana
                 </p>
               </div>
               <label className="text-sm text-grafito">
@@ -211,7 +211,7 @@ export function AnalisisEoqPage() {
             <CifrasClave item={elegido} />
             <CurvaCostos key={elegido.materia_prima_id} item={elegido} />
             <div className="mt-3 flex flex-col gap-1 rounded-md bg-hueso p-3 text-sm text-grafito">
-              {explicacion(elegido, { cantidad: (v) => formatoCantidad(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
+              {explicacion(elegido, { cantidad: (v) => formatoCantidadPlan(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
                 <p key={t}>{t}</p>
               ))}
             </div>
