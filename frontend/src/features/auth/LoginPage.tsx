@@ -7,6 +7,7 @@ import { AnimatePresence, MotionConfig, motion, useAnimationControls } from 'mot
 import { CircleCheck, Eye, EyeOff, OctagonAlert } from 'lucide-react';
 import { useAuth } from './useAuth';
 import { Logo } from '../../components/brand/Logo';
+import { LEMA_APP, NOMBRE_APP } from '../../components/brand/marca';
 import { env } from '../../app/config/env';
 
 const esquemaLogin = z.object({
@@ -25,19 +26,6 @@ function saludoDelMomento() {
   if (h >= 4 && h < 12) return { momento: 'Buenos días', saludo: '¡Buenos días!', frase: 'El horno ya está caliente. Hora de empezar.' };
   if (h >= 12 && h < 18) return { momento: 'Buenas tardes', saludo: '¡Buenas tardes!', frase: 'Revisemos cómo va la producción de hoy.' };
   return { momento: 'Buenas noches', saludo: '¡Buenas noches!', frase: 'Dejemos todo listo para la hornada de mañana.' };
-}
-
-// Logo grande cuyas barras crecen como pan que leva
-function LogoVivo() {
-  return (
-    <svg width="96" height="96" viewBox="0 0 48 48" role="img" aria-label="Logo Panadería SCM">
-      <path d="M5 35 C5 20 13 13 24 13 C35 13 43 20 43 35 Z" fill="#F5F3EE" />
-      <rect className="origin-bottom animate-crece [transform-box:fill-box]" x="14" y="26" width="5" height="7" rx="1.5" fill="#E2AE45" />
-      <rect className="origin-bottom animate-crece [animation-delay:250ms] [transform-box:fill-box]" x="21.5" y="22" width="5" height="11" rx="1.5" fill="#E2AE45" />
-      <rect className="origin-bottom animate-crece [animation-delay:500ms] [transform-box:fill-box]" x="29" y="18" width="5" height="15" rx="1.5" fill="#A85C3E" />
-      <rect x="3" y="35" width="42" height="3.5" rx="1.75" fill="#E2AE45" />
-    </svg>
-  );
 }
 
 const GRANOS = [
@@ -157,8 +145,11 @@ export function LoginPage() {
             />
           ))}
           <div className="relative flex items-center gap-4">
-            <LogoVivo />
-            <span className="font-display text-3xl font-semibold">Panadería SCM</span>
+            <Logo size={96} animado />
+            <span>
+              <span className="block font-display text-4xl leading-tight font-semibold">{NOMBRE_APP}</span>
+              <span className="mt-1 block text-lg text-trigo">{LEMA_APP}</span>
+            </span>
           </div>
           <div className="relative mt-16 max-w-lg">
             <p className="font-display text-[44px] leading-tight font-semibold">Inteligencia para</p>
@@ -189,7 +180,10 @@ export function LoginPage() {
 
           <div className="relative mb-6 flex items-center gap-3 text-white lg:hidden">
             <Logo size={40} />
-            <span className="font-display text-2xl font-semibold">Panadería SCM</span>
+            <span>
+              <span className="block font-display text-2xl leading-tight font-semibold">{NOMBRE_APP}</span>
+              <span className="block text-sm text-trigo">{LEMA_APP}</span>
+            </span>
           </div>
 
           {/* La entrada va en el contenedor: la animación CSS no debe pisar la sacudida de Motion */}
