@@ -263,8 +263,21 @@ export function ProduccionPage() {
           </div>
         </div>
       ) : (
-        <div className="hidden rounded-tarjeta border border-dashed border-borde-campo bg-tabla px-6 py-12 text-center text-sm text-gris-texto lg:block">
-          Elige un producto y calcula el consumo: aquí verás qué insumos se gastan y de qué lotes salen.
+        <div className="hidden rounded-tarjeta border border-dashed border-borde-campo bg-tabla p-6 lg:block">
+          <p className="font-display text-base font-semibold text-azul-noche">Así se registra una producción</p>
+          <ol className="mt-3 flex flex-col gap-3 text-sm text-gris-texto">
+            {[
+              ['Elige el producto y cuántos lotes', 'Un lote es una tanda completa de la receta.'],
+              ['Calcula el consumo', 'Verás qué insumos se gastan y de qué lotes salen.'],
+              ['Anota los pesos y registra', 'Lo que no pesaste se toma con el peso de la receta.'],
+              ['Cierra la producción', 'Cuando termine, indica cuántas unidades salieron para medir el rendimiento.'],
+            ].map(([t, d], n) => (
+              <li key={t} className="flex gap-3">
+                <span className="cifras flex size-7 shrink-0 items-center justify-center rounded-full bg-azul-noche text-xs font-bold text-white">{n + 1}</span>
+                <span><span className="font-semibold text-grafito">{t}.</span> {d}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
       </div>
