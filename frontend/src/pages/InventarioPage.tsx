@@ -36,6 +36,9 @@ type Orden = 'nombre' | 'vencimiento' | 'valor' | 'urgencia';
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 // Estados de reposición que piden una compra; el número ordena de más a menos urgente
 const URGENCIA: Record<string, number> = { quiebre_probable: 0, pedir_hoy: 1, riesgo: 2, pedir: 3 };
+// Dentro de la misma urgencia, primero los insumos de clase A (los que más pesan en el costo)
+const RANGO_CLASE = (c: string | null) => (c === 'A' ? 0 : c === 'B' ? 1 : c === 'C' ? 2 : 3);
+const ETIQUETA_CORTA: Record<string, string> = { quiebre_probable: 'Se agota', riesgo: 'En riesgo', pedir_hoy: 'Pedir hoy', pedir: 'Pedir', ok: 'Suficiente', sobreinventario: 'Exceso' };
 const COLOR_CLASE = { A: 'bg-trigo-suave text-atencion-texto', B: 'bg-azul-suave text-azul-noche', C: 'bg-arena text-gris-texto' } as const;
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -64,7 +67,7 @@ export function InventarioPage() {
   // Reposición es solo de gestión: el operario ve existencias, no compras
   const reposicion = useQuery({ queryKey: ['reposicion', 'recomendaciones'], queryFn: getRecomendaciones, enabled: esGestion });
   const recDe = useMemo(() => new Map<string, ItemRecomendacion>((reposicion.data?.items ?? []).map((r) => [r.materia_prima_id, r])), [reposicion.data]);
-  const porPedir = useMemo(() => (reposicion.data?.items ?? []).filter((r) => r.estado in URGENCIA).sort((a, b) => URGENCIA[a.estado] - URGENCIA[b.estado]), [reposicion.data]);
+  const porPedir = useMemo(() => (reposicion.data?.items ?? []).filter((r) => r.estado in URGENCIA).sort((a, b) => URGENCIA[a.estado] - URGENCIA[b.estado] || RANGO_CLASE(a.clase_abc) - RANGO_CLASE(b.clase_abc) || a.nombre.localeCompare(b.nombre, 'es')), [reposicion.data]);
   const verReposicion = esGestion && !!reposicion.data;
   const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
   const [entradaAbierta, setEntradaAbierta] = useState(false);
@@ -282,7 +285,7 @@ export function InventarioPage() {
               <thead className="bg-hueso">
                 <tr>
                   {['Código', 'Insumo', 'Existencias', ...(verReposicion ? ['Reposición'] : []), 'Lotes', 'Próximo vencimiento', 'Estado', ...(verValor ? ['Valor'] : []), ''].map((h) => (
-                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-azul-noche ${h === '' ? 'print:hidden' : ''}`}>
+                    <th key={h} className={`px-4 py-3 text-left whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-azul-noche ${h === '' ? 'print:hidden' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -309,7 +312,7 @@ export function InventarioPage() {
                       </td>
                     )}
                     <td className="px-4 py-3 text-sm text-grafito">{i.lotes_activos}</td>
-                    <td className="px-4 py-3 text-sm text-grafito">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-grafito">
                       {i.proximo_vencimiento ? (
                         <>
                           {formatoFecha(i.proximo_vencimiento)}
@@ -330,7 +333,7 @@ export function InventarioPage() {
                           <>
                             <span className="cifras font-semibold">{formatoDinero(i.valor ?? 0)}</span>
                             {conteo.valor > 0 && (
-                              <span className="mt-1 flex items-center gap-2 text-xs text-gris-texto">
+                              <span className="mt-1 flex items-center gap-2 whitespace-nowrap text-xs text-gris-texto">
                                 <span aria-hidden="true" className="h-1.5 w-16 overflow-hidden rounded-full bg-arena print:hidden">
                                   <span className="block h-full rounded-full bg-azul-noche" style={{ width: `${Math.max(((i.valor ?? 0) / conteo.valor) * 100, 2)}%` }} />
                                 </span>
@@ -343,7 +346,7 @@ export function InventarioPage() {
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-sm print:hidden">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm print:hidden">
                       {i.stock > 0 ? (
                         <button type="button" className="font-medium text-pizarra hover:underline" onClick={() => setConLotes(i)}>
                           Ver lotes
@@ -379,9 +382,9 @@ function CeldaReposicion({ r }: { r: ItemRecomendacion | undefined }) {
   const e = ESTADOS[r.estado];
   return (
     <span className="flex flex-col items-start gap-0.5">
-      <Badge color={e.color}>{e.etiqueta}</Badge>
+      <span title={e.detalle}><Badge color={e.color}>{ETIQUETA_CORTA[r.estado] ?? e.etiqueta}</Badge></span>
       {r.cobertura_dias !== null && r.existencia > 0 && (
-        <span className="cifras text-xs text-gris-texto">Alcanza ~{Math.floor(r.cobertura_dias)} {Math.floor(r.cobertura_dias) === 1 ? 'día' : 'días'}</span>
+        <span className="cifras whitespace-nowrap text-xs text-gris-texto">Alcanza ~{Math.floor(r.cobertura_dias)} {Math.floor(r.cobertura_dias) === 1 ? 'día' : 'días'}</span>
       )}
     </span>
   );
