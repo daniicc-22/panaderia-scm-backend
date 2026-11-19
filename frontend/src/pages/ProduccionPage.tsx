@@ -6,6 +6,8 @@ import { LoadingState } from '../components/feedback/LoadingState';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { PageHeader } from '../components/layout/PageHeader';
+import { ResumenProduccion } from '../features/produccion/ResumenProduccion';
 import { aNumero } from '../features/inventario/esquemaEntrada';
 import { formatoCantidad, formatoFecha } from '../features/inventario/formatos';
 import { ProduccionesRecientes } from '../features/produccion/ProduccionesRecientes';
@@ -95,19 +97,20 @@ export function ProduccionPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
-        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Producir</h1>
-        <p className="mt-1 text-sm text-niebla">Registra una producción y descuenta los insumos del inventario.</p>
-      </div>
+      <PageHeader titulo="Producir" subtitulo="Registra una producción y descuenta los insumos del inventario" />
+
+      <ResumenProduccion />
 
       {exito && <Alert variant="success">{exito}</Alert>}
 
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start">
       {formulaciones.isLoading ? (
         <LoadingState mensaje="Cargando productos..." />
       ) : formulaciones.isError ? (
         <ErrorState onReintentar={() => formulaciones.refetch()} />
       ) : (
-        <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
+        <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:p-5 lg:sticky lg:top-4">
+          <h2 className="font-display text-lg font-semibold text-azul-noche">Nueva producción</h2>
           <div className="flex flex-col gap-1">
             <label htmlFor="pr-producto" className="text-sm font-medium text-grafito">
               Producto
@@ -165,10 +168,10 @@ export function ProduccionPage() {
         </div>
       )}
 
-      {plan && (
-        <div className="flex flex-col gap-3">
+      {plan ? (
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-grafito">
+            <h2 className="font-display text-lg font-semibold text-azul-noche">
               Consumo para {plan.lotes} {plan.lotes === 1 ? 'lote' : 'lotes'} de {plan.formulacion.producto}
             </h2>
             <Badge color={plan.completo ? 'green' : 'red'}>{plan.completo ? 'Hay existencias' : 'Faltan existencias'}</Badge>
@@ -189,13 +192,13 @@ export function ProduccionPage() {
             {plan.items.map((i) => (
               <li
                 key={i.materia_prima_id}
-                className={`rounded-lg border p-3 ${
-                  i.faltante > 0 ? 'border-[#f0c3c0] bg-critico-fondo' : i.controla_inventario ? 'border-linea bg-tabla' : 'border-linea bg-hueso'
+                className={`rounded-lg border border-l-4 p-3 ${
+                  i.faltante > 0 ? 'border-[#f0c3c0] border-l-critico bg-critico-fondo' : i.controla_inventario ? 'border-linea border-l-verde-bosque bg-tabla' : 'border-linea border-l-borde-campo bg-hueso'
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <span className="font-medium text-grafito">{i.nombre}</span>
-                  <span className="text-sm font-semibold text-grafito">{formatoCantidad(i.necesario, i.unidad)}</span>
+                  <span className="cifras font-display text-lg font-semibold leading-none text-azul-noche">{formatoCantidad(i.necesario, i.unidad)}</span>
                 </div>
                 <div className="mt-2 flex flex-col gap-1">
                   <label htmlFor={`peso-${i.materia_prima_id}`} className="text-xs font-medium text-gris-texto">
@@ -259,7 +262,12 @@ export function ProduccionPage() {
             </Button>
           </div>
         </div>
+      ) : (
+        <div className="hidden rounded-tarjeta border border-dashed border-borde-campo bg-tabla px-6 py-12 text-center text-sm text-gris-texto lg:block">
+          Elige un producto y calcula el consumo: aquí verás qué insumos se gastan y de qué lotes salen.
+        </div>
       )}
+      </div>
 
       <QueProducir />
 

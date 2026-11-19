@@ -107,19 +107,27 @@ export function RegistrarMerma() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
+    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:p-5">
+      <h2 className="font-display text-lg font-semibold text-azul-noche">Registrar una merma</h2>
       {exito && <Alert variant="success">{exito}</Alert>}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-grafito">¿Qué se perdió?</legend>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
-          <input type="radio" name="tipo-merma" checked={tipo === 'insumo'} onChange={() => cambiarTipo('insumo')} />
-          Un insumo (se vence, se cae, se derrama)
-        </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
-          <input type="radio" name="tipo-merma" checked={tipo === 'produccion'} onChange={() => cambiarTipo('produccion')} />
-          Masa o producto de una producción (quemado, masa pasada)
-        </label>
+        <legend className="mb-1 text-sm font-medium text-grafito">¿Qué se perdió?</legend>
+        {([
+          ['insumo', 'Un insumo', 'Se vence, se cae, se derrama'],
+          ['produccion', 'Masa o producto', 'Quemado, masa pasada en una producción'],
+        ] as const).map(([valor, titulo, detalle]) => (
+          <label
+            key={valor}
+            className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${tipo === valor ? 'border-azul-noche bg-azul-suave' : 'border-borde-campo bg-white hover:bg-arena'}`}
+          >
+            <input type="radio" name="tipo-merma" className="mt-1 accent-azul-noche" checked={tipo === valor} onChange={() => cambiarTipo(valor)} />
+            <span>
+              <span className="block text-sm font-semibold text-azul-noche">{titulo}</span>
+              <span className="block text-xs text-gris-texto">{detalle}</span>
+            </span>
+          </label>
+        ))}
       </fieldset>
 
       {tipo === 'insumo' ? (
