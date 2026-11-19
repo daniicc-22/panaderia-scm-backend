@@ -91,14 +91,12 @@ export function ParametrosReposicionPage() {
         titulo="Parámetros de reposición"
         subtitulo={`Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir${parametros.data ? ` · ${cuantosFaltan === 0 ? `${items.length} insumos, todos con sus datos` : `${cuantosFaltan} de ${items.length} con datos por completar`}` : ''}`}
         acciones={
-          <Button
-            type="button"
-            onClick={() => setCompletando(true)}
-            disabled={items.length === 0 || resumenVacios(items).conVacios === 0}
-            title={items.length > 0 && resumenVacios(items).conVacios === 0 ? 'Todos los insumos ya tienen estos datos' : undefined}
-          >
-            Completar vacíos
-          </Button>
+          // Solo aparece cuando hay algo por completar; si todo está lleno, un botón apagado parecería dañado
+          resumenVacios(items).conVacios > 0 ? (
+            <Button type="button" onClick={() => setCompletando(true)}>
+              Completar vacíos ({resumenVacios(items).conVacios})
+            </Button>
+          ) : undefined
         }
       />
 
