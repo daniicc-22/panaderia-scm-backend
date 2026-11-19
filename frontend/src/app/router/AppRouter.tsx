@@ -11,6 +11,7 @@ import { FormulacionDetallePage } from '../../pages/FormulacionDetallePage';
 import { ClasificacionAbcPage } from '../../pages/ClasificacionAbcPage';
 import { ProveedoresPage } from '../../pages/ProveedoresPage';
 import { ReposicionPage } from '../../pages/ReposicionPage';
+import { OrdenPedidoPage } from '../../pages/OrdenPedidoPage';
 import { ParametrosReposicionPage } from '../../pages/ParametrosReposicionPage';
 import { AnalisisEoqPage } from '../../pages/AnalisisEoqPage';
 import { InventarioPage } from '../../pages/InventarioPage';
@@ -64,6 +65,7 @@ export function AppRouter() {
           <Route path="/usuarios" element={<UsuariosPage />} />
           <Route path="/desviacion-pesaje" element={<DesviacionPesajePage />} />
           <Route path="/reposicion" element={<ReposicionPage />} />
+          <Route path="/reposicion/pedido/:proveedorId" element={<OrdenPedidoPage />} />
           <Route path="/reposicion/eoq" element={<AnalisisEoqPage />} />
           <Route path="/reposicion/parametros" element={<ParametrosReposicionPage />} />
           <Route path="/indicadores" element={<IndicadoresPage />} />
