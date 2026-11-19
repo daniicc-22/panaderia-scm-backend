@@ -34,3 +34,8 @@ export async function editarOferta(
   const { data } = await httpClient.patch(`/precios/ofertas/${id}`, cambios);
   return data;
 }
+
+export async function getHistorialCostos(meses = 12): Promise<import('../types/precios.types').HistorialCostos> {
+  const { data } = await httpClient.get('/precios/historial', { params: { meses } });
+  return data;
+}

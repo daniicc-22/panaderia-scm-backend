@@ -43,6 +43,18 @@ export async function finalizarProduccion(id: string, cantidad_producida: number
   return data;
 }
 
+export interface ProduccionEliminada {
+  id: string;
+  eliminada: true;
+  lotes_repuestos: number;
+  mermas_eliminadas: number;
+}
+
+export async function eliminarProduccion(id: string): Promise<ProduccionEliminada> {
+  const { data } = await httpClient.delete<ProduccionEliminada>(`/produccion/${id}`);
+  return data;
+}
+
 export async function getBalanceMasas(id: string): Promise<BalanceMasas> {
   const { data } = await httpClient.get<BalanceMasas>(`/produccion/${id}/balance`);
   return data;

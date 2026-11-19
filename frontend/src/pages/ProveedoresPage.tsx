@@ -1,132 +1,37 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { Plus } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { CompararProveedores } from '../features/proveedores/CompararProveedores';
+import { HistorialCostos } from '../features/proveedores/HistorialCostos';
+import { ListaProveedores } from '../features/proveedores/ListaProveedores';
 import { OfertasProveedor } from '../features/proveedores/OfertasProveedor';
 import { EntregaProveedorForm } from '../features/proveedores/EntregaProveedorForm';
 import { ProveedorForm } from '../features/proveedores/ProveedorForm';
-import { textoDiasEntrega } from '../features/reposicion/etiquetas';
 import { editarProveedor, getProveedores } from '../services/proveedoresService';
 import { mensajeDeError } from '../services/errores';
 import type { Proveedor } from '../types/proveedor.types';
 
-const pesos = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+type Vista = 'proveedores' | 'comparar' | 'historial';
+const VISTAS: { id: Vista; texto: string }[] = [
+  { id: 'proveedores', texto: 'Proveedores' },
+  { id: 'comparar', texto: 'Comparar por insumo' },
+  { id: 'historial', texto: 'Historial de costos' },
+];
+
 const textoPrecios = (n: number) => (n === 1 ? '1 precio vigente' : `${n} precios vigentes`);
-
-interface Acciones {
-  onVerOferta: (p: Proveedor) => void;
-  onEntrega: (p: Proveedor) => void;
-  onEditar: (p: Proveedor) => void;
-  onDesactivar: (p: Proveedor) => void;
-  onReactivar: (p: Proveedor) => void;
-  ocupado: boolean;
-}
-
-function crearColumnas(acciones: Acciones): ColumnaTabla<Proveedor>[] {
-  return [
-    {
-      key: 'nombre',
-      encabezado: 'Proveedor',
-      render: (p) => (
-        <span className={`font-medium ${p.activo ? 'text-grafito' : 'text-gris-texto'}`}>
-          {p.nombre}
-          {!p.activo && (
-            <span className="ml-2 rounded-sm bg-arena px-1.5 py-0.5 text-xs font-normal text-gris-texto">Inactivo</span>
-          )}
-          {p.alcance === 'grupo' && (
-            <span className="ml-2 rounded-sm bg-info-fondo px-1.5 py-0.5 text-xs font-normal text-pizarra">Del grupo</span>
-          )}
-        </span>
-      ),
-    },
-    { key: 'contacto', encabezado: 'Contacto', render: (p) => p.contacto ?? '—' },
-    { key: 'telefono', encabezado: 'Teléfono', render: (p) => p.telefono ?? '—' },
-    { key: 'direccion', encabezado: 'Dirección', render: (p) => p.direccion ?? '—' },
-    {
-      key: 'entrega',
-      encabezado: 'Entrega',
-      render: (p) => (
-        <span className="text-sm">
-          <span className={p.dias_entrega.length === 0 ? 'text-atencion-texto' : 'text-grafito'}>{textoDiasEntrega(p.dias_entrega)}</span>
-          {p.pedido_minimo !== null && (
-            <span className="block text-xs text-gris-texto">Mínimo {pesos.format(p.pedido_minimo)}</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: 'precios',
-      encabezado: 'Oferta y precios',
-      render: (p) => (
-        <button
-          type="button"
-          className="whitespace-nowrap font-medium text-pizarra hover:underline"
-          onClick={() => acciones.onVerOferta(p)}
-        >
-          {p.ofertas_vigentes === 0 ? 'Ver oferta' : `Ver oferta (${p.ofertas_vigentes})`}
-        </button>
-      ),
-    },
-    {
-      key: 'acciones',
-      encabezado: 'Acciones',
-      render: (p) =>
-        p.alcance === 'grupo' ? (
-          <span className="text-xs text-gris-texto">Solo consulta</span>
-        ) : (
-          <div className="flex gap-3 whitespace-nowrap text-sm">
-            <button
-              type="button"
-              className="font-medium text-pizarra hover:underline disabled:opacity-50"
-              disabled={acciones.ocupado}
-              onClick={() => acciones.onEditar(p)}
-            >
-              Editar
-            </button>
-            <button
-              type="button"
-              className="font-medium text-pizarra hover:underline disabled:opacity-50"
-              disabled={acciones.ocupado}
-              onClick={() => acciones.onEntrega(p)}
-            >
-              Entrega
-            </button>
-            {p.activo ? (
-              <button
-                type="button"
-                className="font-medium text-critico-texto hover:underline disabled:opacity-50"
-                disabled={acciones.ocupado}
-                onClick={() => acciones.onDesactivar(p)}
-              >
-                Desactivar
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="font-medium text-exito-texto hover:underline disabled:opacity-50"
-                disabled={acciones.ocupado}
-                onClick={() => acciones.onReactivar(p)}
-              >
-                Reactivar
-              </button>
-            )}
-          </div>
-        ),
-    },
-  ];
-}
 
 export function ProveedoresPage() {
   const queryClient = useQueryClient();
-  const [busqueda, setBusqueda] = useState('');
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
   // 'nuevo' abre el formulario vacío; un proveedor lo abre para editarlo
   const [formulario, setFormulario] = useState<'nuevo' | Proveedor | null>(null);
   const [porDesactivar, setPorDesactivar] = useState<Proveedor | null>(null);
   const [verOferta, setVerOferta] = useState<Proveedor | null>(null);
   const [conEntrega, setConEntrega] = useState<Proveedor | null>(null);
+  const [vista, setVista] = useState<Vista>('proveedores');
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores });
@@ -178,77 +83,72 @@ export function ProveedoresPage() {
     );
   }
 
-  const columnas = useMemo(
-    () =>
-      crearColumnas({
-        onVerOferta: (p) => setVerOferta(p),
-        onEntrega: (p) => {
-          setAviso(null);
-          setConEntrega(p);
-        },
-        onEditar: (p) => {
-          setAviso(null);
-          setFormulario(p);
-        },
-        onDesactivar: (p) => {
-          cambiarEstado.reset();
-          setPorDesactivar(p);
-        },
-        onReactivar: reactivar,
-        ocupado: cambiarEstado.isPending,
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cambiarEstado.isPending],
-  );
-
-  const visibles = useMemo(
-    () => (mostrarInactivos ? (data ?? []) : (data ?? []).filter((p) => p.activo)),
-    [data, mostrarInactivos],
-  );
-
-  const filtrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-    return visibles.filter((p) => !texto || p.nombre.toLowerCase().includes(texto));
-  }, [visibles, busqueda]);
+  const activos = (data ?? []).filter((p) => p.activo).length;
+  const inactivos = (data ?? []).length - activos;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Proveedores</h1>
-          <p className="mt-1 text-sm text-niebla">
-            {data ? `${filtrados.length} de ${visibles.length} proveedores` : 'Quién te vende los insumos'}
-          </p>
-        </div>
-        <Button type="button" onClick={() => setFormulario('nuevo')}>
-          Nuevo proveedor
-        </Button>
+      <PageHeader
+        titulo="Proveedores"
+        subtitulo={data ? `${activos} ${activos === 1 ? 'activo' : 'activos'}${inactivos > 0 ? ` · ${inactivos} ${inactivos === 1 ? 'inactivo' : 'inactivos'}` : ''}` : 'Quién te vende los insumos'}
+        acciones={
+          <Button type="button" onClick={() => setFormulario('nuevo')}>
+            <Plus size={16} aria-hidden="true" />
+            Nuevo proveedor
+          </Button>
+        }
+      />
+
+      <div role="tablist" aria-label="Vistas de proveedores" className="flex gap-1 overflow-x-auto border-b border-linea">
+        {VISTAS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            role="tab"
+            aria-selected={vista === v.id}
+            onClick={() => setVista(v.id)}
+            className={`min-h-11 whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors ${vista === v.id ? 'border-azul-noche text-azul-noche' : 'border-transparent text-gris-texto hover:text-azul-noche'}`}
+          >
+            {v.texto}
+          </button>
+        ))}
       </div>
 
       {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre"
-          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
-        />
-        <label className="flex items-center gap-2 text-sm text-grafito">
-          <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
-          Mostrar inactivos
-        </label>
-      </div>
+      {vista === 'comparar' && data && <CompararProveedores proveedores={data} />}
+      {vista === 'historial' && <HistorialCostos />}
 
-      <DataTable
-        columnas={columnas}
-        datos={filtrados}
-        cargando={isLoading}
-        error={isError}
-        onReintentar={() => refetch()}
-        obtenerKeyFila={(p) => p.id}
-      />
+      {vista !== 'proveedores' ? null : isError ? (
+        <Alert variant="error">
+          No se pudieron cargar los proveedores.{' '}
+          <button type="button" className="font-semibold underline" onClick={() => refetch()}>
+            Reintentar
+          </button>
+        </Alert>
+      ) : (
+        <ListaProveedores
+          proveedores={data}
+          cargando={isLoading}
+          acciones={{
+            onVerOferta: (p) => setVerOferta(p),
+            onEntrega: (p) => {
+              setAviso(null);
+              setConEntrega(p);
+            },
+            onEditar: (p) => {
+              setAviso(null);
+              setFormulario(p);
+            },
+            onDesactivar: (p) => {
+              cambiarEstado.reset();
+              setPorDesactivar(p);
+            },
+            onReactivar: reactivar,
+            ocupado: cambiarEstado.isPending,
+          }}
+        />
+      )}
 
       <Modal
         isOpen={formulario !== null}
@@ -259,7 +159,12 @@ export function ProveedoresPage() {
           <ProveedorForm
             key={formulario === 'nuevo' ? 'nuevo' : formulario.id}
             proveedor={formulario === 'nuevo' ? null : formulario}
-            onTerminar={() => setFormulario(null)}
+            onTerminar={(creado) => {
+              setFormulario(null);
+              if (creado) {
+                setAviso({ tipo: 'success', texto: `${creado.nombre} quedó registrado. Ahora define sus días de entrega y sus precios para que cuente en Reposición.` });
+              }
+            }}
           />
         )}
       </Modal>

@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, Pencil, Power, RotateCcw, Tag, TriangleAlert } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Esqueleto } from '../components/feedback/Esqueleto';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
+import { Indicador } from '../features/inicio/Panel';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
+import { CostoEnElTiempo } from '../features/formulaciones/CostoEnElTiempo';
+import { EditarProductoForm } from '../features/formulaciones/EditarProductoForm';
+import { IngredientesReceta } from '../features/formulaciones/IngredientesReceta';
+import { PanelPreparacion } from '../features/formulaciones/PanelPreparacion';
+import { UsadoEn } from '../features/formulaciones/UsadoEn';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/useAuth';
+import { getMiPanaderia } from '../services/panaderiaService';
 import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
 import { mensajeDeError } from '../services/errores';
-import type { IngredienteFormulacion } from '../types/formulacion.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const pesos2 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,21 +31,13 @@ function fechaCorta(iso: string): string {
   return `${d}/${m}/${a}`;
 }
 
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="rounded-tarjeta border border-linea bg-tabla p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gris-texto">{etiqueta}</p>
-      <p className="mt-1 text-xl font-semibold text-grafito">{valor}</p>
-    </div>
-  );
-}
-
 export function FormulacionDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { usuario } = useAuth();
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState(false);
+  const [editandoProducto, setEditandoProducto] = useState(false);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
@@ -45,6 +46,7 @@ export function FormulacionDetallePage() {
     enabled: !!id,
   });
 
+  const { data: panaderia } = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
   const verCostos = data?.costo_lote != null;
 
   const cambiarEstado = useMutation({
@@ -82,127 +84,168 @@ export function FormulacionDetallePage() {
     });
   }
 
-  const columnas: ColumnaTabla<IngredienteFormulacion>[] = [
-    {
-      key: 'nombre',
-      encabezado: 'Ingrediente',
-      render: (i) => (
-        <div className="flex flex-col">
-          <span className="font-medium text-grafito">{i.nombre}</span>
-          {i.tipo === 'producto_intermedio' && <span className="text-xs text-gris-texto">Producto intermedio</span>}
-        </div>
-      ),
-    },
-    { key: 'cantidad', encabezado: 'Cantidad', render: (i) => `${numero.format(i.cantidad)} ${i.unidad}` },
-    ...(verCostos
-      ? ([
-          {
-            key: 'costo_unidad',
-            encabezado: 'Costo por unidad',
-            render: (i) => (i.costo_por_unidad == null ? '—' : pesos2.format(i.costo_por_unidad)),
-          },
-          {
-            key: 'costo',
-            encabezado: 'Costo',
-            render: (i) => (i.costo == null ? 'Sin costo' : pesos0.format(i.costo)),
-          },
-          {
-            key: 'participacion',
-            encabezado: '% del costo',
-            render: (i) =>
-              i.costo == null || !data?.costo_lote ? '—' : `${numero.format((i.costo / data.costo_lote) * 100)} %`,
-          },
-        ] as ColumnaTabla<IngredienteFormulacion>[])
-      : []),
-  ];
-
   return (
-    <div className="flex flex-col gap-4">
-      <Link to="/formulaciones" className="text-sm font-medium text-pizarra hover:underline">
-        ← Volver a formulaciones
-      </Link>
+    <div className="ficha-impresion flex flex-col gap-4">
+      {isError && (
+        <Alert variant="error">
+          No se pudo cargar la formulación.{' '}
+          <button type="button" className="font-semibold underline" onClick={() => refetch()}>
+            Reintentar
+          </button>
+        </Alert>
+      )}
+      {isLoading && (
+        <div className="flex flex-col gap-4">
+          <Esqueleto className="h-24" />
+          <Esqueleto className="h-64" />
+        </div>
+      )}
 
       {data && (
         <>
-          <div className="rounded-tarjeta bg-pizarra px-5 py-5 text-white sm:px-6 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">
-                {data.producto}
-                {!data.producto_activo && (
-                  <span className="ml-3 rounded-sm bg-noche-tarjeta px-2 py-0.5 align-middle text-sm font-normal text-niebla">
-                    Dado de baja
-                  </span>
-                )}
-              </h1>
-              <p className="mt-1 text-sm text-niebla">
+          <div className="hidden print:block">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gris-texto">{panaderia?.nombre ?? ''}</p>
+            <h1 className="font-display text-2xl font-semibold text-azul-noche">Ficha técnica de producción</h1>
+            <p className="mt-1 text-lg font-semibold text-grafito">{data.producto}</p>
+            <dl className="mt-3 grid grid-cols-4 gap-3 border-y border-linea py-2 text-xs">
+              <div><dt className="text-gris-texto">Versión</dt><dd className="font-semibold text-grafito">v{data.version}{data.activa ? ' (vigente)' : ' (anterior)'}</dd></div>
+              <div><dt className="text-gris-texto">Vigente desde</dt><dd className="font-semibold text-grafito">{fechaCorta(data.vigente_desde)}</dd></div>
+              <div><dt className="text-gris-texto">Aprobó</dt><dd className="font-semibold text-grafito">{data.aprobado_por ?? '—'}</dd></div>
+              <div><dt className="text-gris-texto">Impresa el</dt><dd className="font-semibold text-grafito">{new Date().toLocaleDateString('es-CO')}</dd></div>
+            </dl>
+          </div>
+
+          <PageHeader
+            ocultarAlImprimir
+            titulo={data.producto}
+            subtitulo={
+              <>
                 Versión {data.version} · {data.activa ? 'vigente' : 'anterior'} desde {fechaCorta(data.vigente_desde)}
                 {data.vigente_hasta ? ` hasta ${fechaCorta(data.vigente_hasta)}` : ''}
-              </p>
-            </div>
-            {puedeGestionar && (
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => setEditando(true)}>
-                  {data.activa ? 'Editar formulación' : 'Usar como base'}
-                </Button>
-                {data.producto_activo ? (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    onClick={() => {
-                      cambiarEstado.reset();
-                      setAviso(null);
-                      setConfirmandoBaja(true);
-                    }}
-                  >
-                    Dar de baja
-                  </Button>
-                ) : (
-                  <Button type="button" variant="secondary" isLoading={cambiarEstado.isPending} onClick={reactivar}>
-                    Reactivar producto
+                {!data.producto_activo && ' · Dado de baja'}
+              </>
+            }
+            acciones={
+              <>
+                <BotonImprimir etiqueta="Ficha técnica" />
+                {puedeGestionar && (
+                  <Button type="button" variant="secondary" onClick={() => setEditandoProducto(true)}>
+                    <Tag size={16} aria-hidden="true" />
+                    Editar producto
                   </Button>
                 )}
-              </div>
-            )}
-          </div>
+                {puedeGestionar && (
+                  <Button type="button" onClick={() => setEditando(true)}>
+                    <Pencil size={16} aria-hidden="true" />
+                    {data.activa ? 'Editar formulación' : 'Usar como base'}
+                  </Button>
+                )}
+                {puedeGestionar &&
+                  (data.producto_activo ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        cambiarEstado.reset();
+                        setAviso(null);
+                        setConfirmandoBaja(true);
+                      }}
+                    >
+                      <Power size={16} aria-hidden="true" />
+                      Dar de baja
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="secondary" isLoading={cambiarEstado.isPending} onClick={reactivar}>
+                      <RotateCcw size={16} aria-hidden="true" />
+                      Reactivar producto
+                    </Button>
+                  ))}
+              </>
+            }
+          />
+
+          <Link to="/formulaciones" className="-mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-pizarra hover:underline print:hidden">
+            <ArrowLeft size={15} aria-hidden="true" />
+            Volver a formulaciones
+          </Link>
 
           {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
           {!data.activa && (
-            <div className="rounded-md border border-[#c6d3de] bg-info-fondo px-4 py-3 text-sm text-pizarra">
-              Estás viendo una versión anterior. No se usa en la producción ni en el ABC; el costo se calcula con los
-              precios de hoy.
-            </div>
+            <Alert variant="info">
+              Estás viendo una versión anterior. No se usa en la producción ni en el ABC; el costo se calcula con los precios de hoy.
+            </Alert>
           )}
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Dato etiqueta="Rinde" valor={data.rendimiento == null ? '—' : `${data.rendimiento} unidades`} />
-            <Dato etiqueta="Peso del lote" valor={`${numero.format(data.peso_lote_g / 1000)} kg`} />
+          <div className={`kpis grid grid-cols-2 gap-3 ${verCostos ? (data.margen_pct != null ? 'lg:grid-cols-5' : 'lg:grid-cols-4') : 'lg:grid-cols-3'}`}>
+            <Indicador etiqueta="Rinde" valor={data.rendimiento == null ? '—' : String(data.rendimiento)} detalle="unidades por lote" tono="azul" indice={0} />
+            <Indicador
+              etiqueta="Peso del lote"
+              valor="—"
+              numero={data.peso_lote_g / 1000}
+              formato={(n) => `${numero.format(n)} kg`}
+              detalle={data.rendimiento ? `${numero.format(data.peso_lote_g / data.rendimiento)} g por unidad` : undefined}
+              tono="amarillo"
+              indice={1}
+            />
             {verCostos && data.costo_lote != null && (
-              <Dato etiqueta="Costo por lote" valor={pesos0.format(data.costo_lote)} />
+              <Indicador etiqueta="Costo por lote" valor="—" numero={data.costo_lote} formato={(n) => pesos0.format(n)} tono="verde" indice={2} />
             )}
             {verCostos && (
-              <Dato etiqueta="Costo por unidad" valor={data.costo_unidad == null ? '—' : pesos2.format(data.costo_unidad)} />
+              <Indicador etiqueta="Costo por unidad" valor={data.costo_unidad == null ? '—' : pesos2.format(data.costo_unidad)} tono="gris" indice={3} />
+            )}
+            {verCostos && data.margen_pct != null && (
+              <Indicador
+                etiqueta="Margen por unidad"
+                valor={`${numero.format(data.margen_pct)} %`}
+                detalle={`Vende a ${pesos0.format(data.precio_venta ?? 0)} · gana ${pesos2.format(data.margen_unidad ?? 0)}`}
+                tono={data.margen_pct < 0 ? 'rojo' : 'verde'}
+                indice={4}
+              />
             )}
           </div>
 
           {verCostos && data.costo_incompleto && (
-            <div className="rounded-md border border-[#f1d9a6] bg-atencion-fondo px-4 py-3 text-sm text-atencion-texto">
-              Esta formulación incluye un ingrediente sin costo (producto intermedio o materia prima sin precio). El costo total es parcial.
+            <Alert variant="warning">
+              <span className="inline-flex items-center gap-2">
+                <TriangleAlert size={16} aria-hidden="true" />
+                Hay un ingrediente sin costo (producto intermedio o materia prima sin precio). El costo total es parcial.
+              </span>
+            </Alert>
+          )}
+
+          <IngredientesReceta data={data} verCostos={verCostos} />
+
+          <PanelPreparacion data={data} puedeGestionar={puedeGestionar} />
+
+          {puedeGestionar && data.es_intermedio && (
+            <div className="print:hidden">
+              <UsadoEn formulacionId={data.id} />
             </div>
           )}
+
+          {puedeGestionar && verCostos && (
+            <div className="print:hidden">
+              <CostoEnElTiempo formulacionId={data.id} tieneRendimiento={data.rendimiento != null} />
+            </div>
+          )}
+
+          <div className="mt-10 hidden grid-cols-3 gap-10 text-xs text-gris-texto print:grid">
+            {['Elaboró', 'Revisó', 'Aprobó'].map((rol) => (
+              <div key={rol} className="border-t border-grafito pt-1.5">
+                <p className="font-semibold text-grafito">{rol}</p>
+                <p>Nombre y firma</p>
+              </div>
+            ))}
+          </div>
         </>
       )}
 
-      <DataTable
-        columnas={columnas}
-        datos={data?.ingredientes ?? []}
-        cargando={isLoading}
-        error={isError}
-        onReintentar={() => refetch()}
-        obtenerKeyFila={(i) => `${i.tipo}-${i.codigo ?? i.nombre}`}
-      />
-
-      {puedeGestionar && id && <HistorialVersiones formulacionId={id} />}
+      {puedeGestionar && id && (
+        <div className="print:hidden">
+          <HistorialVersiones formulacionId={id} />
+        </div>
+      )}
 
       {puedeGestionar && data && (
         <Modal isOpen={confirmandoBaja} onClose={() => setConfirmandoBaja(false)} title="Dar de baja el producto">
@@ -226,6 +269,12 @@ export function FormulacionDetallePage() {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {puedeGestionar && data && (
+        <Modal isOpen={editandoProducto} onClose={() => setEditandoProducto(false)} title="Editar producto">
+          {editandoProducto && <EditarProductoForm formulacion={data} onTerminar={() => setEditandoProducto(false)} />}
         </Modal>
       )}
 

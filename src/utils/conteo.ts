@@ -190,3 +190,8 @@ export function validarCorreccion(body: unknown): Resultado<DatosCorreccion> {
   if (errores.length > 0 || motivo === null) return { ok: false, errores };
   return { ok: true, datos: { cantidad_nueva: cantidad, motivo, observaciones } };
 }
+
+// Orden del conteo cíclico: primero la clase A (lo que más pesa en el costo), luego B, C y lo que no tiene clase
+export function rangoClaseAbc(clase: string | null | undefined): number {
+  return clase === 'A' ? 0 : clase === 'B' ? 1 : clase === 'C' ? 2 : 3;
+}

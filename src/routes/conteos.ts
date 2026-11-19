@@ -2,10 +2,12 @@ import { Router, type Request } from 'express';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { autorizarRoles } from '../middleware/autenticacion';
 import { UUID } from '../utils/materiaPrima';
+import { calcularAbc } from './abc';
 import {
   ETIQUETA_MOTIVO,
   META_ERI,
   diferencia,
+  rangoClaseAbc,
   resumirConteo,
   revisarMotivo,
   validarLinea,
@@ -231,6 +233,14 @@ export function crearRouterConteos(prisma: PrismaClient) {
         prisma.lote.findMany({ where: { panaderia_id: panaderiaId, cantidad_disponible: { gt: 0 }, materia_prima_id: { not: null } } }),
         prisma.detalle_conteo.findMany({ where: { conteo_id: id, panaderia_id: panaderiaId } }),
       ]);
+      // Clase ABC de cada insumo, para contar primero los que más pesan (conteo cíclico). Si no se puede calcular, se cuenta sin clase.
+      let claseDe = new Map<string, string>();
+      try {
+        const { cuerpo } = await calcularAbc(prisma, panaderiaId);
+        claseDe = new Map(cuerpo.items.map((i) => [i.codigo, i.clase]));
+      } catch {
+        // sin clasificación: el orden vuelve a ser alfabético
+      }
       const porMateria = new Map(materias.map((m) => [m.id, m]));
       const yaContados = new Set(contados.map((c) => c.lote_id));
       const items = lotes
@@ -245,11 +255,13 @@ export function crearRouterConteos(prisma: PrismaClient) {
             codigo: m.codigo,
             nombre: m.nombre,
             unidad: m.unidad_medida.codigo,
+            clase_abc: claseDe.get(m.codigo) ?? null,
             contado: yaContados.has(l.id),
           };
         })
         .sort(
           (a, b) =>
+            rangoClaseAbc(a.clase_abc) - rangoClaseAbc(b.clase_abc) ||
             a.nombre.localeCompare(b.nombre, 'es') ||
             (a.fecha_vencimiento ?? '9999').localeCompare(b.fecha_vencimiento ?? '9999') ||
             (a.codigo_lote ?? '').localeCompare(b.codigo_lote ?? '', 'es'),

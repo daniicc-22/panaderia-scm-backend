@@ -217,10 +217,12 @@ export function ConteoOperario() {
     const base: Fila[] = (lotes.data?.items ?? []).map((i) => ({ ...i, contado: porLote.has(i.lote_id), linea: porLote.get(i.lote_id) }));
     for (const l of c?.lineas ?? []) {
       if (!base.some((b) => b.lote_id === l.lote_id)) {
-        base.push({ lote_id: l.lote_id, codigo_lote: l.codigo_lote, fecha_vencimiento: l.fecha_vencimiento, materia_prima_id: l.materia_prima_id ?? '', codigo: l.codigo, nombre: l.nombre, unidad: l.unidad, contado: true, linea: l });
+        base.push({ lote_id: l.lote_id, codigo_lote: l.codigo_lote, fecha_vencimiento: l.fecha_vencimiento, materia_prima_id: l.materia_prima_id ?? '', codigo: l.codigo, nombre: l.nombre, unidad: l.unidad, clase_abc: null, contado: true, linea: l });
       }
     }
-    return base.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    // Conteo cíclico: primero la clase A (lo que más pesa en el costo), luego B, C y sin clase; dentro de cada una, por nombre
+    const rango = (c: string | null) => (c === 'A' ? 0 : c === 'B' ? 1 : c === 'C' ? 2 : 3);
+    return base.sort((a, b) => rango(a.clase_abc) - rango(b.clase_abc) || a.nombre.localeCompare(b.nombre, 'es'));
   }, [lotes.data, c?.lineas]);
 
   const pendientes = filas.filter((f) => !f.contado);

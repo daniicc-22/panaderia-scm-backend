@@ -8,8 +8,10 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { getProducciones } from '../../services/produccionService';
 import type { EstadoProduccion, ProduccionFinalizada } from '../../types/produccion.types';
+import { useAuth } from '../auth/useAuth';
 import { formatoFechaIso } from '../inventario/formatos';
 import { DetalleProduccion } from './DetalleProduccion';
+import { EliminarProduccion } from './EliminarProduccion';
 import { FinalizarProduccion } from './FinalizarProduccion';
 
 const ETIQUETA: Record<EstadoProduccion, string> = {
@@ -33,11 +35,41 @@ export function ProduccionesRecientes() {
   const lista = useQuery({ queryKey: ['produccion', 'lista'], queryFn: () => getProducciones() });
   const [cerrando, setCerrando] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<'todas' | EstadoProduccion>('todas');
+  const [verTodas, setVerTodas] = useState(false);
   const [resultado, setResultado] = useState<ProduccionFinalizada | null>(null);
+  const [aEliminar, setAEliminar] = useState<{ id: string; producto: string; fecha: string } | null>(null);
+  const [avisoBorrado, setAvisoBorrado] = useState<string | null>(null);
+  const { usuario } = useAuth();
+  const esGestion = usuario?.rol === 'administrador' || usuario?.rol === 'superadministrador';
+
+  // Las que siguen en curso van primero: son las que falta cerrar (el orden por fecha se conserva dentro de cada grupo)
+  const todas = [...(lista.data ?? [])].sort((a, b) => Number(b.estado === 'en_curso') - Number(a.estado === 'en_curso'));
+  const filtradas = todas.filter((p) => filtro === 'todas' || p.estado === filtro);
+  const visibles = verTodas ? filtradas : filtradas.slice(0, 8);
+  const cuenta = (f: 'todas' | EstadoProduccion) => (f === 'todas' ? todas.length : todas.filter((p) => p.estado === f).length);
+  const colorRend = (r: number) => (Math.abs(r - 100) <= 5 ? 'bg-exito-fondo text-exito-texto' : Math.abs(r - 100) <= 10 ? 'bg-atencion-fondo text-atencion-texto' : 'bg-critico-fondo text-critico-texto');
+  const BORDE: Record<EstadoProduccion, string> = { planificada: 'border-l-borde-campo', en_curso: 'border-l-trigo', finalizada: 'border-l-verde-bosque', cancelada: 'border-l-critico' };
 
   return (
     <section className="flex flex-col gap-3" aria-label="Producciones recientes">
-      <h2 className="text-lg font-semibold text-grafito">Producciones recientes</h2>
+      <h2 className="font-display text-lg font-semibold text-azul-noche">Producciones recientes</h2>
+      {todas.length > 0 && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
+          {(['todas', 'en_curso', 'finalizada', 'cancelada'] as const).filter((f) => f === 'todas' || cuenta(f) > 0).map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filtro === f}
+              onClick={() => { setFiltro(f); setVerTodas(false); }}
+              className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${filtro === f ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
+            >
+              {f === 'todas' ? 'Todas' : ETIQUETA[f]}
+              <span className="cifras text-xs opacity-80">{cuenta(f)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {resultado && (
         <Alert variant={resultado.aviso ? 'warning' : 'success'}>
@@ -47,24 +79,33 @@ export function ProduccionesRecientes() {
         </Alert>
       )}
 
+      {avisoBorrado && <Alert variant="success">{avisoBorrado}</Alert>}
+
       {lista.isLoading ? (
         <LoadingState mensaje="Cargando producciones..." />
       ) : lista.isError ? (
         <ErrorState onReintentar={() => lista.refetch()} />
-      ) : (lista.data ?? []).length === 0 ? (
+      ) : todas.length === 0 ? (
         <EmptyState mensaje="Todavía no hay producciones registradas." />
       ) : (
         <ul className="flex flex-col gap-2">
-          {(lista.data ?? []).map((p) => (
-            <li key={p.id} className="rounded-tarjeta border border-linea bg-tabla p-3">
+          {visibles.map((p) => (
+            <li key={p.id} className={`rounded-tarjeta border border-l-4 border-linea bg-tabla p-3 ${BORDE[p.estado]}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <span className="font-medium text-grafito">{p.producto}</span>
+                  <span className="font-display text-base font-semibold text-azul-noche">{p.producto}</span>
                   <p className="text-xs text-gris-texto">
                     {formatoFechaIso(p.fecha)} · {hora(p.fecha)} · {p.usuario}
                   </p>
                 </div>
-                <Badge color={COLOR[p.estado]}>{ETIQUETA[p.estado]}</Badge>
+                <span className="flex flex-wrap items-center gap-2">
+                  {p.rendimiento_pct !== null && p.estado === 'finalizada' && (
+                    <span className={`cifras rounded-full px-2 py-0.5 text-xs font-bold ${colorRend(p.rendimiento_pct)}`} title="Lo que salió frente a lo planificado">
+                      {p.rendimiento_pct.toLocaleString('es-CO')} %
+                    </span>
+                  )}
+                  <Badge color={COLOR[p.estado]}>{ETIQUETA[p.estado]}</Badge>
+                </span>
               </div>
               <p className="mt-1 text-sm text-grafito">
                 {p.lotes !== null ? `${numero.format(p.lotes)} ${p.lotes === 1 ? 'lote' : 'lotes'} · ` : ''}
@@ -86,6 +127,16 @@ export function ProduccionesRecientes() {
                 <Button type="button" variant="secondary" className="min-h-11" onClick={() => setAbierta(abierta === p.id ? null : p.id)}>
                   {abierta === p.id ? 'Ocultar detalle' : 'Ver detalle'}
                 </Button>
+                {esGestion && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 sm:ml-auto"
+                    onClick={() => { setAvisoBorrado(null); setAEliminar({ id: p.id, producto: p.producto, fecha: formatoFechaIso(p.fecha) }); }}
+                  >
+                    Eliminar
+                  </Button>
+                )}
               </div>
 
               {cerrando === p.id && (
@@ -103,6 +154,16 @@ export function ProduccionesRecientes() {
             </li>
           ))}
         </ul>
+      )}
+      <EliminarProduccion
+        produccion={aEliminar}
+        onCerrar={() => setAEliminar(null)}
+        onEliminada={(m) => { setAEliminar(null); setAbierta(null); setAvisoBorrado(m); }}
+      />
+      {filtradas.length > 8 && (
+        <button type="button" onClick={() => setVerTodas((v) => !v)} className="min-h-11 w-fit text-sm font-semibold text-pizarra hover:underline">
+          {verTodas ? 'Ver menos' : `Ver las ${filtradas.length} producciones`}
+        </button>
       )}
     </section>
   );

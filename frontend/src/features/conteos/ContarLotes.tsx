@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, Search } from 'lucide-react';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ErrorState } from '../../components/feedback/ErrorState';
 import { LoadingState } from '../../components/feedback/LoadingState';
@@ -10,12 +11,15 @@ import { formatoCantidad, formatoFecha } from '../inventario/formatos';
 import type { DetalleConteo, LineaConteo, LoteContable } from '../../types/conteo.types';
 import { LineaForm, type LoteElegido } from './LineaForm';
 
-type Filtro = 'pendientes' | 'contados' | 'todos';
+const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+type Filtro = 'pendientes' | 'contados' | 'todos' | 'claseA';
+const COLOR_CLASE = { A: 'bg-trigo-suave text-atencion-texto', B: 'bg-azul-suave text-azul-noche', C: 'bg-arena text-gris-texto' } as const;
 type Fila = LoteContable & { linea?: LineaConteo };
 
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: 'pendientes', etiqueta: 'Por contar' },
   { valor: 'contados', etiqueta: 'Contados' },
+  { valor: 'claseA', etiqueta: 'Clase A por contar' },
   { valor: 'todos', etiqueta: 'Todos' },
 ];
 
@@ -39,6 +43,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
           codigo: l.codigo,
           nombre: l.nombre,
           unidad: l.unidad,
+          clase_abc: null,
           contado: true,
           linea: l,
         });
@@ -48,16 +53,22 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
   }, [lotes.data, detalle.lineas]);
 
   const visibles = useMemo(() => {
-    const t = busqueda.trim().toLowerCase();
+    const t = sinTildes(busqueda.trim());
     return filas.filter(
       (f) =>
-        (filtro === 'todos' || (filtro === 'contados') === f.contado) &&
-        (!t || f.nombre.toLowerCase().includes(t) || f.codigo.toLowerCase().includes(t) || (f.codigo_lote ?? '').toLowerCase().includes(t)),
+        (filtro === 'todos' || (filtro === 'claseA' ? f.clase_abc === 'A' && !f.contado : (filtro === 'contados') === f.contado)) &&
+        (!t || sinTildes(f.nombre).includes(t) || sinTildes(f.codigo).includes(t) || sinTildes(f.codigo_lote ?? '').includes(t)),
     );
   }, [filas, busqueda, filtro]);
 
   const total = filas.length;
   const contados = filas.filter((f) => f.contado).length;
+  const cuenta = (f: Filtro) => (f === 'todos' ? total : f === 'contados' ? contados : f === 'claseA' ? filas.filter((x) => x.clase_abc === 'A' && !x.contado).length : total - contados);
+  const hayClases = filas.some((f) => f.clase_abc !== null);
+  const porClase = (['A', 'B', 'C'] as const).map((c) => {
+    const de = filas.filter((f) => f.clase_abc === c);
+    return { clase: c, total: de.length, contados: de.filter((f) => f.contado).length };
+  }).filter((c) => c.total > 0);
 
   if (lotes.isLoading) return <LoadingState mensaje="Cargando lotes..." />;
   if (lotes.isError) return <ErrorState onReintentar={() => lotes.refetch()} />;
@@ -74,31 +85,56 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
           {total > 0 && <span className="text-gris-texto">{Math.round((contados / total) * 100)} %</span>}
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-arena" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={contados}>
-          <div className="h-full bg-terracota transition-all" style={{ width: total === 0 ? '0%' : `${(contados / total) * 100}%` }} />
+          <div className={`h-full transition-all ${total > 0 && contados === total ? 'bg-verde-bosque' : 'bg-terracota'}`} style={{ width: total === 0 ? '0%' : `${(contados / total) * 100}%` }} />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar insumo o lote"
-          aria-label="Buscar insumo o lote"
-          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
-        />
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar lotes">
+      <p className="text-sm text-gris-texto">
+        {hayClases ? 'Empieza por la Clase A: son los insumos que más pesan en el costo y donde más importa que el inventario sea exacto. ' : ''}
+        Toca un lote, cuenta lo que hay físicamente en la bodega y escribe la cantidad.
+      </p>
+      {porClase.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {porClase.map((c) => (
+            <div key={c.clase} className="rounded-lg border border-linea bg-tabla px-3 py-2">
+              <p className="flex items-center gap-2 text-xs font-semibold text-gris-texto">
+                <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${COLOR_CLASE[c.clase]}`}>{c.clase}</span>
+                Clase {c.clase}
+              </p>
+              <p className="cifras text-sm font-semibold text-grafito">
+                {c.contados} de {c.total}
+                {c.contados === c.total && <span className="ml-1 text-exito-texto">✓</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar insumo o lote"
+            aria-label="Buscar insumo o lote"
+            className="min-h-11 w-full rounded-lg border border-borde-campo bg-white pl-9 pr-3 text-base placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar lotes">
           {FILTROS.map((f) => (
             <button
               key={f.valor}
               type="button"
               aria-pressed={filtro === f.valor}
               onClick={() => setFiltro(f.valor)}
-              className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
-                filtro === f.valor ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo bg-tabla text-gris-texto hover:bg-arena'
+              className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${
+                filtro === f.valor ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'
               }`}
             >
               {f.etiqueta}
+              <span className="cifras text-xs opacity-80">{cuenta(f.valor)}</span>
             </button>
           ))}
         </div>
@@ -122,16 +158,24 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
               <button
                 type="button"
                 onClick={() => setElegida(f)}
-                className="flex min-h-14 w-full items-start justify-between gap-3 rounded-tarjeta border border-linea bg-tabla p-3 text-left active:bg-arena"
+                className={`group flex min-h-16 w-full items-center justify-between gap-3 rounded-tarjeta border border-l-4 border-linea bg-tabla p-3 text-left hover:bg-arena active:bg-arena focus-visible:outline-2 focus-visible:outline-trigo ${f.linea ? (f.linea.diferencia === 0 ? 'border-l-verde-bosque' : 'border-l-trigo') : 'border-l-borde-campo'}`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-grafito">{f.nombre}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-display text-base font-semibold text-azul-noche">{f.nombre}</span>
+                    {f.clase_abc && (
+                      <span title={`Clase ${f.clase_abc} del ABC`} className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${COLOR_CLASE[f.clase_abc]}`}>
+                        {f.clase_abc}
+                      </span>
+                    )}
+                  </span>
                   <span className="block text-xs text-gris-texto">
                     Lote {f.codigo_lote ?? 'sin código'}
                     {f.fecha_vencimiento ? ` · vence ${formatoFecha(f.fecha_vencimiento)}` : ''}
                   </span>
                 </span>
-                <span className="flex shrink-0 flex-col items-end gap-1">
+                <span className="flex shrink-0 items-center gap-2">
+                <span className="flex flex-col items-end gap-1">
                   {f.linea ? (
                     <>
                       <span className="text-sm font-semibold text-grafito">{formatoCantidad(f.linea.cantidad_contada, f.unidad)}</span>
@@ -147,6 +191,8 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
                   ) : (
                     <Badge color="gray">Por contar</Badge>
                   )}
+                </span>
+                <ChevronRight size={18} aria-hidden="true" className="text-gris-texto transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>
             </li>

@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
+import { getMiPanaderia } from '../services/panaderiaService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { ErrorState } from '../components/feedback/ErrorState';
@@ -14,7 +18,7 @@ import { ContarLotes } from '../features/conteos/ContarLotes';
 import { COLOR_ESTADO_CONTEO, ETIQUETA_ESTADO_CONTEO, formatoPorcentaje } from '../features/conteos/etiquetas';
 import { ResultadoConteo } from '../features/conteos/ResultadoConteo';
 import { formatoFechaIso } from '../features/inventario/formatos';
-import { accionConteo, getConteo } from '../services/conteosService';
+import { accionConteo, getConteo, getLotesPorContar } from '../services/conteosService';
 import { mensajeDeError } from '../services/errores';
 
 type Accion = 'enviar' | 'devolver' | 'descartar' | 'aplicar';
@@ -57,6 +61,9 @@ export function ConteoDetallePage() {
   const [error, setError] = useState<string | null>(null);
   const [aplicados, setAplicados] = useState<number | null>(null);
 
+  const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
+  // Misma consulta que usa la lista de lotes: sirve para avisar cuánto falta por contar antes de enviar
+  const lotesPorContar = useQuery({ queryKey: ['conteos', id, 'lotes'], queryFn: () => getLotesPorContar(id), enabled: !!id });
   const conteo = useQuery({
     queryKey: ['conteos', id],
     queryFn: () => getConteo(id),
@@ -95,27 +102,60 @@ export function ConteoDetallePage() {
 
   const c = conteo.data;
   const texto = accion ? TEXTO[accion] : null;
+  const diasAbierto = Math.floor((Date.now() - new Date(c.creado_at).getTime()) / 86_400_000);
+  const pendientes = (lotesPorContar.data?.items ?? []).filter((i) => !i.contado);
+  const pendientesA = pendientes.filter((i) => i.clase_abc === 'A').length;
+  const cuentaParaImprimir = c.estado === 'enviado' || c.estado === 'aplicado';
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
-        <Link to="/conteos" className="text-sm font-medium text-niebla hover:text-white hover:underline">
-          ← Conteos
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Conteo n.º {c.numero}</h1>
-          <Badge color={COLOR_ESTADO_CONTEO[c.estado]}>{ETIQUETA_ESTADO_CONTEO[c.estado]}</Badge>
-        </div>
-        <p className="mt-1 text-sm text-niebla">
+    <div className="ficha-impresion flex flex-col gap-4">
+      <div className="hidden print:block">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gris-texto">{panaderia.data?.nombre ?? ''}</p>
+        <h1 className="font-display text-2xl font-semibold text-azul-noche">Acta de conteo físico n.º {c.numero}</h1>
+        <p className="mt-1 text-sm text-gris-texto">
           Abierto el {formatoFechaIso(c.creado_at)} por {c.creado_por}
+          {c.resuelto_at && c.resuelto_por ? ` · ${c.estado === 'aplicado' ? 'Aprobado' : 'Descartado'} el ${formatoFechaIso(c.resuelto_at)} por ${c.resuelto_por}` : ''}
           {c.observaciones ? ` · ${c.observaciones}` : ''}
         </p>
-        {c.resuelto_at && c.resuelto_por && (
-          <p className="mt-1 text-sm text-niebla">
-            {c.estado === 'aplicado' ? 'Aprobado' : 'Descartado'} el {formatoFechaIso(c.resuelto_at)} por {c.resuelto_por}
-          </p>
-        )}
       </div>
+
+      <PageHeader
+        ocultarAlImprimir
+        titulo={`Conteo n.º ${c.numero}`}
+        subtitulo={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Badge color={COLOR_ESTADO_CONTEO[c.estado]}>{ETIQUETA_ESTADO_CONTEO[c.estado]}</Badge>
+            <span>
+              Abierto el {formatoFechaIso(c.creado_at)} por {c.creado_por}
+              {c.observaciones ? ` · ${c.observaciones}` : ''}
+              {c.resuelto_at && c.resuelto_por ? ` · ${c.estado === 'aplicado' ? 'Aprobado' : 'Descartado'} el ${formatoFechaIso(c.resuelto_at)} por ${c.resuelto_por}` : ''}
+            </span>
+          </span>
+        }
+        acciones={
+          <>
+            {cuentaParaImprimir && <BotonImprimir etiqueta="Imprimir acta" />}
+            {c.puede_eliminar && (
+              <Button type="button" variant="secondary" onClick={() => setEliminando(true)}>
+                <Trash2 size={16} aria-hidden="true" />
+                Eliminar conteo
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <Link to="/conteos" className="-mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-pizarra hover:underline print:hidden">
+        <ArrowLeft size={15} aria-hidden="true" />
+        Volver a conteos
+      </Link>
+
+      {c.estado === 'en_curso' && diasAbierto >= 3 && (
+        <Alert variant="warning">
+          Este conteo lleva {diasAbierto} días abierto. Si desde entonces hubo entradas, producciones o mermas, lo que cuentes puede no coincidir con lo registrado: lo más
+          fiable es contar y enviar el mismo día.
+        </Alert>
+      )}
 
       {aplicados !== null && c.estado === 'aplicado' && (
         <Alert variant="success">
@@ -129,31 +169,36 @@ export function ConteoDetallePage() {
       {c.estado === 'descartado' && <Alert variant="warning">Este conteo se descartó: el inventario no se modificó.</Alert>}
       {error && !accion && <Alert variant="error">{error}</Alert>}
 
-      {c.puede_eliminar && (
-        <div>
-          <button type="button" className="min-h-11 text-sm font-medium text-critico-texto hover:underline" onClick={() => setEliminando(true)}>
-            Eliminar este conteo
-          </button>
-        </div>
-      )}
-
       {c.estado === 'en_curso' ? (
         <>
           <ContarLotes detalle={c} />
-          <div className="flex flex-col gap-2 border-t border-linea pt-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-2 border-t border-linea pt-4 sm:flex-row sm:items-start sm:justify-end">
             {esGestion && (
               <Button type="button" variant="secondary" className="min-h-11" onClick={() => { setError(null); setAccion('descartar'); }}>
                 Descartar conteo
               </Button>
             )}
-            <Button type="button" className="min-h-11" disabled={c.lineas.length === 0} onClick={() => { setError(null); setAccion('enviar'); }}>
-              Enviar conteo ({c.lineas.length} {c.lineas.length === 1 ? 'lote' : 'lotes'})
-            </Button>
+            <div className="flex flex-col items-stretch gap-1 sm:items-end">
+              <Button type="button" className="min-h-11" disabled={c.lineas.length === 0} onClick={() => { setError(null); setAccion('enviar'); }}>
+                Enviar conteo ({c.lineas.length} {c.lineas.length === 1 ? 'lote' : 'lotes'})
+              </Button>
+              {c.lineas.length === 0 && <p className="text-xs text-gris-texto">Cuenta al menos un lote para poder enviarlo.</p>}
+            </div>
           </div>
         </>
       ) : (
         <>
           <ResultadoConteo detalle={c} />
+          {cuentaParaImprimir && (
+            <div className="mt-10 hidden grid-cols-3 gap-10 text-xs text-gris-texto print:grid">
+              {['Contó', 'Revisó', 'Aprobó'].map((rol) => (
+                <div key={rol} className="border-t border-grafito pt-1.5">
+                  <p className="font-semibold text-grafito">{rol}</p>
+                  <p>Nombre y firma</p>
+                </div>
+              ))}
+            </div>
+          )}
           {c.estado === 'enviado' && esGestion && (
             <div className="flex flex-col gap-2 border-t border-linea pt-4 sm:flex-row sm:justify-end">
               <Button type="button" variant="danger" className="min-h-11" onClick={() => { setError(null); setAccion('descartar'); }}>
@@ -184,6 +229,20 @@ export function ConteoDetallePage() {
         {accion && texto && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-gris-texto">{texto.mensaje}</p>
+            {accion === 'enviar' && (
+              <div className="rounded-lg border border-linea bg-hueso px-4 py-3 text-sm text-grafito">
+                <p>
+                  Contaste <span className="cifras font-semibold">{c.lineas.length}</span> {c.lineas.length === 1 ? 'lote' : 'lotes'}
+                  {lotesPorContar.data ? <> y faltan <span className="cifras font-semibold">{pendientes.length}</span> por contar.</> : '.'}
+                </p>
+                {pendientes.length > 0 && (
+                  <p className="mt-1 text-xs text-gris-texto">
+                    Los lotes sin contar no entran en la exactitud ni se ajustan.
+                    {pendientesA > 0 && <span className="font-semibold text-atencion-texto"> {pendientesA === 1 ? 'Falta 1 lote' : `Faltan ${pendientesA} lotes`} de Clase A: son los que más importan.</span>}
+                  </p>
+                )}
+              </div>
+            )}
             {accion === 'aplicar' && (
               <p className="text-sm text-grafito">
                 Exactitud de este conteo: <span className="font-semibold">{formatoPorcentaje(c.resumen.eri)}</span> · Diferencias:{' '}

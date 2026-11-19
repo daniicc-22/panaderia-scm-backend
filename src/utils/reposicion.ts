@@ -434,11 +434,16 @@ export function recomendarReposicion(entrada: EntradaReposicion): ResultadoRepos
   }
   r.ciclos_elegidos = k;
 
-  const nivelObjetivo = ss + d * cobertura(k);
-  r.nivel_objetivo = nivelObjetivo;
+  // El stock máximo es un tope duro (Q = mín(nivel objetivo, Smáx) − lo que quedará al llegar la entrega):
+  // si el nivel objetivo lo supera, el pedido se recorta al máximo y se avisa.
+  let nivelObjetivo = ss + d * cobertura(k);
+  let recortadoPorMaximo = false;
   if (maximo !== null && nivelObjetivo > maximo + TOLERANCIA) {
     r.advertencias.push('nivel_objetivo_supera_maximo');
+    nivelObjetivo = maximo;
+    recortadoPorMaximo = true;
   }
+  r.nivel_objetivo = nivelObjetivo;
 
   // Estado.
   // La tolerancia evita que el redondeo de decimales cambie el estado justo en el límite.
@@ -463,8 +468,8 @@ export function recomendarReposicion(entrada: EntradaReposicion): ResultadoRepos
       cantidad = Math.ceil(cantidad / multiplo - TOLERANCIA) * multiplo;
     }
     r.cantidad_recomendada = cantidad;
-    if (cantidad === 0) r.advertencias.push('cantidad_limitada_por_vida_util');
-    if (maximo !== null && Math.max(0, proyeccion) + cantidad > maximo + TOLERANCIA) {
+    if (cantidad === 0) r.advertencias.push(recortadoPorMaximo ? 'cantidad_limitada_por_maximo' : 'cantidad_limitada_por_vida_util');
+    if (cantidad > 0 && maximo !== null && Math.max(0, proyeccion) + cantidad > maximo + TOLERANCIA) {
       r.advertencias.push('redondeo_supera_maximo');
     }
   }

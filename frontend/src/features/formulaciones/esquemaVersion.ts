@@ -8,6 +8,12 @@ export const INGREDIENTES_MIN = 1;
 export const INGREDIENTES_MAX = 100;
 export const NOMBRE_PRODUCTO_MIN = 2;
 export const NOMBRE_PRODUCTO_MAX = 100;
+export const MOTIVO_MAX = 300;
+export const PROCEDIMIENTO_MAX = 3000;
+export const TIEMPO_MAX_MIN = 1440;
+export const TEMPERATURA_MAX_C = 400;
+export const MERMA_HORNEADO_MAX = 60;
+export const PRECIO_VENTA_MAX = 99_999_999;
 
 export interface FilaEditor {
   clave: string; // identifica la fila en pantalla; no viaja al servidor
@@ -19,9 +25,22 @@ export interface FilaEditor {
   tolerancia: string;
 }
 
+// Ficha técnica tal como se escribe en el formulario (todo texto; vacío = sin dato)
+export interface FichaEditor {
+  motivo: string;
+  procedimiento: string;
+  tiempoPreparacion: string;
+  tiempoHorneado: string;
+  temperatura: string;
+  merma: string;
+}
+
+export const fichaVacia = (): FichaEditor => ({ motivo: '', procedimiento: '', tiempoPreparacion: '', tiempoHorneado: '', temperatura: '', merma: '' });
+
 export interface ValoresEditor {
   rendimiento: string;
   filas: FilaEditor[];
+  ficha: FichaEditor;
 }
 
 export interface ErroresFila {
@@ -33,6 +52,7 @@ export interface ErroresFila {
 export interface ErroresEditor {
   rendimiento?: string;
   general?: string;
+  ficha?: Partial<Record<keyof FichaEditor, string>>;
   filas: Record<string, ErroresFila>;
 }
 
@@ -79,6 +99,15 @@ const aTexto = (n: number) => String(n).replace('.', ',');
 
 export function valoresDesdeDetalle(d: FormulacionDetalle): ValoresEditor {
   return {
+    ficha: {
+      // El motivo describe un cambio concreto: no se hereda de la versión que se toma como base
+      motivo: '',
+      procedimiento: d.procedimiento ?? '',
+      tiempoPreparacion: d.tiempo_preparacion_min == null ? '' : aTexto(d.tiempo_preparacion_min),
+      tiempoHorneado: d.tiempo_horneado_min == null ? '' : aTexto(d.tiempo_horneado_min),
+      temperatura: d.temperatura_horneado_c == null ? '' : aTexto(d.temperatura_horneado_c),
+      merma: d.merma_horneado_pct == null ? '' : aTexto(d.merma_horneado_pct),
+    },
     rendimiento: d.rendimiento == null ? '' : aTexto(d.rendimiento),
     filas: d.ingredientes.map((i) => ({
       clave: nuevaClave(),
@@ -150,10 +179,49 @@ export function validarEditor(valores: ValoresEditor, materiasActivas: ReadonlyS
     }
   }
 
-  if (errores.rendimiento || errores.general || Object.keys(errores.filas).length > 0 || rend === null) {
+  const f = valores.ficha;
+  const erroresFicha: NonNullable<ErroresEditor['ficha']> = {};
+  const entero = (texto: string, campo: keyof FichaEditor, max: number, etiqueta: string): number | null => {
+    if (texto.trim() === '') return null;
+    const n = leerNumero(texto);
+    if (n === null || !Number.isInteger(n) || n > max) {
+      erroresFicha[campo] = `${etiqueta}: un número entero entre 0 y ${max.toLocaleString('es-CO')}.`;
+      return null;
+    }
+    return n;
+  };
+  const motivo = f.motivo.replace(/\s+/g, ' ').trim();
+  if (motivo.length > MOTIVO_MAX) erroresFicha.motivo = `Máximo ${MOTIVO_MAX} caracteres.`;
+  const procedimiento = f.procedimiento.replace(/\r\n?/g, '\n').trim();
+  if (procedimiento.length > PROCEDIMIENTO_MAX) erroresFicha.procedimiento = `Máximo ${PROCEDIMIENTO_MAX.toLocaleString('es-CO')} caracteres (van ${procedimiento.length.toLocaleString('es-CO')}).`;
+  const tiempoPreparacion = entero(f.tiempoPreparacion, 'tiempoPreparacion', TIEMPO_MAX_MIN, 'Minutos');
+  const tiempoHorneado = entero(f.tiempoHorneado, 'tiempoHorneado', TIEMPO_MAX_MIN, 'Minutos');
+  const temperatura = entero(f.temperatura, 'temperatura', TEMPERATURA_MAX_C, 'Grados');
+  let merma: number | null = null;
+  if (f.merma.trim() !== '') {
+    const m = leerNumero(f.merma);
+    if (m === null || m > MERMA_HORNEADO_MAX) erroresFicha.merma = `Un porcentaje entre 0 y ${MERMA_HORNEADO_MAX}.`;
+    else merma = Math.round(m * 100) / 100;
+  }
+  if (Object.keys(erroresFicha).length > 0) errores.ficha = erroresFicha;
+
+  if (errores.rendimiento || errores.general || errores.ficha || Object.keys(errores.filas).length > 0 || rend === null) {
     return { ok: false, errores };
   }
-  return { ok: true, datos: { rendimiento: redondear3(rend), ingredientes } };
+  return {
+    ok: true,
+    datos: {
+      rendimiento: redondear3(rend),
+      ingredientes,
+      // Siempre se envían: lo que se deja vacío se borra en la versión nueva
+      motivo_cambio: motivo === '' ? null : motivo,
+      procedimiento: procedimiento === '' ? null : procedimiento,
+      tiempo_preparacion_min: tiempoPreparacion,
+      tiempo_horneado_min: tiempoHorneado,
+      temperatura_horneado_c: temperatura,
+      merma_horneado_pct: merma,
+    },
+  };
 }
 
 // Nombre del producto nuevo: sin espacios sobrantes (igual que el servidor)
@@ -163,4 +231,14 @@ export function validarNombreProducto(texto: string): { ok: true; nombre: string
     return { ok: false, error: `El nombre debe tener entre ${NOMBRE_PRODUCTO_MIN} y ${NOMBRE_PRODUCTO_MAX} caracteres.` };
   }
   return { ok: true, nombre };
+}
+
+// Precio de venta: vacío = sin precio (null); si no, un número entre 0 y el máximo
+export function validarPrecioVenta(texto: string): { ok: true; valor: number | null } | { ok: false; error: string } {
+  if (texto.trim() === '') return { ok: true, valor: null };
+  const n = leerNumero(texto);
+  if (n === null || n > PRECIO_VENTA_MAX) {
+    return { ok: false, error: `Escribe un precio entre 0 y ${PRECIO_VENTA_MAX.toLocaleString('es-CO')} (sin separador de miles; coma o punto para decimales).` };
+  }
+  return { ok: true, valor: Math.round(n * 100) / 100 };
 }

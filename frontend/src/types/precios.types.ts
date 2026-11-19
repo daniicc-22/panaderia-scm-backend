@@ -32,3 +32,23 @@ export interface PreciosMateria {
   precio_aplicado: PrecioAplicado | null;
   presentaciones: PresentacionPrecios[];
 }
+
+export interface PuntoHistorial {
+  mes: string; // AAAA-MM
+  costo_por_unidad_base: number;
+  cantidad: number;
+}
+
+export interface HistorialInsumo {
+  materia_prima_id: string;
+  materia: string;
+  unidad: string;
+  puntos: PuntoHistorial[];
+  variacion_pct: number | null;
+}
+
+export interface HistorialCostos {
+  meses: number;
+  desde: string;
+  items: HistorialInsumo[];
+}

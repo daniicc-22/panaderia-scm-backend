@@ -28,7 +28,7 @@ export function RegistrarMerma() {
   const [loteId, setLoteId] = useState('');
   const [produccionId, setProduccionId] = useState('');
   const [causaId, setCausaId] = useState('');
-  const [etapa, setEtapa] = useState<EtapaMerma>('almacenamiento');
+  const [etapa, setEtapa] = useState<EtapaMerma | ''>('');
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [unidadEntrada, setUnidadEntrada] = useState<'g' | 'kg'>('g');
   const [errorForm, setErrorForm] = useState<string | null>(null);
@@ -45,7 +45,9 @@ export function RegistrarMerma() {
 
   const insumos = (inventario.data?.items ?? []).filter((i) => i.stock > 0);
   const lotesConStock = (lotes.data?.lotes ?? []).filter((l) => l.cantidad_disponible > 0);
-  const lote = lotesConStock.find((l) => l.id === loteId);
+  // Si el insumo tiene un solo lote con existencias, no hace falta pedir que lo elija
+  const loteElegido = loteId || (lotesConStock.length === 1 ? lotesConStock[0].id : '');
+  const lote = lotesConStock.find((l) => l.id === loteElegido);
   const unidadInsumo = lotes.data?.materia.unidad ?? 'g';
   const produccionesValidas = (producciones.data ?? []).filter((p) => p.estado === 'en_curso' || p.estado === 'finalizada');
 
@@ -60,9 +62,9 @@ export function RegistrarMerma() {
     mutationFn: () =>
       registrarMerma({
         causa_id: causaId,
-        etapa: tipo === 'produccion' ? 'produccion' : etapa,
+        etapa: tipo === 'produccion' ? 'produccion' : (etapa as EtapaMerma),
         cantidad: Math.round(cantidad * 1000) / 1000,
-        ...(tipo === 'insumo' ? { lote_id: loteId, ...(etapa === 'produccion' && produccionId ? { produccion_id: produccionId } : {}) } : { produccion_id: produccionId }),
+        ...(tipo === 'insumo' ? { lote_id: loteElegido, ...(etapa === 'produccion' && produccionId ? { produccion_id: produccionId } : {}) } : { produccion_id: produccionId }),
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -76,6 +78,7 @@ export function RegistrarMerma() {
       setLoteId('');
       setProduccionId('');
       setMateriaId('');
+      setEtapa('');
       setErrorForm(null);
     },
   });
@@ -95,7 +98,8 @@ export function RegistrarMerma() {
     setExito(null);
     registrar.reset();
     if (tipo === 'insumo' && !materiaId) return setErrorForm('Elige el insumo.');
-    if (tipo === 'insumo' && !loteId) return setErrorForm('Elige el lote.');
+    if (tipo === 'insumo' && !loteElegido) return setErrorForm('Elige el lote.');
+    if (tipo === 'insumo' && !etapa) return setErrorForm('Elige la etapa en la que se perdió.');
     if (tipo === 'produccion' && !produccionId) return setErrorForm('Elige la producción.');
     if (!causaId) return setErrorForm('Elige la causa.');
     if (!cantidadValida) return setErrorForm(`Escribe una cantidad mayor que 0 y hasta ${MERMA_MAX.toLocaleString('es-CO')} g.`);
@@ -107,19 +111,27 @@ export function RegistrarMerma() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
+    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:p-5">
+      <h2 className="font-display text-lg font-semibold text-azul-noche">Registrar una merma</h2>
       {exito && <Alert variant="success">{exito}</Alert>}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-grafito">¿Qué se perdió?</legend>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
-          <input type="radio" name="tipo-merma" checked={tipo === 'insumo'} onChange={() => cambiarTipo('insumo')} />
-          Un insumo (se vence, se cae, se derrama)
-        </label>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
-          <input type="radio" name="tipo-merma" checked={tipo === 'produccion'} onChange={() => cambiarTipo('produccion')} />
-          Masa o producto de una producción (quemado, masa pasada)
-        </label>
+        <legend className="mb-1 text-sm font-medium text-grafito">¿Qué se perdió?</legend>
+        {([
+          ['insumo', 'Un insumo', 'Se vence, se cae, se derrama'],
+          ['produccion', 'Masa o producto', 'Quemado, masa pasada en una producción'],
+        ] as const).map(([valor, titulo, detalle]) => (
+          <label
+            key={valor}
+            className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${tipo === valor ? 'border-azul-noche bg-azul-suave' : 'border-borde-campo bg-white hover:bg-arena'}`}
+          >
+            <input type="radio" name="tipo-merma" className="mt-1 accent-azul-noche" checked={tipo === valor} onChange={() => cambiarTipo(valor)} />
+            <span>
+              <span className="block text-sm font-semibold text-azul-noche">{titulo}</span>
+              <span className="block text-xs text-gris-texto">{detalle}</span>
+            </span>
+          </label>
+        ))}
       </fieldset>
 
       {tipo === 'insumo' ? (
@@ -154,7 +166,7 @@ export function RegistrarMerma() {
               <select
                 id="mm-lote"
                 className={CAMPO}
-                value={loteId}
+                value={loteElegido}
                 onChange={(e) => {
                   setLoteId(e.target.value);
                   setErrorForm(null);
@@ -178,10 +190,12 @@ export function RegistrarMerma() {
               className={CAMPO}
               value={etapa}
               onChange={(e) => {
-                setEtapa(e.target.value as EtapaMerma);
+                setEtapa(e.target.value as EtapaMerma | '');
                 setProduccionId('');
+                setErrorForm(null);
               }}
             >
+              <option value="">Elige la etapa</option>
               {ETAPAS.map((e) => (
                 <option key={e} value={e}>{ETIQUETA_ETAPA[e]}</option>
               ))}
@@ -271,6 +285,7 @@ export function RegistrarMerma() {
               setCantidadTexto(e.target.value);
               setErrorForm(null);
             }}
+            onKeyDown={(e) => e.key === 'Enter' && enviar()}
           />
           {enGramos && (
             <select
