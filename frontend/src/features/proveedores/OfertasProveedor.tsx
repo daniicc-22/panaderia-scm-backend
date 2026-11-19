@@ -54,9 +54,9 @@ function Comparacion({ o }: { o: OfertaProveedor }) {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-linea bg-hueso px-3 py-2">
-      <p className="text-xs text-gris-texto">{etiqueta}</p>
-      <p className="text-lg font-semibold text-grafito">{valor}</p>
+    <div className="rounded-lg border border-linea bg-white px-3 py-2.5">
+      <p className="text-xs font-medium text-gris-texto">{etiqueta}</p>
+      <p className="cifras font-display text-xl font-semibold text-azul-noche">{valor}</p>
     </div>
   );
 }
@@ -107,12 +107,16 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar insumo"
-          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
+          className="min-h-11 w-full rounded-lg border border-borde-campo bg-white px-3 py-2 text-base placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo sm:max-w-xs sm:text-sm"
         />
-        <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
-          <input type="checkbox" checked={soloCuentan} onChange={(e) => setSoloCuentan(e.target.checked)} />
+        <button
+          type="button"
+          aria-pressed={soloCuentan}
+          onClick={() => setSoloCuentan((v) => !v)}
+          className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors ${soloCuentan ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
+        >
           Solo las que cuentan en los costos
-        </label>
+        </button>
       </div>
 
       {filtradas.length === 0 ? (
@@ -122,9 +126,9 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
           {/* Pantallas grandes: tabla para comparar de un vistazo */}
           <div className="hidden overflow-x-auto rounded-lg border border-linea md:block">
             <table className="min-w-full divide-y divide-linea text-sm">
-              <thead className="bg-azul-noche text-left text-xs font-semibold text-white">
+              <thead className="bg-arena/60 text-left text-xs font-bold uppercase tracking-wide text-gris-texto">
                 <tr>
-                  <th className="px-3 py-2">Insumo</th>
+                  <th className="px-3 py-3">Insumo</th>
                   <th className="px-3 py-2">Presentación</th>
                   <th className="px-3 py-2 text-right">Precio</th>
                   <th className="px-3 py-2 text-right">Costo por unidad</th>
@@ -135,13 +139,13 @@ export function OfertasProveedor({ proveedorId }: { proveedorId: string }) {
               </thead>
               <tbody className="divide-y divide-linea bg-tabla">
                 {filtradas.map((o) => (
-                  <tr key={o.oferta_id} className={o.cuenta ? '' : 'text-gris-texto'}>
+                  <tr key={o.oferta_id} className={o.cuenta ? (o.mejor_precio && o.otros_proveedores > 0 ? 'bg-exito-fondo/40' : '') : 'text-gris-texto'}>
                     <td className="px-3 py-2 font-medium text-grafito">{o.materia}</td>
                     <td className="px-3 py-2">
                       {o.presentacion} <span className="text-gris-texto">({contenidoLegible(o)})</span>
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">{formatoPesos.format(o.precio)}</td>
-                    <td className="px-3 py-2 text-right">{costoLegible(o)}</td>
+                    <td className="cifras px-3 py-2 text-right font-semibold">{formatoPesos.format(o.precio)}</td>
+                    <td className="cifras px-3 py-2 text-right">{costoLegible(o)}</td>
                     <td className="px-3 py-2">{o.tiempo_entrega_dias !== null ? `${numero.format(o.tiempo_entrega_dias)} d` : '—'}</td>
                     <td className="px-3 py-2">
                       <Estado o={o} />
