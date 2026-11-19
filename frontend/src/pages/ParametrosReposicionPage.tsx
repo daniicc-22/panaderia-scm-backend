@@ -11,7 +11,7 @@ import { LoadingState } from '../components/feedback/LoadingState';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Panel } from '../features/inicio/Panel';
-import { CompletarVacios } from '../features/reposicion/CompletarVacios';
+import { CompletarVacios, resumenVacios } from '../features/reposicion/CompletarVacios';
 import { ESTADOS, etiquetaFaltante } from '../features/reposicion/etiquetas';
 import { ParametroForm } from '../features/reposicion/ParametroForm';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
@@ -91,7 +91,12 @@ export function ParametrosReposicionPage() {
         titulo="Parámetros de reposición"
         subtitulo={`Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir${parametros.data ? ` · ${cuantosFaltan === 0 ? `${items.length} insumos, todos con sus datos` : `${cuantosFaltan} de ${items.length} con datos por completar`}` : ''}`}
         acciones={
-          <Button type="button" onClick={() => setCompletando(true)} disabled={items.length === 0}>
+          <Button
+            type="button"
+            onClick={() => setCompletando(true)}
+            disabled={items.length === 0 || resumenVacios(items).conVacios === 0}
+            title={items.length > 0 && resumenVacios(items).conVacios === 0 ? 'Todos los insumos ya tienen estos datos' : undefined}
+          >
             Completar vacíos
           </Button>
         }
