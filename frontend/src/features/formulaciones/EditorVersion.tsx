@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Layers, Plus, Trash2, Wheat } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { LoadingState } from '../../components/feedback/LoadingState';
 import { ErrorState } from '../../components/feedback/ErrorState';
-import { crearProducto, crearVersion, getFormulaciones } from '../../services/formulacionesService';
+import { crearProducto, crearVersion, getFormulacion, getFormulaciones } from '../../services/formulacionesService';
 import { getMateriasPrimas } from '../../services/materiasPrimasService';
 import { mensajeDeError } from '../../services/errores';
 import { leerNumero } from '../precios/numeros';
@@ -44,6 +44,8 @@ export function EditorVersion({ base, onTerminar }: Props) {
   const [filas, setFilas] = useState<FilaEditor[]>(inicial.filas);
   const [errores, setErrores] = useState<ErroresEditor>({ filas: {} });
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
+  const [copiando, setCopiando] = useState(false);
+  const [copiadoDe, setCopiadoDe] = useState('');
 
   const materias = useQuery({ queryKey: ['materias-primas', 'activas'], queryFn: getMateriasPrimas });
   const activas = useMemo(() => [...(materias.data ?? [])].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [materias.data]);
@@ -116,6 +118,26 @@ export function EditorVersion({ base, onTerminar }: Props) {
     setFilas((actuales) => actuales.map((f) => (f.clave === clave ? { ...f, ...cambios } : f)));
   }
 
+  // Parte de una receta que ya existe: copia el rendimiento y los ingredientes para ajustarlos
+  async function copiarReceta(idFormulacion: string) {
+    setCopiadoDe(idFormulacion);
+    if (!idFormulacion) return;
+    setCopiando(true);
+    setErrorServidor(null);
+    try {
+      const detalle = await getFormulacion(idFormulacion);
+      const valores = valoresDesdeDetalle(detalle);
+      setRendimiento(valores.rendimiento);
+      setFilas(valores.filas);
+      setErrores({ filas: {} });
+    } catch (error) {
+      setErrorServidor(mensajeDeError(error, 'No se pudo copiar la receta.'));
+      setCopiadoDe('');
+    } finally {
+      setCopiando(false);
+    }
+  }
+
   function enviar(e: FormEvent) {
     e.preventDefault();
     setErrorServidor(null);
@@ -123,9 +145,10 @@ export function EditorVersion({ base, onTerminar }: Props) {
     let nombreMal = false;
     if (!base) {
       const n = validarNombreProducto(nombre);
-      if (n.ok) nombreProducto = n.nombre;
+      const repetido = n.ok && (formulaciones.data ?? []).some((f) => f.producto.trim().toLowerCase() === n.nombre.toLowerCase());
+      if (n.ok && !repetido) nombreProducto = n.nombre;
       else nombreMal = true;
-      setErrorNombre(n.ok ? undefined : n.error);
+      setErrorNombre(n.ok ? (repetido ? 'Ya existe un producto con ese nombre.' : undefined) : n.error);
     }
     const resultado = validarEditor({ rendimiento, filas }, idsActivas);
     if (!resultado.ok) setErrores(resultado.errores);
@@ -154,14 +177,34 @@ export function EditorVersion({ base, onTerminar }: Props) {
         <h3 className="text-sm font-semibold text-azul-noche">{base ? 'Rendimiento' : 'Producto'}</h3>
         {!base && (
           <>
-            <Input id="prod-nombre" label="Nombre del producto" maxLength={NOMBRE_PRODUCTO_MAX} autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} error={errorNombre} />
-            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-3 text-sm text-grafito transition-colors ${esIntermedio ? 'border-verde-bosque' : 'border-linea'}`}>
-              <input type="checkbox" className="mt-0.5 size-4 accent-verde-bosque" checked={esIntermedio} onChange={(e) => setEsIntermedio(e.target.checked)} />
-              <span>
-                <span className="font-semibold">Es un producto intermedio</span>
-                <span className="block text-xs text-gris-texto">Una masa base o una galleta que se usa como ingrediente de otros productos. Su cantidad se mide en gramos.</span>
-              </span>
-            </label>
+            <Input id="prod-nombre" label="Nombre del producto" maxLength={NOMBRE_PRODUCTO_MAX} autoFocus value={nombre} onChange={(e) => { setNombre(e.target.value); setErrorNombre(undefined); }} error={errorNombre} />
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-1 text-sm font-medium text-grafito">¿Qué tipo de producto es?</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { valor: false, titulo: 'Producto final', texto: 'Lo que se vende: pan, rosca, torta.', Icono: Wheat, clases: 'border-trigo bg-trigo-suave/50' },
+                  { valor: true, titulo: 'Producto intermedio', texto: 'Una masa base o galleta que se usa como ingrediente de otros. Se mide en gramos.', Icono: Layers, clases: 'border-verde-bosque bg-verde-suave/50' },
+                ].map(({ valor, titulo, texto, Icono, clases }) => (
+                  <label key={titulo} className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 text-sm transition-colors ${esIntermedio === valor ? clases : 'border-linea bg-white hover:bg-arena'}`}>
+                    <input type="radio" name="tipo-producto" className="sr-only" checked={esIntermedio === valor} onChange={() => setEsIntermedio(valor)} />
+                    <Icono size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-azul-noche" />
+                    <span>
+                      <span className="block font-semibold text-grafito">{titulo}</span>
+                      <span className="block text-xs text-gris-texto">{texto}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {(formulaciones.data ?? []).length > 0 && (
+              <Select id="copiar-de" label="Partir de una receta existente (opcional)" value={copiadoDe} onChange={(e) => void copiarReceta(e.target.value)} disabled={copiando}>
+                <option value="">Empezar en blanco</option>
+                {[...(formulaciones.data ?? [])].sort((x, y) => x.producto.localeCompare(y.producto, 'es')).map((f) => (
+                  <option key={f.id} value={f.id}>{f.producto}</option>
+                ))}
+              </Select>
+            )}
+            {copiadoDe && !copiando && <p className="text-xs text-gris-texto">Se copiaron el rendimiento y los ingredientes. Ajusta lo que cambie en el producto nuevo.</p>}
           </>
         )}
         <div className="sm:max-w-xs">
