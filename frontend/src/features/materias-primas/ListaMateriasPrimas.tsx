@@ -232,7 +232,7 @@ export function ListaMateriasPrimas({ materias, cargando, verPrecios, puedeGesti
         )}
         {materias && base.length > 0 && (
           <p className="text-sm text-gris-texto sm:ml-auto" aria-live="polite">
-            {filtradas.length} de {base.length} materias primas
+            {filtradas.length} de {base.length} {base.length === 1 ? 'materia prima' : 'materias primas'}
           </p>
         )}
       </div>
