@@ -27,7 +27,7 @@ import {
 import { getInventario, getOpcionesEntrada } from '../services/inventarioService';
 import type { EntradaRegistrada, EstadoStock, ItemInventario } from '../types/inventario.types';
 
-type Filtro = 'todos' | EstadoStock;
+type Filtro = 'todos' | 'con_stock' | EstadoStock;
 type Orden = 'nombre' | 'vencimiento' | 'valor';
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -40,6 +40,7 @@ const BORDE_ESTADO: Record<EstadoStock, string> = {
 
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' },
+  { valor: 'con_stock', etiqueta: 'Con existencias' },
   { valor: 'por_vencer', etiqueta: 'Por vencer' },
   { valor: 'vencido', etiqueta: 'Vencidos' },
   { valor: 'sin_stock', etiqueta: 'Sin existencias' },
@@ -82,10 +83,13 @@ export function InventarioPage() {
   const visibles = useMemo(() => {
     const texto = sinTildes(busqueda.trim());
     const filtrados = (items ?? []).filter(
-      (i) => (filtro === 'todos' || i.estado === filtro) && (!texto || sinTildes(i.nombre).includes(texto) || sinTildes(i.codigo).includes(texto)),
+      (i) => (filtro === 'todos' || (filtro === 'con_stock' ? i.estado !== 'sin_stock' : i.estado === filtro)) && (!texto || sinTildes(i.nombre).includes(texto) || sinTildes(i.codigo).includes(texto)),
     );
     const porNombre = (x: ItemInventario, y: ItemInventario) => x.nombre.localeCompare(y.nombre, 'es');
     return [...filtrados].sort((x, y) => {
+      // Los insumos con existencias van primero: los agotados no deben tapar lo que sí hay
+      const conStock = Number(y.stock > 0) - Number(x.stock > 0);
+      if (conStock !== 0) return conStock;
       // Lo que no tiene dato (sin vencimiento, sin valor) va al final
       if (orden === 'vencimiento') return (x.proximo_vencimiento === null ? 1 : y.proximo_vencimiento === null ? -1 : x.proximo_vencimiento.localeCompare(y.proximo_vencimiento)) || porNombre(x, y);
       if (orden === 'valor') return (y.valor ?? -1) - (x.valor ?? -1) || porNombre(x, y);
@@ -93,7 +97,13 @@ export function InventarioPage() {
     });
   }, [items, busqueda, filtro, orden]);
 
-  const conteoFiltro = (f: Filtro) => (f === 'todos' ? (items ?? []).length : (items ?? []).filter((i) => i.estado === f).length);
+  const conteoFiltro = (f: Filtro) => (f === 'todos' ? (items ?? []).length : f === 'con_stock' ? (items ?? []).filter((i) => i.estado !== 'sin_stock').length : (items ?? []).filter((i) => i.estado === f).length);
+
+  function abrirEntrada() {
+    setRegistrada(null);
+    void opciones.refetch();
+    setEntradaAbierta(true);
+  }
 
   function terminarEntrada(r?: EntradaRegistrada) {
     setEntradaAbierta(false);
@@ -118,11 +128,7 @@ export function InventarioPage() {
             <Button
               type="button"
               disabled={!opciones.data}
-              onClick={() => {
-                setRegistrada(null);
-                void opciones.refetch();
-                setEntradaAbierta(true);
-              }}
+              onClick={abrirEntrada}
             >
               Registrar entrada
             </Button>
@@ -156,7 +162,7 @@ export function InventarioPage() {
           <Indicador etiqueta="Con existencias" valor="—" numero={conteo.con_stock} detalle={`de ${items.length} insumos`} tono="azul" indice={0} />
           <Indicador etiqueta="Por vencer" valor="—" numero={conteo.por_vencer} detalle={conteo.por_vencer > 0 ? 'Usar primero' : 'Ninguno próximo a vencer'} tono={conteo.por_vencer > 0 ? 'amarillo' : 'gris'} indice={1} />
           <Indicador etiqueta="Vencidos" valor="—" numero={conteo.vencido} detalle={conteo.vencido > 0 ? 'Dar de baja o corregir' : 'Todo en fecha'} tono={conteo.vencido > 0 ? 'rojo' : 'verde'} indice={2} />
-          <Indicador etiqueta="Sin existencias" valor="—" numero={conteo.sin_stock} detalle={conteo.sin_stock > 0 ? 'Revisar reposición' : undefined} tono="gris" indice={3} />
+          <Indicador etiqueta="Sin existencias" valor="—" numero={conteo.sin_stock} detalle={conteo.sin_stock > 0 ? 'Revisar reposición' : undefined} tono="gris" enlace={conteo.sin_stock > 0 ? '/reposicion' : undefined} indice={3} />
           {verValor && <Indicador etiqueta="Valor del inventario" valor="—" numero={conteo.valor} formato={(n) => formatoDinero(n)} tono="verde" indice={4} />}
         </div>
       )}
@@ -253,10 +259,10 @@ export function InventarioPage() {
               </thead>
               <tbody className="divide-y divide-linea bg-tabla">
                 {visibles.map((i) => (
-                  <tr key={i.materia_prima_id} className={`hover:bg-arena ${i.estado === 'vencido' ? 'bg-critico-fondo/40' : ''}`}>
+                  <tr key={i.materia_prima_id} className={`hover:bg-hueso ${i.estado === 'vencido' ? 'bg-critico-fondo/40' : ''}`}>
                     <td className="px-4 py-3 text-sm text-grafito">{i.codigo}</td>
                     <td className="px-4 py-3 text-sm font-medium text-grafito">{i.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-grafito">{formatoCantidad(i.stock, i.unidad)}</td>
+                    <td className={`cifras px-4 py-3 text-sm ${i.stock > 0 ? 'font-semibold text-grafito' : 'text-gris-texto'}`}>{formatoCantidad(i.stock, i.unidad)}</td>
                     <td className="px-4 py-3 text-sm text-grafito">{i.lotes_activos}</td>
                     <td className="px-4 py-3 text-sm text-grafito">
                       {i.proximo_vencimiento ? (
@@ -293,9 +299,15 @@ export function InventarioPage() {
                       </td>
                     )}
                     <td className="px-4 py-3 text-sm print:hidden">
-                      <button type="button" className="font-medium text-pizarra hover:underline" onClick={() => setConLotes(i)}>
-                        Ver lotes
-                      </button>
+                      {i.stock > 0 ? (
+                        <button type="button" className="font-medium text-pizarra hover:underline" onClick={() => setConLotes(i)}>
+                          Ver lotes
+                        </button>
+                      ) : (
+                        <button type="button" className="font-medium text-gris-texto hover:text-pizarra hover:underline" disabled={!opciones.data} onClick={abrirEntrada}>
+                          Registrar entrada
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

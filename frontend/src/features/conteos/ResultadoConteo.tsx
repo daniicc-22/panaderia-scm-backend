@@ -16,10 +16,10 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="kpis grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className={`col-span-2 rounded-lg border p-4 lg:col-span-1 ${colorTarjeta}`}>
           <p className="text-xs text-gris-texto">Exactitud del inventario</p>
-          <p className="text-3xl font-semibold text-grafito">{formatoPorcentaje(resumen.eri)}</p>
+          <p className="cifras font-display text-3xl font-semibold text-grafito">{formatoPorcentaje(resumen.eri)}</p>
           <p className="text-xs text-gris-texto">Meta: {resumen.meta_eri} %</p>
         </div>
         <Tarjeta titulo="Lotes contados" valor={String(resumen.lotes)} />
@@ -33,7 +33,7 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
         )}
       </div>
 
-      <label className="flex min-h-11 items-center gap-2 text-sm text-grafito">
+      <label className="flex min-h-11 items-center gap-2 text-sm text-grafito print:hidden">
         <input type="checkbox" checked={soloDiferencias} onChange={(e) => setSoloDiferencias(e.target.checked)} className="h-5 w-5" />
         Mostrar solo los lotes con diferencia
       </label>
@@ -44,7 +44,7 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
         </p>
       ) : (
         <>
-          <ul className="flex flex-col gap-2 md:hidden">
+          <ul className="flex flex-col gap-2 md:hidden print:hidden">
             {lineas.map((l) => (
               <li key={l.lote_id} className="rounded-tarjeta border border-linea bg-tabla p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -71,12 +71,12 @@ export function ResultadoConteo({ detalle }: { detalle: DetalleConteo }) {
             ))}
           </ul>
 
-          <div className="hidden overflow-x-auto rounded-lg border border-linea md:block">
+          <div className="hidden overflow-x-auto rounded-tarjeta border border-linea bg-tabla md:block print:block print:overflow-visible">
             <table className="min-w-full divide-y divide-linea">
-              <thead className="bg-azul-noche">
+              <thead className="bg-hueso">
                 <tr>
                   {['Insumo', 'Lote', 'Sistema', 'Contado', 'Diferencia', ...(verDinero ? ['Valor'] : []), 'Motivo'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white">
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-azul-noche">
                       {h}
                     </th>
                   ))}
@@ -112,7 +112,7 @@ function Tarjeta({ titulo, valor, detalle }: { titulo: string; valor: string; de
   return (
     <div className="rounded-tarjeta border border-linea bg-tabla p-3">
       <p className="text-xs text-gris-texto">{titulo}</p>
-      <p className="text-xl font-semibold text-grafito">{valor}</p>
+      <p className="cifras font-display text-xl font-semibold text-grafito">{valor}</p>
       {detalle && <p className="text-xs text-gris-texto">{detalle}</p>}
     </div>
   );
