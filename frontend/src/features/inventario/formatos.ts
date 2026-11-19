@@ -18,6 +18,20 @@ export function formatoCantidad(valor: number, unidad: string): string {
   return `${numero.format(valor)} ${unidad}`;
 }
 
+// Para pantallas de planeación (Reposición, EOQ): cifras redondeadas que se leen de un vistazo.
+// Con tres decimales «316,935 kg» parece 316 mil kilos; aquí sería «317 kg». Inventario y conteos
+// siguen usando formatoCantidad (exacto).
+const f0 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
+const f1 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
+const f2 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+export function formatoCantidadPlan(valor: number, unidad: string): string {
+  const enKg = unidad === 'g' && Math.abs(valor) >= 1000;
+  const v = enKg ? valor / 1000 : valor;
+  const a = Math.abs(v);
+  const n = a >= 100 ? f0 : a >= 10 ? f1 : f2;
+  return `${n.format(v)} ${enKg ? 'kg' : unidad}`;
+}
+
 // 'AAAA-MM-DD' → '24 oct 2026' sin pasar por zonas horarias
 export function formatoFecha(fecha: string): string {
   const [a, m, d] = fecha.split('-').map(Number);

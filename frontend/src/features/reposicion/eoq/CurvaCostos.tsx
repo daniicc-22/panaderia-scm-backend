@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { formatoCantidad, formatoDinero } from '../../inventario/formatos';
+import { formatoCantidadPlan, formatoDinero } from '../../inventario/formatos';
 import { costoEoq, costoPolitica, costosEn, marcas, puntosCurva, rangoCurva, techoNice, type ItemConEoq } from './eoqCalculos';
 
 const W_ANCHO = 960;
@@ -94,7 +94,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-pan-y select-none"
         role="img"
-        aria-label={`Curva de costo anual de pedir y guardar ${item.nombre} según el tamaño del pedido. El mínimo es ${formatoDinero(minimo)} al año pidiendo ${formatoCantidad(item.eoq, u)}.`}
+        aria-label={`Curva de costo anual de pedir y guardar ${item.nombre} según el tamaño del pedido. El mínimo es ${formatoDinero(minimo)} al año pidiendo ${formatoCantidadPlan(item.eoq, u)}.`}
         onPointerMove={alMover}
         onPointerDown={alMover}
         onPointerLeave={() => setHoverQ(null)}
@@ -115,7 +115,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
         ))}
         {marcasX.map((v) => (
           <text key={`x${v}`} x={x(v)} y={H - M.b + 16} textAnchor="middle" fontSize={11} fill={TEXTO}>
-            {formatoCantidad(v, u)}
+            {formatoCantidadPlan(v, u)}
           </text>
         ))}
         <text x={(M.l + W - M.r) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill={TEXTO}>
@@ -205,7 +205,7 @@ export function CurvaCostos({ item }: { item: ItemConEoq }) {
           style={{ left: `${Math.min(Math.max(((x(hover.q) - 0) / W) * 100, 24), 76)}%`, transform: 'translateX(-50%)' }}
           role="status"
         >
-          <p className="font-medium text-grafito">Pedidos de {formatoCantidad(hover.q, u)}</p>
+          <p className="font-medium text-grafito">Pedidos de {formatoCantidadPlan(hover.q, u)}</p>
           <p className="text-grafito">Total: {formatoDinero(hover.total)} al año</p>
           <p className="text-gris-texto">Hacer pedidos: {formatoDinero(hover.pedir)}</p>
           <p className="text-gris-texto">Guardar: {formatoDinero(hover.mantener)}</p>
