@@ -4,6 +4,7 @@ import type { ClaseAbc, RespuestaAbc } from '../../types/abc.types';
 import type { MermaResumen } from '../../types/merma.types';
 import type { ProduccionResumen } from '../../types/produccion.types';
 import type { ItemConteo } from '../../types/conteo.types';
+import type { EntregaDia } from '../../types/inventario.types';
 import { kilosMerma } from '../inicio/datosInicio';
 import { DIAS_LABORABLES_ANIO, diasLaborables, enRango, fechaApi, type Rango } from '../inicio/periodos';
 
@@ -26,6 +27,8 @@ export interface DatosIndicadores {
   producciones: ProduccionResumen[];
   conteos: ItemConteo[];
   abc: RespuestaAbc | undefined;
+  // Kilos recibidos por día (entradas de proveedor); opcional
+  entregas?: EntregaDia[];
 }
 
 export interface Indicadores {
@@ -50,6 +53,18 @@ export interface Indicadores {
   eri: number | null;
   conteos: number;
   registrosMerma: number;
+  // Pedidos recibidos (kg por día de entrega)
+  entregasDias: number;
+  kgPorEntrega: number | null;
+  kgEntregasMes: number | null;
+}
+
+// Entregas del rango. El primer día con entradas suele ser la carga del inventario inicial
+// (no un pedido), así que se excluye cuando hay otros días.
+export function entregasEnRango(d: DatosIndicadores, r: Rango): EntregaDia[] {
+  const todas = [...(d.entregas ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const validas = todas.length >= 2 ? todas.slice(1) : todas;
+  return validas.filter((e) => enRango(`${e.fecha}T12:00:00`, r));
 }
 
 const porMes = (valor: number, dias: number) => (dias > 0 ? (valor / dias) * DIAS_MES_LABORAL : null);
@@ -83,6 +98,9 @@ export function calcularIndicadores(d: DatosIndicadores, r: Rango): Indicadores 
   const lotes = fin.reduce((s, p) => s + (p.lotes ?? 1), 0);
   const conR = fin.filter((p) => p.rendimiento_pct != null);
 
+  const ent = entregasEnRango(d, r);
+  const kgEnt = ent.reduce((s, e) => s + e.kg, 0);
+
   const conteos = d.conteos.filter((c) => c.estado !== 'descartado' && c.resumen.eri != null && enRango(c.creado_at, r));
 
   return {
@@ -103,6 +121,9 @@ export function calcularIndicadores(d: DatosIndicadores, r: Rango): Indicadores 
     eri: conteos.length ? conteos.reduce((s, c) => s + (c.resumen.eri ?? 0), 0) / conteos.length : null,
     conteos: conteos.length,
     registrosMerma: mermas.length,
+    entregasDias: ent.length,
+    kgPorEntrega: ent.length ? kgEnt / ent.length : null,
+    kgEntregasMes: ent.length ? porMes(kgEnt, dias) : null,
   };
 }
 
@@ -120,7 +141,7 @@ export function primerRegistro(d: DatosIndicadores): Date | null {
 export function csvDiario(d: DatosIndicadores, desde: Date, hasta: Date, corte: Date | null): string {
   const clases = mapaClases(d.abc);
   const dec = (n: number | null) => (n == null ? '' : String(Math.round(n * 1000) / 1000).replace('.', ','));
-  const filas = ['fecha;fase;kg_merma;kg_merma_clase_a;kg_merma_vencimiento;costo_merma;costo_merma_produccion;producciones;lotes;unidades;rendimiento_medio_pct'];
+  const filas = ['fecha;fase;kg_merma;kg_merma_clase_a;kg_merma_vencimiento;costo_merma;costo_merma_produccion;producciones;lotes;unidades;rendimiento_medio_pct;kg_recibidos'];
   for (let dia = new Date(desde); dia < hasta; dia = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate() + 1)) {
     if (dia.getDay() === 0) continue; // domingo no se trabaja
     const r = { desde: dia, hasta: new Date(dia.getFullYear(), dia.getMonth(), dia.getDate() + 1) };
@@ -132,6 +153,7 @@ export function csvDiario(d: DatosIndicadores, desde: Date, hasta: Date, corte: 
     const kgV = ms.filter(esVencimiento).reduce((s, m) => s + (kilosMerma(m) ?? 0), 0);
     const costo = ms.reduce((s, m) => s + (m.costo_estimado ?? 0), 0);
     const costoP = ms.filter((m) => m.produccion_id).reduce((s, m) => s + (m.costo_estimado ?? 0), 0);
+    const kgRec = entregasEnRango(d, r).reduce((s, e) => s + e.kg, 0);
     const fase = corte ? (dia < corte ? 'pre' : 'post') : '';
     filas.push(
       [
@@ -146,6 +168,7 @@ export function csvDiario(d: DatosIndicadores, desde: Date, hasta: Date, corte: 
         ps.reduce((s, p) => s + (p.lotes ?? 1), 0),
         dec(ps.reduce((s, p) => s + (p.cantidad_producida ?? 0), 0)),
         dec(conR.length ? conR.reduce((s, p) => s + (p.rendimiento_pct ?? 0), 0) / conR.length : null),
+        dec(kgRec),
       ].join(';'),
     );
   }

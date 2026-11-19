@@ -14,6 +14,7 @@ import {
   validarNuevoVencimiento,
   verificarVencimiento,
 } from '../utils/entradas';
+import { resumirEntregas } from '../utils/entregas';
 import { alertasDeLotes, ordenarLotes, resumirStock, validarDiasAlerta, type LoteVista } from '../utils/inventario';
 
 const fechaTexto = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
@@ -125,6 +126,35 @@ export function crearRouterInventario(prisma: PrismaClient) {
     } catch (error) {
       console.error('Error al consultar el inventario:', error);
       res.status(500).json({ error: 'Error al consultar el inventario' });
+    }
+  });
+
+  // Lo recibido por día (kilos y entradas), para el indicador de kilos por entrega. Solo compras de materia prima,
+  // sin dinero ni proveedores: lo puede ver cualquier rol.
+  router.get('/entregas', async (req, res) => {
+    try {
+      const panaderiaId = req.panaderiaId!;
+      const [lotes, materias] = await Promise.all([
+        prisma.lote.findMany({
+          where: { panaderia_id: panaderiaId, materia_prima_id: { not: null }, produccion_origen_id: null },
+          select: { created_at: true, cantidad_inicial: true, materia_prima_id: true },
+          orderBy: { created_at: 'asc' },
+        }),
+        prisma.materia_prima.findMany({ where: { panaderia_id: panaderiaId }, select: { id: true, unidad_medida: { select: { codigo: true } } } }),
+      ]);
+      const unidades = new Map(materias.map((m) => [m.id, m.unidad_medida.codigo]));
+      res.json(
+        resumirEntregas(
+          lotes.map((l) => ({
+            created_at: l.created_at,
+            cantidad_inicial: Number(l.cantidad_inicial),
+            unidad: unidades.get(l.materia_prima_id!) ?? '',
+          })),
+        ),
+      );
+    } catch (error) {
+      console.error('Error al consultar las entregas:', error);
+      res.status(500).json({ error: 'Error al consultar las entregas' });
     }
   });
 

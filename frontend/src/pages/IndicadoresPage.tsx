@@ -7,7 +7,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../features/auth/useAuth';
 import { getMiPanaderia } from '../services/panaderiaService';
 import { getConteos } from '../services/conteosService';
-import { getInventario } from '../services/inventarioService';
+import { getEntregas, getInventario } from '../services/inventarioService';
 import { getDesviacionesPesaje } from '../services/produccionService';
 import { getFormulaciones } from '../services/formulacionesService';
 import { useAbcInicio, useMermasInicio, useProduccionesInicio } from '../features/inicio/datosInicio';
@@ -54,7 +54,8 @@ function TarjetaHipotesis({ titulo, veredicto, cifra, children }: { titulo: stri
   );
 }
 
-type Sentido = 'baja' | 'sube';
+// 'ninguno': dato de referencia, no es mejor ni peor (p. ej. kilos por pedido)
+type Sentido = 'baja' | 'sube' | 'ninguno';
 
 interface Fila {
   nombre: string;
@@ -74,6 +75,7 @@ function celdaVariacion(f: Fila) {
   const mejora = f.sentido === 'baja' ? d < 0 : d > 0;
   const igual = Math.abs(d) < 0.05;
   const texto = `${d > 0 ? '+' : ''}${cantidad(d)}${f.puntos ? ' pts' : ' %'}`;
+  if (f.sentido === 'ninguno') return <span className="font-semibold text-grafito">{texto}</span>;
   return (
     <span className={`font-semibold ${igual ? 'text-gris-texto' : mejora ? 'text-exito-texto' : 'text-critico-texto'}`}>
       {texto} {igual ? '' : mejora ? '· mejora' : '· empeora'}
@@ -100,7 +102,7 @@ function TablaIndicadores({ titulo, filas, conCorte, color }: { titulo: string; 
             <tr key={f.nombre} className={i % 2 ? 'bg-tabla/60' : ''}>
               <th scope="row" className="px-4 py-2.5 text-left font-semibold text-grafito">
                 {f.nombre}
-                <span className="block text-[11px] font-normal text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : 'Mejor si sube'}</span>
+                <span className="block text-[11px] font-normal text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : f.sentido === 'sube' ? 'Mejor si sube' : 'Solo referencia'}</span>
               </th>
               <td className="px-4 py-2.5 text-xs text-gris-texto">{f.formula}</td>
               {conCorte && <td className="cifras px-4 py-2.5 text-right">{f.pre != null ? f.formato(f.pre) : '—'}</td>}
@@ -124,6 +126,7 @@ export function IndicadoresPage() {
   const abc = useAbcInicio();
   const conteos = useQuery({ queryKey: ['conteos', 'lista'], queryFn: getConteos });
   const inventario = useQuery({ queryKey: ['inicio', 'inventario'], queryFn: getInventario });
+  const entregas = useQuery({ queryKey: ['indicadores', 'entregas'], queryFn: getEntregas });
   const formulaciones = useQuery({ queryKey: ['formulaciones'], queryFn: getFormulaciones });
 
   // La fecha se guarda por panadería; se relee al cambiar de panadería
@@ -139,6 +142,7 @@ export function IndicadoresPage() {
     producciones: producciones.data ?? [],
     conteos: conteos.data?.items ?? [],
     abc: abc.data,
+    entregas: entregas.data?.dias ?? [],
   };
   const hoy = new Date();
   const manana = mananaDe(hoy);
@@ -206,6 +210,11 @@ export function IndicadoresPage() {
     { nombre: 'Costo de desperdicio por lote', formula: 'Costo de la merma en producción ÷ lotes producidos', pre: pre?.costoPorLote ?? null, post: post.costoPorLote, formato: (n) => pesos.format(n), sentido: 'baja' },
     { nombre: 'Costo de las mermas al mes', formula: 'Costo de todas las mermas en un mes laboral (26 días)', pre: pre?.costoMermaMes ?? null, post: post.costoMermaMes, formato: (n) => pesos.format(n), sentido: 'baja' },
     { nombre: 'Rendimiento de producción', formula: 'Unidades obtenidas ÷ unidades planificadas × 100', pre: pre?.rendimiento ?? null, post: post.rendimiento, formato: pct, sentido: 'sube', puntos: true },
+  ];
+  const filasPedidos: Fila[] = [
+    { nombre: 'Kilos recibidos por entrega', formula: 'Kg de insumos recibidos ÷ días con entrega (se excluye el día de la carga inicial)', pre: pre?.kgPorEntrega ?? null, post: post.kgPorEntrega, formato: kg, sentido: 'ninguno', puntos: false },
+    { nombre: 'Kilos recibidos al mes', formula: 'Kg recibidos en un mes laboral (26 días)', pre: pre?.kgEntregasMes ?? null, post: post.kgEntregasMes, formato: kg, sentido: 'ninguno' },
+    { nombre: 'Entregas recibidas', formula: 'Días con entrada de mercancía en el periodo', pre: pre ? pre.entregasDias : null, post: post.entregasDias, formato: (n) => String(n), sentido: 'ninguno' },
   ];
   const filasTrazabilidad: Fila[] = [
     { nombre: 'Exactitud de inventarios (ERI)', formula: `Promedio de los conteos físicos · meta ≥ ${metaEri} %`, pre: pre?.eri ?? null, post: post.eri, formato: pct, sentido: 'sube', puntos: true },
@@ -317,6 +326,11 @@ export function IndicadoresPage() {
           <>
             <TablaIndicadores titulo="Variable dependiente · Reducción del desperdicio de materias primas" filas={filasDesperdicio} conCorte={conCorte} color="bg-terracota" />
             <TablaIndicadores titulo="Variable dependiente · Eficiencia operativa" filas={filasEficiencia} conCorte={conCorte} color="bg-verde-bosque" />
+            <TablaIndicadores titulo="Referencia · Pedidos a proveedores (kg recibidos)" filas={filasPedidos} conCorte={conCorte} color="bg-gris-texto" />
+            <p className="-mt-3 text-xs text-gris-texto">
+              Los kilos por entrega salen de las entradas registradas en Inventario. El valor declarado por la panadería (~800 kg por pedido) es una estimación; la línea base
+              del pre-test es la que se mida aquí.{entregas.data && entregas.data.sin_peso > 0 ? ` ${entregas.data.sin_peso} entradas en unidades (no kg) no se cuentan.` : ''}
+            </p>
             <TablaIndicadores titulo="Variable dependiente · Trazabilidad y calidad (ISO/IEC 25010, fiabilidad)" filas={filasTrazabilidad} conCorte={conCorte} color="bg-pizarra" />
             <TablaIndicadores titulo="Variable independiente · Estandarización técnica" filas={filasModelo} conCorte={conCorte} color="bg-azul-noche" />
 
