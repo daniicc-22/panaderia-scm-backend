@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { UUID } from '../utils/materiaPrima';
 import { ETAPAS, costoMerma, validarMerma } from '../utils/mermas';
 import { puedeVerCostos } from '../utils/permisos';
+import { autorizarRoles } from '../middleware/autenticacion';
 
 const LIMITE_LISTA = 50;
 const num = (d: unknown) => (d === null || d === undefined ? null : Number(d));
@@ -149,6 +150,33 @@ export function crearRouterMermas(prisma: PrismaClient) {
       }
       console.error('Error al registrar la merma:', error);
       res.status(500).json({ error: 'Error al registrar la merma' });
+    }
+  });
+
+  // Elimina una merma registrada por error o de prueba: si descontó de un lote, se lo devuelve. Solo gestión.
+  router.delete('/:id', autorizarRoles('administrador', 'superadministrador'), async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(404).json({ error: 'Merma no encontrada.' });
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const salida = await prisma.$transaction(async (tx) => {
+        const d = await tx.desperdicio.findFirst({ where: { id, panaderia_id: panaderiaId } });
+        if (!d) return { ok: false, estado: 404, error: 'Merma no encontrada.' } as const;
+        const movs = await tx.movimiento_inventario.findMany({ where: { desperdicio_id: id, panaderia_id: panaderiaId }, select: { id: true, lote_id: true, cantidad: true } });
+        if (movs.length > 0) {
+          const enConteo = await tx.detalle_conteo.count({ where: { movimiento_id: { in: movs.map((m) => m.id) } } });
+          if (enConteo > 0) return { ok: false, estado: 409, error: 'Un conteo físico usa el movimiento de esta merma; no se puede eliminar.' } as const;
+          for (const m of movs) await tx.lote.update({ where: { id: m.lote_id }, data: { cantidad_disponible: { increment: Number(m.cantidad) } } });
+          await tx.movimiento_inventario.deleteMany({ where: { id: { in: movs.map((m) => m.id) } } });
+        }
+        await tx.desperdicio.delete({ where: { id } });
+        return { ok: true, repuesto: movs.length > 0 } as const;
+      });
+      if (!salida.ok) return res.status(salida.estado).json({ error: salida.error });
+      res.json({ id, eliminada: true, repuesto: salida.repuesto });
+    } catch (error) {
+      console.error('Error al eliminar la merma:', error);
+      res.status(500).json({ error: 'Error al eliminar la merma' });
     }
   });
 

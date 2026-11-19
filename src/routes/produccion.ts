@@ -757,5 +757,55 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
     }
   });
 
+  // Elimina una producción registrada por error o de prueba: devuelve a cada lote lo que se le descontó
+  // (consumo y mermas ligadas) y borra el rastro. Solo gestión. No se permite si ya salió algo de ella
+  // (lotes de intermedio producidos) o si un conteo físico usó sus movimientos.
+  router.delete('/:id', autorizarRoles('administrador', 'superadministrador'), async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(404).json({ error: 'Producción no encontrada.' });
+    const panaderiaId = req.panaderiaId!;
+    try {
+      const salida = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM produccion WHERE id = ${id}::uuid AND panaderia_id = ${panaderiaId}::uuid FOR UPDATE`;
+        const p = await tx.produccion.findFirst({ where: { id, panaderia_id: panaderiaId } });
+        if (!p) return { ok: false, estado: 404, error: 'Producción no encontrada.' } as const;
+
+        const hijos = await tx.lote.count({ where: { produccion_origen_id: id, panaderia_id: panaderiaId } });
+        if (hijos > 0) return { ok: false, estado: 409, error: 'De esta producción salieron lotes de intermedio; no se puede eliminar.' } as const;
+
+        const consumos = await tx.consumo_produccion.findMany({ where: { produccion_id: id, panaderia_id: panaderiaId }, select: { id: true } });
+        const mermas = await tx.desperdicio.findMany({ where: { produccion_id: id, panaderia_id: panaderiaId }, select: { id: true } });
+        const consumoIds = consumos.map((c) => c.id);
+        const mermaIds = mermas.map((m) => m.id);
+        const movimientos = await tx.movimiento_inventario.findMany({
+          where: { panaderia_id: panaderiaId, OR: [{ consumo_produccion_id: { in: consumoIds } }, { desperdicio_id: { in: mermaIds } }] },
+          select: { id: true, lote_id: true, cantidad: true },
+        });
+        if (movimientos.length > 0) {
+          const enConteo = await tx.detalle_conteo.count({ where: { movimiento_id: { in: movimientos.map((m) => m.id) } } });
+          if (enConteo > 0) return { ok: false, estado: 409, error: 'Un conteo físico usa los movimientos de esta producción; no se puede eliminar.' } as const;
+        }
+
+        // Los movimientos de producción y de merma siempre restan: eliminarlos devuelve la cantidad al lote
+        const devolver = new Map<string, number>();
+        for (const m of movimientos) devolver.set(m.lote_id, (devolver.get(m.lote_id) ?? 0) + Number(m.cantidad));
+        for (const [loteId, cantidad] of devolver) {
+          await tx.lote.update({ where: { id: loteId }, data: { cantidad_disponible: { increment: cantidad } } });
+        }
+        await tx.movimiento_inventario.deleteMany({ where: { id: { in: movimientos.map((m) => m.id) } } });
+        await tx.desperdicio.deleteMany({ where: { id: { in: mermaIds } } });
+        await tx.consumo_produccion.deleteMany({ where: { id: { in: consumoIds } } });
+        await tx.pesaje_produccion.deleteMany({ where: { produccion_id: id, panaderia_id: panaderiaId } });
+        await tx.produccion.delete({ where: { id } });
+        return { ok: true, lotes_repuestos: devolver.size, mermas_eliminadas: mermaIds.length } as const;
+      });
+      if (!salida.ok) return res.status(salida.estado).json({ error: salida.error });
+      res.json({ id, eliminada: true, lotes_repuestos: salida.lotes_repuestos, mermas_eliminadas: salida.mermas_eliminadas });
+    } catch (error) {
+      console.error('Error al eliminar la producción:', error);
+      res.status(500).json({ error: 'Error al eliminar la producción' });
+    }
+  });
+
   return router;
 }
