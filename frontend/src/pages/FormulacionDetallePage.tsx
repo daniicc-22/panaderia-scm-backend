@@ -5,16 +5,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Esqueleto } from '../components/feedback/Esqueleto';
 import { BotonImprimir } from '../components/ui/BotonImprimir';
-import { Indicador, Panel } from '../features/inicio/Panel';
+import { Indicador } from '../features/inicio/Panel';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
+import { IngredientesReceta } from '../features/formulaciones/IngredientesReceta';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/useAuth';
 import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
 import { mensajeDeError } from '../services/errores';
-import type { IngredienteFormulacion } from '../types/formulacion.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const pesos2 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -24,39 +24,6 @@ const ROLES_GESTION = ['administrador', 'superadministrador'];
 function fechaCorta(iso: string): string {
   const [a, m, d] = iso.split('-');
   return `${d}/${m}/${a}`;
-}
-
-function cantidadLegible(i: IngredienteFormulacion): string {
-  if (i.unidad === 'g' && i.cantidad >= 1000) return `${numero.format(i.cantidad / 1000)} kg`;
-  return `${numero.format(i.cantidad)} ${i.unidad}`;
-}
-
-// Cada ingrediente con su parte del costo en una barra: se ve de un vistazo qué encarece la receta
-function FilaIngrediente({ i, total, verCostos }: { i: IngredienteFormulacion; total: number | null; verCostos: boolean }) {
-  const parte = verCostos && i.costo != null && total ? (i.costo / total) * 100 : null;
-  return (
-    <li className="grid gap-x-4 gap-y-1.5 px-1 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,14rem)] sm:items-center">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-grafito">{i.nombre}</p>
-        <p className="flex flex-wrap items-center gap-1.5 text-xs text-gris-texto">
-          {i.tipo === 'producto_intermedio' && <span className="rounded-full bg-verde-suave px-2 py-0.5 font-semibold text-verde-bosque">Intermedio</span>}
-          {i.tolerancia_porcentaje != null && <span>Tolerancia ± {numero.format(i.tolerancia_porcentaje)} %</span>}
-        </p>
-      </div>
-      <p className="cifras text-sm font-semibold text-grafito sm:text-right">{cantidadLegible(i)}</p>
-      {verCostos && (
-        <div>
-          <div className="flex items-baseline justify-between gap-2 text-xs">
-            <span className={`cifras font-semibold ${i.costo == null ? 'text-atencion-texto' : 'text-grafito'}`}>{i.costo == null ? 'Sin costo' : pesos0.format(i.costo)}</span>
-            {parte !== null && <span className="cifras text-gris-texto">{numero.format(parte)} %</span>}
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-arena" aria-hidden="true">
-            {parte !== null && <div className="h-full rounded-full bg-trigo" style={{ width: `${Math.max(parte, 2)}%` }} />}
-          </div>
-        </div>
-      )}
-    </li>
-  );
 }
 
 export function FormulacionDetallePage() {
@@ -212,15 +179,7 @@ export function FormulacionDetallePage() {
             </Alert>
           )}
 
-          <Panel titulo="Ingredientes" subtitulo={`${data.ingredientes.length} ${data.ingredientes.length === 1 ? 'ingrediente' : 'ingredientes'} por lote`}>
-            <ul className="divide-y divide-linea">
-              {[...data.ingredientes]
-                .sort((a, b) => b.cantidad - a.cantidad)
-                .map((i) => (
-                  <FilaIngrediente key={`${i.tipo}-${i.codigo ?? i.nombre}`} i={i} total={data.costo_lote} verCostos={verCostos} />
-                ))}
-            </ul>
-          </Panel>
+          <IngredientesReceta data={data} verCostos={verCostos} />
         </>
       )}
 
