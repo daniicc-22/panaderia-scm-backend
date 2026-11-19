@@ -80,7 +80,7 @@ export function ProveedoresPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         titulo="Proveedores"
-        subtitulo={data ? `${activos} activos${inactivos > 0 ? ` · ${inactivos} inactivos` : ''}` : 'Quién te vende los insumos'}
+        subtitulo={data ? `${activos} ${activos === 1 ? 'activo' : 'activos'}${inactivos > 0 ? ` · ${inactivos} ${inactivos === 1 ? 'inactivo' : 'inactivos'}` : ''}` : 'Quién te vende los insumos'}
         acciones={
           <Button type="button" onClick={() => setFormulario('nuevo')}>
             <Plus size={16} aria-hidden="true" />
@@ -131,7 +131,12 @@ export function ProveedoresPage() {
           <ProveedorForm
             key={formulario === 'nuevo' ? 'nuevo' : formulario.id}
             proveedor={formulario === 'nuevo' ? null : formulario}
-            onTerminar={() => setFormulario(null)}
+            onTerminar={(creado) => {
+              setFormulario(null);
+              if (creado) {
+                setAviso({ tipo: 'success', texto: `${creado.nombre} quedó registrado. Ahora define sus días de entrega y sus precios para que cuente en Reposición.` });
+              }
+            }}
           />
         )}
       </Modal>

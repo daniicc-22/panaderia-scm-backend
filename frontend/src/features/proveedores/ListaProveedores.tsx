@@ -238,7 +238,7 @@ export function ListaProveedores({ proveedores, cargando, acciones }: { proveedo
         )}
         {proveedores && base.length > 0 && (
           <p className="text-sm text-gris-texto sm:ml-auto" aria-live="polite">
-            {visibles.length} de {base.length} proveedores
+            {visibles.length} de {base.length} {base.length === 1 ? 'proveedor' : 'proveedores'}
           </p>
         )}
       </div>

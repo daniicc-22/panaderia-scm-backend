@@ -79,7 +79,7 @@ export function MateriasPrimasPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         titulo="Materias primas"
-        subtitulo={data ? `${activas} activas${puedeGestionar && inactivas > 0 ? ` · ${inactivas} inactivas` : ''}` : 'Catálogo de insumos de la panadería'}
+        subtitulo={data ? `${activas} ${activas === 1 ? 'activa' : 'activas'}${puedeGestionar && inactivas > 0 ? ` · ${inactivas} ${inactivas === 1 ? 'inactiva' : 'inactivas'}` : ''}` : 'Catálogo de insumos de la panadería'}
         acciones={
           puedeGestionar ? (
             <Button type="button" onClick={() => setFormulario('nueva')} disabled={!catalogos.data}>
