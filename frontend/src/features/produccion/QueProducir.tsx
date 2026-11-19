@@ -10,9 +10,9 @@ const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 
 function Fila({ i }: { i: ItemProducible }) {
   return (
-    <li className="rounded-tarjeta border border-linea bg-tabla p-3">
+    <li className={`rounded-tarjeta border border-l-4 border-linea bg-tabla p-3 ${i.estado === 'puede' ? 'border-l-verde-bosque' : i.estado === 'no_alcanza' ? 'border-l-critico' : 'border-l-borde-campo'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-grafito">{i.producto}</p>
+        <p className="font-display text-base font-semibold text-azul-noche">{i.producto}</p>
         {i.estado === 'puede' && <Badge color="green">Alcanza para {i.lotes_posibles} {i.lotes_posibles === 1 ? 'lote' : 'lotes'}</Badge>}
         {i.estado === 'no_alcanza' && <Badge color="red">No alcanza para un lote</Badge>}
         {i.estado === 'no_calculable' && <Badge color="gray">No se puede calcular</Badge>}
@@ -47,7 +47,7 @@ export function QueProducir() {
   return (
     <section className="flex flex-col gap-2 rounded-tarjeta border border-linea bg-tabla p-4 sm:p-5" aria-label="Qué se puede producir">
       <div>
-        <h2 className="text-lg font-semibold text-grafito">Qué se puede producir hoy</h2>
+        <h2 className="font-display text-lg font-semibold text-azul-noche">Qué se puede producir hoy</h2>
         <p className="text-sm text-gris-texto">Con las existencias vigentes (los lotes vencidos no cuentan).</p>
       </div>
       {isLoading && <LoadingState mensaje="Calculando..." />}
@@ -58,7 +58,7 @@ export function QueProducir() {
             {data.resumen.pueden} se pueden hacer · {data.resumen.no_alcanzan} no alcanzan
             {data.resumen.no_calculables > 0 && ` · ${data.resumen.no_calculables} sin calcular`}
           </p>
-          <ul className="flex flex-col gap-2">
+          <ul className="grid gap-2 lg:grid-cols-2">
             {data.items.map((i) => (
               <Fila key={i.formulacion_id} i={i} />
             ))}
