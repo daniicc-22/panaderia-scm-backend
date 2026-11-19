@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import type { TableroProduccion } from '../../types/produccion.types';
 
@@ -31,11 +32,21 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
 
   const max = Math.max(...datos.map((d) => d.producidas), 0);
   if (max === 0 && datos.every((d) => d.producciones === 0)) {
-    return <p className="py-8 text-center text-sm text-niebla">Sin producciones cerradas en los últimos 7 días.</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <p className="text-sm text-niebla">Sin producciones cerradas en los últimos 7 días.</p>
+        <Link to="/produccion" className="text-sm font-semibold text-trigo hover:underline">
+          Registrar una producción →
+        </Link>
+      </div>
+    );
   }
   const techo = techoRedondo(max);
   // Solo se rotula el día más alto (no un número por barra)
   const indiceMax = datos.findIndex((d) => d.producidas === max);
+  // Promedio de los días con producción: referencia para ver qué días quedaron por encima o por debajo
+  const conProd = datos.filter((d) => d.producciones > 0);
+  const promedio = conProd.length > 1 ? conProd.reduce((t, d) => t + d.producidas, 0) / conProd.length : null;
 
   return (
     <div>
@@ -48,6 +59,15 @@ export function ProduccionDiaria({ datos }: { datos: TableroProduccion['por_dia'
         <div className="relative h-44 flex-1">
           <div className="absolute inset-x-0 top-0 border-t border-noche-borde" aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-9 border-t border-grafico-neutro" aria-hidden="true" />
+          {promedio !== null && (
+            <div
+              className="pointer-events-none absolute inset-x-0 z-[1] border-t border-dashed border-niebla"
+              style={{ bottom: `calc(2.25rem + ${promedio / techo} * (100% - 2.25rem))` }}
+              aria-hidden="true"
+            >
+              <span className="absolute -top-5 right-0 rounded-sm bg-azul-noche/90 px-1 text-xs text-niebla">Promedio {numero.format(promedio)}</span>
+            </div>
+          )}
           <ul className="absolute inset-0 grid grid-cols-7 gap-1">
             {datos.map((d, i) => {
               const alto = (d.producidas / techo) * 100;

@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { DataTable, type ColumnaTabla } from '../components/tables/DataTable';
 import { Alert } from '../components/ui/Alert';
 import { getClasificacionAbc } from '../services/abcService';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
+import { ParetoAbc } from '../features/abc/ParetoAbc';
 import type { ClaseAbc, FuenteAbc, ItemAbc } from '../types/abc.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
@@ -43,11 +45,14 @@ export function ClasificacionAbcPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
-        <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Clasificación ABC</h1>
-        <p className="mt-1 text-sm text-niebla">
-          Insumos ordenados por valor anual de consumo (demanda × costo)
-        </p>
+      <div className="-mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Clasificación ABC</h1>
+          <p className="mt-1 text-sm text-niebla">
+            Insumos ordenados por valor anual de consumo (demanda × costo)
+          </p>
+        </div>
+        <BotonImprimir />
       </div>
 
       <div role="group" aria-label="Fuente de la demanda" className="inline-flex w-fit rounded-md border border-linea bg-tabla p-0.5 text-sm">
@@ -125,7 +130,7 @@ export function ClasificacionAbcPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.resumen.map((r) => (
-              <div key={r.clase} className="rounded-lg border border-linea bg-tabla p-4">
+              <div key={r.clase} className="rounded-tarjeta border border-linea bg-tabla p-4">
                 <div className="flex items-center gap-2">
                   <Insignia clase={r.clase} />
                   <p className="text-sm font-semibold text-grafito">Clase {r.clase}</p>
@@ -137,6 +142,8 @@ export function ClasificacionAbcPage() {
               </div>
             ))}
           </div>
+
+          {!data.datos_insuficientes && data.items.length > 0 && <ParetoAbc datos={data} />}
 
           <div className="rounded-md border border-[#c6d3de] bg-info-fondo px-4 py-3 text-sm text-pizarra">
             {esReal

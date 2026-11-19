@@ -8,18 +8,35 @@ import { BarrasCostoAnual } from '../features/reposicion/eoq/BarrasCostoAnual';
 import { CortesGuardados } from '../features/reposicion/eoq/CortesGuardados';
 import { CurvaCostos } from '../features/reposicion/eoq/CurvaCostos';
 import { TablaEoq } from '../features/reposicion/eoq/TablaEoq';
-import { conEoq, costoReferencia, explicacion, insumosSinEoq, motivosSinCalendario, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
+import { conEoq, costoEoq, costoPolitica, costoReferencia, explicacion, insumosSinEoq, motivosSinCalendario, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
+import { Indicador } from '../features/inicio/Panel';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { formatoCantidad, formatoDinero } from '../features/inventario/formatos';
 import { getRecomendaciones } from '../services/reposicionService';
 
-function Indicador({ etiqueta, valor, detalle }: { etiqueta: string; valor: string; detalle?: string }) {
+// Las dos cantidades que importan, antes de mirar la curva: el pedido ideal y el que recomienda el sistema con el calendario
+function CifrasClave({ item }: { item: ReturnType<typeof conEoq>[number] }) {
+  const qp = item.modelo.cantidad_politica;
+  const polit = costoPolitica(item);
+  const extra = polit === null ? null : polit - costoEoq(item);
   return (
-    <div className="rounded-xl border border-linea bg-tabla p-3 shadow-xs sm:p-4">
-      <p className="text-xs text-gris-texto">{etiqueta}</p>
-      <p className="mt-1 text-xl font-semibold tracking-tight text-grafito">{valor}</p>
-      {detalle && <p className="mt-0.5 text-xs text-gris-texto">{detalle}</p>}
-    </div>
+    <dl className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="rounded-tarjeta bg-azul-noche p-3 text-white">
+        <dt className="text-xs font-medium text-niebla">Pedido ideal (EOQ)</dt>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{formatoCantidad(item.eoq, item.unidad)}</dd>
+        <dd className="text-xs text-niebla">{formatoDinero(costoEoq(item))} al año</dd>
+      </div>
+      <div className="rounded-tarjeta bg-trigo p-3 text-grafito">
+        <dt className="text-xs font-medium text-[#4a3509]">Recomendado con el calendario</dt>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{qp === null ? '—' : formatoCantidad(qp, item.unidad)}</dd>
+        <dd className="text-xs text-[#4a3509]">{polit === null ? 'Falta el calendario del proveedor' : `${formatoDinero(polit)} al año`}</dd>
+      </div>
+      <div className="rounded-tarjeta border border-linea bg-hueso p-3 text-grafito">
+        <dt className="text-xs font-medium text-gris-texto">Costo de ajustarse</dt>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{extra === null ? '—' : extra < 1 ? 'Casi nada' : `+ ${formatoDinero(extra)}`}</dd>
+        <dd className="text-xs text-gris-texto">por año, solo pedir y guardar</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -46,7 +63,7 @@ export function AnalisisEoqPage() {
       </div>
       <NavReposicion />
 
-      <details className="rounded-lg border border-linea bg-tabla p-3 text-sm text-grafito">
+      <details className="rounded-tarjeta border border-linea bg-tabla p-3 text-sm text-grafito">
         <summary className="cursor-pointer font-medium text-grafito">¿Cómo se lee esta pantalla?</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p>
@@ -143,14 +160,18 @@ export function AnalisisEoqPage() {
           )}
 
           <section aria-label="Resumen" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Indicador etiqueta="Insumos con EOQ" valor={`${resumen.conEoq} de ${resumen.total}`} />
+            <Indicador indice={0} tono="azul" etiqueta="Insumos con EOQ" valor={`${resumen.conEoq} de ${resumen.total}`} />
             <Indicador
+              indice={1}
+              tono="gris"
               etiqueta="Pedir y guardar, con calendario"
               valor={formatoDinero(resumen.costoPolitica)}
               detalle={`por año · ${resumen.conCalendario} ${resumen.conCalendario === 1 ? 'insumo' : 'insumos'}`}
             />
-            <Indicador etiqueta="Mínimo teórico (EOQ)" valor={formatoDinero(resumen.costoMinimo)} detalle="por año, los mismos insumos, sin restricciones" />
+            <Indicador indice={2} tono="verde" etiqueta="Mínimo teórico (EOQ)" valor={formatoDinero(resumen.costoMinimo)} detalle="por año, los mismos insumos, sin restricciones" />
             <Indicador
+              indice={3}
+              tono="amarillo"
               etiqueta="Costo de ajustarse al calendario"
               valor={`+ ${formatoDinero(resumen.extra)}`}
               detalle={resumen.extraPct === null ? 'por año' : `por año (${resumen.extraPct.toLocaleString('es-CO', { maximumFractionDigits: 1 })} % más)`}
@@ -158,13 +179,13 @@ export function AnalisisEoqPage() {
           </section>
           <p className="-mt-2 text-xs text-gris-texto">Solo costo de pedir y guardar; no incluye el precio de compra del producto.</p>
 
-          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Dónde se concentra el costo">
+          <section className="rounded-tarjeta border border-linea bg-tabla p-4" aria-label="Dónde se concentra el costo">
             <h2 className="text-base font-semibold text-grafito">Dónde se concentra el costo de pedir y guardar</h2>
             <p className="mb-2 text-sm text-gris-texto">Los 10 insumos que más cuestan al año. Toca uno para ver su curva.</p>
             <BarrasCostoAnual items={lista} seleccionadoId={elegido.materia_prima_id} onSeleccionar={setSeleccionId} />
           </section>
 
-          <section className="rounded-xl border border-linea bg-tabla p-4 shadow-xs" aria-label="Curva de costos">
+          <section className="rounded-tarjeta border border-linea bg-tabla p-4" aria-label="Curva de costos">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h2 className="text-base font-semibold text-grafito">Curva de costos de {elegido.nombre}</h2>
@@ -187,6 +208,7 @@ export function AnalisisEoqPage() {
                 </select>
               </label>
             </div>
+            <CifrasClave item={elegido} />
             <CurvaCostos key={elegido.materia_prima_id} item={elegido} />
             <div className="mt-3 flex flex-col gap-1 rounded-md bg-hueso p-3 text-sm text-grafito">
               {explicacion(elegido, { cantidad: (v) => formatoCantidad(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
@@ -195,7 +217,7 @@ export function AnalisisEoqPage() {
             </div>
           </section>
 
-          <details className="rounded-lg border border-linea bg-tabla p-3">
+          <details className="rounded-tarjeta border border-linea bg-tabla p-3">
             <summary className="cursor-pointer text-sm font-medium text-grafito">Ver todos los números en una tabla</summary>
             <div className="mt-3">
               <TablaEoq items={lista} />

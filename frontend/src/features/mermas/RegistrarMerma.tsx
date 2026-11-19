@@ -1,3 +1,4 @@
+import { useAvisos } from '../../components/feedback/avisosContext';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from '../../components/ui/Alert';
@@ -21,6 +22,7 @@ const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: 
 // Registro de una merma: o se perdió un insumo (se descuenta de su lote) o se perdió masa/producto dentro de una producción
 export function RegistrarMerma() {
   const queryClient = useQueryClient();
+  const { avisar } = useAvisos();
   const [tipo, setTipo] = useState<Tipo>('insumo');
   const [materiaId, setMateriaId] = useState('');
   const [loteId, setLoteId] = useState('');
@@ -69,6 +71,7 @@ export function RegistrarMerma() {
         queryClient.invalidateQueries({ queryKey: ['produccion'] }),
       ]);
       setExito(`Merma registrada: ${formatoCantidad(cantidad, unidadFinal)}.${tipo === 'insumo' ? ' Ya se descontó del lote.' : ''}`);
+      avisar(`Merma registrada: ${formatoCantidad(cantidad, unidadFinal)}.`);
       setCantidadTexto('');
       setLoteId('');
       setProduccionId('');
@@ -104,7 +107,7 @@ export function RegistrarMerma() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
+    <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
       {exito && <Alert variant="success">{exito}</Alert>}
 
       <fieldset className="flex flex-col gap-2">

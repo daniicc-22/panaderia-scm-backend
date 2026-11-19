@@ -9,7 +9,7 @@ const ENLACES = [
 // Pestañas comunes de las tres pantallas de reposición
 export function NavReposicion() {
   return (
-    <nav aria-label="Reposición" className="flex gap-1 overflow-x-auto border-b border-linea">
+    <nav aria-label="Reposición" className="flex gap-1 overflow-x-auto border-b border-linea print:hidden">
       {ENLACES.map((e) => (
         <NavLink
           key={e.ruta}

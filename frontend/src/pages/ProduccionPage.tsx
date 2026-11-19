@@ -1,3 +1,4 @@
+import { useAvisos } from '../components/feedback/avisosContext';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ErrorState } from '../components/feedback/ErrorState';
@@ -8,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { aNumero } from '../features/inventario/esquemaEntrada';
 import { formatoCantidad, formatoFecha } from '../features/inventario/formatos';
 import { ProduccionesRecientes } from '../features/produccion/ProduccionesRecientes';
+import { RendimientoProducciones } from '../features/produccion/RendimientoProducciones';
 import { QueProducir } from '../features/produccion/QueProducir';
 import { colorDesviacion, leerPesos, textoDesviacion, type PesosTexto } from '../features/produccion/pesos';
 import { getFormulaciones } from '../services/formulacionesService';
@@ -24,6 +26,7 @@ const CAMPO =
 
 export function ProduccionPage() {
   const queryClient = useQueryClient();
+  const { avisar } = useAvisos();
   const [formulacionId, setFormulacionId] = useState('');
   const [lotesTexto, setLotesTexto] = useState('1');
   const [errorLotes, setErrorLotes] = useState<string | null>(null);
@@ -62,6 +65,7 @@ export function ProduccionPage() {
       setExito(
         `Producción registrada: ${lotes} ${lotes === 1 ? 'lote' : 'lotes'} de ${r.plan.formulacion.producto}. Los insumos ya se descontaron del inventario. Cuando termine la tanda, ciérrala abajo con lo que salió.`,
       );
+      avisar(`Producción registrada: ${lotes} ${lotes === 1 ? 'lote' : 'lotes'} de ${r.plan.formulacion.producto}.`);
       setPlan(null);
       setPesosTexto({});
     },
@@ -103,7 +107,7 @@ export function ProduccionPage() {
       ) : formulaciones.isError ? (
         <ErrorState onReintentar={() => formulaciones.refetch()} />
       ) : (
-        <div className="flex flex-col gap-4 rounded-lg border border-linea bg-tabla p-4 sm:max-w-xl">
+        <div className="flex flex-col gap-4 rounded-tarjeta border border-linea bg-tabla p-4 sm:max-w-xl">
           <div className="flex flex-col gap-1">
             <label htmlFor="pr-producto" className="text-sm font-medium text-grafito">
               Producto
@@ -259,6 +263,7 @@ export function ProduccionPage() {
 
       <QueProducir />
 
+      <RendimientoProducciones />
       <ProduccionesRecientes />
     </div>
   );
