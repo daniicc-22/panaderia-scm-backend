@@ -313,6 +313,18 @@ export function hayCambios(
   return false;
 }
 
+// ¿La versión tiene la ficha técnica completa? Es la receta con su procedimiento y, si el producto se hornea,
+// el tiempo y la temperatura del horno. Un intermedio (masa base) solo necesita el procedimiento.
+// Alimenta el índice de estandarización: productos con ficha técnica sobre el total.
+export function fichaCompleta(
+  version: { procedimiento?: string | null; tiempo_horneado_min?: number | null; temperatura_horneado_c?: number | null },
+  esIntermedio: boolean,
+): boolean {
+  if (!version.procedimiento || version.procedimiento.trim() === '') return false;
+  if (esIntermedio) return true;
+  return version.tiempo_horneado_min != null && version.temperatura_horneado_c != null;
+}
+
 // Fecha de hoy en Colombia (AAAA-MM-DD). La base guarda solo la fecha, sin hora.
 export function fechaHoyColombia(ahora: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(ahora);

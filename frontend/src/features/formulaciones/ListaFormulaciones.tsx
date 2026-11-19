@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Layers, Scale, TriangleAlert, Wheat } from 'lucide-react';
+import { ArrowRight, FileCheck2, FileX2, Layers, Scale, TriangleAlert, Wheat } from 'lucide-react';
 import { Esqueleto } from '../../components/feedback/Esqueleto';
 import type { FormulacionResumen } from '../../types/formulacion.types';
 
@@ -7,7 +7,7 @@ const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'CO
 const pesos2 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kg = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 
-function Tarjeta({ f, indice }: { f: FormulacionResumen; indice: number }) {
+function Tarjeta({ f, indice, mostrarFicha }: { f: FormulacionResumen; indice: number; mostrarFicha: boolean }) {
   const conCosto = f.costo_lote !== null;
   return (
     <li className="animate-entra" style={{ animationDelay: `${Math.min(indice, 8) * 40}ms` }}>
@@ -28,6 +28,9 @@ function Tarjeta({ f, indice }: { f: FormulacionResumen; indice: number }) {
               <span className="rounded-full bg-azul-suave px-2 py-0.5 font-semibold text-azul-noche">v{f.version}</span>
               {f.es_intermedio && <span className="rounded-full bg-verde-suave px-2 py-0.5 font-semibold text-verde-bosque">Intermedio</span>}
               {!f.producto_activo && <span className="rounded-full bg-arena px-2 py-0.5 font-semibold text-gris-texto">Dado de baja</span>}
+              {mostrarFicha && (f.ficha_completa
+                ? <span className="inline-flex items-center gap-1 rounded-full bg-exito-fondo px-2 py-0.5 font-semibold text-exito-texto"><FileCheck2 size={12} aria-hidden="true" />Ficha completa</span>
+                : <span className="inline-flex items-center gap-1 rounded-full bg-atencion-fondo px-2 py-0.5 font-semibold text-atencion-texto"><FileX2 size={12} aria-hidden="true" />Falta ficha</span>)}
             </div>
           </div>
           <ArrowRight size={18} aria-hidden="true" className="mt-1 shrink-0 text-gris-texto transition-transform group-hover:translate-x-0.5" />
@@ -82,7 +85,7 @@ function Tarjeta({ f, indice }: { f: FormulacionResumen; indice: number }) {
   );
 }
 
-export function ListaFormulaciones({ formulaciones, cargando, vacio }: { formulaciones: FormulacionResumen[] | undefined; cargando: boolean; vacio: string }) {
+export function ListaFormulaciones({ formulaciones, cargando, vacio, mostrarFicha = false }: { formulaciones: FormulacionResumen[] | undefined; cargando: boolean; vacio: string; mostrarFicha?: boolean }) {
   if (cargando) {
     return (
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -98,7 +101,7 @@ export function ListaFormulaciones({ formulaciones, cargando, vacio }: { formula
   return (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {formulaciones.map((f, i) => (
-        <Tarjeta key={f.id} f={f} indice={i} />
+        <Tarjeta key={f.id} f={f} indice={i} mostrarFicha={mostrarFicha} />
       ))}
     </ul>
   );

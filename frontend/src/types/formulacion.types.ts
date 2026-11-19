@@ -15,6 +15,9 @@ export interface FormulacionResumen {
   // Solo gestión: precio de venta por unidad y margen sobre ese precio
   precio_venta: number | null;
   margen_pct: number | null;
+  // Ficha técnica: tiene procedimiento y, si se hornea, tiempo y temperatura
+  tiene_procedimiento: boolean;
+  ficha_completa: boolean;
 }
 
 export interface IngredienteFormulacion {
@@ -41,6 +44,8 @@ export interface FichaTecnica {
 }
 
 export interface FormulacionDetalle extends FichaTecnica {
+  ficha_completa: boolean;
+  aprobado_por: string | null;
   id: string;
   producto_id: string;
   producto: string;

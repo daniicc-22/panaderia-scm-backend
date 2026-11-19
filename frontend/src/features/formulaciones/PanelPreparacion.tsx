@@ -42,12 +42,17 @@ export function PanelPreparacion({ data, puedeGestionar }: { data: FormulacionDe
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         {pasos.length > 0 && (
           <ol className="flex flex-col gap-2">
-            {pasos.map((p, i) => (
+            {pasos.map((p, i) => {
+              const limpio = p.replace(/^\s*\d+\s*[.)-]\s*/, '');
+              // "Amasar: texto" → el título del paso en negrita
+              const m = limpio.match(/^([^:.]{3,40}):\s+(.+)$/);
+              return (
               <li key={i} className="flex gap-3 text-sm text-grafito">
                 <span aria-hidden="true" className="cifras mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-azul-noche text-xs font-semibold text-white">{i + 1}</span>
-                <span className="pt-0.5">{p.replace(/^\s*\d+\s*[.)-]\s*/, '')}</span>
+                <span className="pt-0.5">{m ? <><strong className="font-semibold text-azul-noche">{m[1]}:</strong> {m[2]}</> : limpio}</span>
               </li>
-            ))}
+              );
+            })}
           </ol>
         )}
         <div className={`grid grid-cols-2 gap-2 ${pasos.length > 0 ? 'lg:grid-cols-1' : 'lg:col-span-2 lg:grid-cols-4'} content-start`}>
