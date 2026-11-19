@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
+import { PageHeader } from '../components/layout/PageHeader';
+import { BotonImprimir } from '../components/ui/BotonImprimir';
+import { Indicador } from '../features/inicio/Panel';
+import { useAuth } from '../features/auth/useAuth';
+import { getMiPanaderia } from '../services/panaderiaService';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
@@ -22,6 +28,15 @@ import { getInventario, getOpcionesEntrada } from '../services/inventarioService
 import type { EntradaRegistrada, EstadoStock, ItemInventario } from '../types/inventario.types';
 
 type Filtro = 'todos' | EstadoStock;
+type Orden = 'nombre' | 'vencimiento' | 'valor';
+const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+const BORDE_ESTADO: Record<EstadoStock, string> = {
+  ok: 'border-linea border-l-verde-bosque',
+  por_vencer: 'border-linea border-l-trigo',
+  vencido: 'border-linea border-l-critico',
+  sin_stock: 'border-linea border-l-borde-campo',
+};
 
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' },
@@ -33,6 +48,9 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
 export function InventarioPage() {
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [orden, setOrden] = useState<Orden>('nombre');
+  const { usuario } = useAuth();
+  const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
   const [entradaAbierta, setEntradaAbierta] = useState(false);
   const [conLotes, setConLotes] = useState<ItemInventario | null>(null);
   const [registrada, setRegistrada] = useState<EntradaRegistrada | null>(null);
@@ -62,13 +80,20 @@ export function InventarioPage() {
   }, [items]);
 
   const visibles = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-    return (items ?? []).filter(
-      (i) =>
-        (filtro === 'todos' || i.estado === filtro) &&
-        (!texto || i.nombre.toLowerCase().includes(texto) || i.codigo.toLowerCase().includes(texto)),
+    const texto = sinTildes(busqueda.trim());
+    const filtrados = (items ?? []).filter(
+      (i) => (filtro === 'todos' || i.estado === filtro) && (!texto || sinTildes(i.nombre).includes(texto) || sinTildes(i.codigo).includes(texto)),
     );
-  }, [items, busqueda, filtro]);
+    const porNombre = (x: ItemInventario, y: ItemInventario) => x.nombre.localeCompare(y.nombre, 'es');
+    return [...filtrados].sort((x, y) => {
+      // Lo que no tiene dato (sin vencimiento, sin valor) va al final
+      if (orden === 'vencimiento') return (x.proximo_vencimiento === null ? 1 : y.proximo_vencimiento === null ? -1 : x.proximo_vencimiento.localeCompare(y.proximo_vencimiento)) || porNombre(x, y);
+      if (orden === 'valor') return (y.valor ?? -1) - (x.valor ?? -1) || porNombre(x, y);
+      return porNombre(x, y);
+    });
+  }, [items, busqueda, filtro, orden]);
+
+  const conteoFiltro = (f: Filtro) => (f === 'todos' ? (items ?? []).length : (items ?? []).filter((i) => i.estado === f).length);
 
   function terminarEntrada(r?: EntradaRegistrada) {
     setEntradaAbierta(false);
@@ -76,25 +101,34 @@ export function InventarioPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Inventario</h1>
-          <p className="mt-1 text-sm text-niebla">Existencias de materias primas por lote</p>
-        </div>
-        <Button
-          type="button"
-          className="min-h-11 w-full sm:w-auto"
-          disabled={!opciones.data}
-          onClick={() => {
-            setRegistrada(null);
-            void opciones.refetch();
-            setEntradaAbierta(true);
-          }}
-        >
-          Registrar entrada
-        </Button>
+    <div className="ficha-impresion flex flex-col gap-4">
+      <div className="hidden print:block">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gris-texto">{panaderia.data?.nombre ?? ''}</p>
+        <h1 className="font-display text-2xl font-semibold text-azul-noche">Inventario de materias primas</h1>
+        <p className="mt-1 text-sm text-gris-texto">Existencias al {hoy ? formatoFecha(hoy) : ''}</p>
       </div>
+
+      <PageHeader
+        ocultarAlImprimir
+        titulo="Existencias"
+        subtitulo={`Materias primas por lote${hoy ? ` · al ${formatoFecha(hoy)}` : ''}`}
+        acciones={
+          <>
+            {items && items.length > 0 && <BotonImprimir etiqueta="Imprimir inventario" />}
+            <Button
+              type="button"
+              disabled={!opciones.data}
+              onClick={() => {
+                setRegistrada(null);
+                void opciones.refetch();
+                setEntradaAbierta(true);
+              }}
+            >
+              Registrar entrada
+            </Button>
+          </>
+        }
+      />
 
       {opciones.isError && (
         <Alert variant="warning">
@@ -113,41 +147,55 @@ export function InventarioPage() {
         </Alert>
       )}
 
-      <AlertasVencimiento />
+      <div className="print:hidden">
+        <AlertasVencimiento />
+      </div>
 
       {items && (
-        <div className={`grid grid-cols-2 gap-3 ${verValor ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
-          <Resumen titulo="Con existencias" valor={String(conteo.con_stock)} />
-          <Resumen titulo="Por vencer" valor={String(conteo.por_vencer)} alerta={conteo.por_vencer > 0 ? 'amarillo' : undefined} />
-          <Resumen titulo="Vencidos" valor={String(conteo.vencido)} alerta={conteo.vencido > 0 ? 'rojo' : undefined} />
-          <Resumen titulo="Sin existencias" valor={String(conteo.sin_stock)} />
-          {verValor && <Resumen titulo="Valor del inventario" valor={formatoDinero(conteo.valor)} />}
+        <div className={`kpis grid grid-cols-2 gap-3 ${verValor ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+          <Indicador etiqueta="Con existencias" valor="—" numero={conteo.con_stock} detalle={`de ${items.length} insumos`} tono="azul" indice={0} />
+          <Indicador etiqueta="Por vencer" valor="—" numero={conteo.por_vencer} detalle={conteo.por_vencer > 0 ? 'Usar primero' : 'Ninguno próximo a vencer'} tono={conteo.por_vencer > 0 ? 'amarillo' : 'gris'} indice={1} />
+          <Indicador etiqueta="Vencidos" valor="—" numero={conteo.vencido} detalle={conteo.vencido > 0 ? 'Dar de baja o corregir' : 'Todo en fecha'} tono={conteo.vencido > 0 ? 'rojo' : 'verde'} indice={2} />
+          <Indicador etiqueta="Sin existencias" valor="—" numero={conteo.sin_stock} detalle={conteo.sin_stock > 0 ? 'Revisar reposición' : undefined} tono="gris" indice={3} />
+          {verValor && <Indicador etiqueta="Valor del inventario" valor="—" numero={conteo.valor} formato={(n) => formatoDinero(n)} tono="verde" indice={4} />}
         </div>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre o código"
-          aria-label="Buscar insumo"
-          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base sm:max-w-xs sm:text-sm"
-        />
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por estado">
+      <div className="flex flex-col gap-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="relative w-full sm:max-w-xs">
+            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre o código"
+              aria-label="Buscar insumo"
+              className="min-h-11 w-full rounded-lg border border-borde-campo bg-white pl-9 pr-3 text-base placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-grafito sm:ml-auto">
+            <span className="whitespace-nowrap font-medium text-gris-texto">Ordenar por</span>
+            <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)} className="min-h-11 rounded-lg border border-borde-campo bg-white px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-trigo">
+              <option value="nombre">Nombre</option>
+              <option value="vencimiento">Vencimiento más próximo</option>
+              {verValor && <option value="valor">Mayor valor</option>}
+            </select>
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
           {FILTROS.map((f) => (
             <button
               key={f.valor}
               type="button"
               aria-pressed={filtro === f.valor}
               onClick={() => setFiltro(f.valor)}
-              className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium ${
-                filtro === f.valor
-                  ? 'border-azul-noche bg-info-fondo text-pizarra'
-                  : 'border-borde-campo bg-tabla text-gris-texto hover:bg-arena'
+              className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${
+                filtro === f.valor ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'
               }`}
             >
               {f.etiqueta}
+              <span className="cifras text-xs opacity-80">{conteoFiltro(f.valor)}</span>
             </button>
           ))}
         </div>
@@ -165,13 +213,13 @@ export function InventarioPage() {
       ) : (
         <>
           {/* Celular: una tarjeta por insumo */}
-          <ul className="flex flex-col gap-2 md:hidden">
+          <ul className="flex flex-col gap-2 md:hidden print:hidden">
             {visibles.map((i) => (
               <li key={i.materia_prima_id}>
                 <button
                   type="button"
                   onClick={() => setConLotes(i)}
-                  className="flex w-full flex-col gap-1 rounded-tarjeta border border-linea bg-tabla p-4 text-left active:bg-arena"
+                  className={`flex w-full flex-col gap-1 rounded-tarjeta border border-l-4 bg-tabla p-4 text-left active:bg-arena ${BORDE_ESTADO[i.estado]}`}
                 >
                   <span className="flex items-start justify-between gap-2">
                     <span className="font-medium text-grafito">{i.nombre}</span>
@@ -192,12 +240,12 @@ export function InventarioPage() {
           </ul>
 
           {/* Pantalla ancha: tabla */}
-          <div className="hidden overflow-x-auto rounded-lg border border-linea md:block">
+          <div className="hidden overflow-x-auto rounded-tarjeta border border-linea bg-tabla md:block print:block print:overflow-visible">
             <table className="min-w-full divide-y divide-linea">
-              <thead className="bg-azul-noche">
+              <thead className="bg-hueso">
                 <tr>
                   {['Código', 'Insumo', 'Existencias', 'Lotes', 'Próximo vencimiento', 'Estado', ...(verValor ? ['Valor'] : []), ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white">
+                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-azul-noche ${h === '' ? 'print:hidden' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -205,19 +253,46 @@ export function InventarioPage() {
               </thead>
               <tbody className="divide-y divide-linea bg-tabla">
                 {visibles.map((i) => (
-                  <tr key={i.materia_prima_id} className="hover:bg-arena">
+                  <tr key={i.materia_prima_id} className={`hover:bg-arena ${i.estado === 'vencido' ? 'bg-critico-fondo/40' : ''}`}>
                     <td className="px-4 py-3 text-sm text-grafito">{i.codigo}</td>
                     <td className="px-4 py-3 text-sm font-medium text-grafito">{i.nombre}</td>
                     <td className="px-4 py-3 text-sm text-grafito">{formatoCantidad(i.stock, i.unidad)}</td>
                     <td className="px-4 py-3 text-sm text-grafito">{i.lotes_activos}</td>
                     <td className="px-4 py-3 text-sm text-grafito">
-                      {i.proximo_vencimiento ? `${formatoFecha(i.proximo_vencimiento)} · ${textoVencimiento(hoy, i.proximo_vencimiento)}` : '—'}
+                      {i.proximo_vencimiento ? (
+                        <>
+                          {formatoFecha(i.proximo_vencimiento)}
+                          <span className={`block text-xs ${i.estado === 'vencido' ? 'font-semibold text-critico-texto' : i.estado === 'por_vencer' ? 'font-semibold text-atencion-texto' : 'text-gris-texto'}`}>
+                            {textoVencimiento(hoy, i.proximo_vencimiento)}
+                          </span>
+                        </>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge color={COLOR_ESTADO[i.estado]}>{ETIQUETA_ESTADO[i.estado]}</Badge>
                     </td>
-                    {verValor && <td className="px-4 py-3 text-sm text-grafito">{i.stock > 0 ? formatoDinero(i.valor ?? 0) : '—'}</td>}
-                    <td className="px-4 py-3 text-sm">
+                    {verValor && (
+                      <td className="px-4 py-3 text-sm text-grafito">
+                        {i.stock > 0 ? (
+                          <>
+                            <span className="cifras font-semibold">{formatoDinero(i.valor ?? 0)}</span>
+                            {conteo.valor > 0 && (
+                              <span className="mt-1 flex items-center gap-2 text-xs text-gris-texto">
+                                <span aria-hidden="true" className="h-1.5 w-16 overflow-hidden rounded-full bg-arena print:hidden">
+                                  <span className="block h-full rounded-full bg-azul-noche" style={{ width: `${Math.max(((i.valor ?? 0) / conteo.valor) * 100, 2)}%` }} />
+                                </span>
+                                {Math.round(((i.valor ?? 0) / conteo.valor) * 100)} %
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-sm print:hidden">
                       <button type="button" className="font-medium text-pizarra hover:underline" onClick={() => setConLotes(i)}>
                         Ver lotes
                       </button>
@@ -237,16 +312,6 @@ export function InventarioPage() {
       <Modal isOpen={conLotes !== null} onClose={() => setConLotes(null)} title={conLotes ? `Lotes · ${conLotes.nombre}` : 'Lotes'}>
         {conLotes && <LotesPanel key={conLotes.materia_prima_id} materiaId={conLotes.materia_prima_id} hoy={hoy} />}
       </Modal>
-    </div>
-  );
-}
-
-function Resumen({ titulo, valor, alerta }: { titulo: string; valor: string; alerta?: 'amarillo' | 'rojo' }) {
-  const color = alerta === 'rojo' ? 'border-[#f0c3c0] bg-critico-fondo' : alerta === 'amarillo' ? 'border-[#f1d9a6] bg-atencion-fondo' : 'border-linea bg-tabla';
-  return (
-    <div className={`rounded-lg border p-3 ${color}`}>
-      <p className="text-xs text-gris-texto">{titulo}</p>
-      <p className="text-xl font-semibold text-grafito">{valor}</p>
     </div>
   );
 }
