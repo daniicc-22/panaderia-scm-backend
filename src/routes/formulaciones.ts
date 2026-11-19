@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { puedeVerCostos } from '../utils/permisos';
+import { expandirLineas } from '../utils/intermedios';
 import { aLineasReceta, costearLineas, creaCiclo, pesoReceta, type LineaReceta } from '../utils/intermedios';
 import { elegirPrecio } from '../utils/precios';
 import { autorizarRoles } from '../middleware/autenticacion';
@@ -8,7 +9,8 @@ import { resumirNombres } from '../utils/texto';
 import {
   fechaHoyColombia,
   hayCambios,
-  validarEstadoProducto,
+  validarCambiosProducto,
+  type FichaVersion,
   validarProductoNuevo,
   validarVersion,
   type LineaVersion,
@@ -91,6 +93,40 @@ const aLinea = (d: {
   tolerancia_porcentaje: d.tolerancia_porcentaje == null ? null : Number(d.tolerancia_porcentaje),
 });
 
+
+// Ficha técnica tal como se guarda: lo que no llega se guarda vacío
+const datosFicha = (d: FichaVersion) => ({
+  motivo_cambio: d.motivo_cambio ?? null,
+  procedimiento: d.procedimiento ?? null,
+  tiempo_preparacion_min: d.tiempo_preparacion_min ?? null,
+  tiempo_horneado_min: d.tiempo_horneado_min ?? null,
+  temperatura_horneado_c: d.temperatura_horneado_c ?? null,
+  merma_horneado_pct: d.merma_horneado_pct ?? null,
+});
+
+// Ficha técnica de una versión tal como la lee el cliente
+const fichaDe = (f: {
+  motivo_cambio: string | null;
+  procedimiento: string | null;
+  tiempo_preparacion_min: number | null;
+  tiempo_horneado_min: number | null;
+  temperatura_horneado_c: number | null;
+  merma_horneado_pct: unknown;
+}) => ({
+  motivo_cambio: f.motivo_cambio,
+  procedimiento: f.procedimiento,
+  tiempo_preparacion_min: f.tiempo_preparacion_min,
+  tiempo_horneado_min: f.tiempo_horneado_min,
+  temperatura_horneado_c: f.temperatura_horneado_c,
+  merma_horneado_pct: f.merma_horneado_pct == null ? null : Number(f.merma_horneado_pct),
+});
+
+// Margen de un producto: precio de venta menos costo por unidad (null si falta alguno)
+function margen(precio: unknown, costoUnidad: number | null) {
+  const p = precio == null ? null : Number(precio);
+  if (p == null || p <= 0 || costoUnidad == null) return { margen_unidad: null, margen_pct: null };
+  return { margen_unidad: redondear(p - costoUnidad), margen_pct: redondear(((p - costoUnidad) / p) * 100) };
+}
 
 export function crearRouterFormulaciones(prisma: PrismaClient) {
   const router = Router();
@@ -190,12 +226,15 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             producto_activo: f.producto.activo,
             es_intermedio: f.producto.es_intermedio,
             version: f.version,
+            vigente_desde: f.vigente_desde.toISOString().slice(0, 10),
             rendimiento,
             ingredientes: f.detalle_formulacion.length,
             peso_lote_g: redondear(peso),
             costo_lote: verCostos ? redondear(costo) : null,
             costo_unidad: verCostos && rendimiento ? redondear(costo / rendimiento) : null,
             costo_incompleto: verCostos ? incompleto : false,
+            precio_venta: verCostos && f.producto.precio_venta != null ? Number(f.producto.precio_venta) : null,
+            margen_pct: verCostos && rendimiento ? margen(f.producto.precio_venta, costo / rendimiento).margen_pct : null,
           };
         }),
       );
@@ -273,6 +312,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         producto_id: f.producto_id,
         producto: f.producto.nombre,
         producto_activo: f.producto.activo,
+        es_intermedio: f.producto.es_intermedio,
         version: f.version,
         activa: f.activa,
         vigente_desde: f.vigente_desde.toISOString().slice(0, 10),
@@ -282,6 +322,9 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         costo_lote: verCostos ? redondear(costoTotal) : null,
         costo_unidad: verCostos && rendimiento ? redondear(costoTotal / rendimiento) : null,
         costo_incompleto: verCostos ? incompleto : false,
+        precio_venta: verCostos && f.producto.precio_venta != null ? Number(f.producto.precio_venta) : null,
+        ...(verCostos && rendimiento ? margen(f.producto.precio_venta, costoTotal / rendimiento) : { margen_unidad: null, margen_pct: null }),
+        ...fichaDe(f),
         ingredientes,
       });
     } catch (error) {
@@ -339,6 +382,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             nombre: datos.nombre,
             unidad_produccion_id: unidadProduccion.id,
             es_intermedio: datos.es_intermedio,
+            precio_venta: datos.precio_venta ?? null,
           },
         });
         const formulacion = await tx.formulacion.create({
@@ -350,6 +394,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             vigente_desde: hoy,
             rendimiento_esperado: datos.rendimiento,
             aprobado_por: req.usuario!.id,
+            ...datosFicha(datos),
             detalle_formulacion: {
               create: datos.ingredientes.map((l) => ({
                 materia_prima_id: l.materia_prima_id,
@@ -372,14 +417,14 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
     }
   });
 
-  // Da de baja o reactiva el producto de una formulación. Un producto inactivo deja de salir en la lista,
-  // en los costos y en el ABC; sus versiones se conservan.
+  // Cambia el producto de una formulación: darlo de baja o reactivarlo, renombrarlo o fijar su precio de venta.
+  // Un producto inactivo deja de salir en la lista, en los costos y en el ABC; sus versiones se conservan.
   router.patch('/:id/producto', soloGestion, async (req, res) => {
     const id = String(req.params.id);
     if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido' });
-    const validado = validarEstadoProducto(req.body);
+    const validado = validarCambiosProducto(req.body);
     if (!validado.ok) return res.status(400).json({ error: validado.errores.join(' '), errores: validado.errores });
-    const { activo } = validado.datos;
+    const cambios = validado.datos;
     const panaderiaId = req.panaderiaId!;
 
     try {
@@ -390,7 +435,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       if (!base) return res.status(404).json({ error: 'Formulación no encontrada' });
 
       // No se da de baja un intermedio que otros productos vigentes usan como ingrediente
-      if (!activo && base.producto.activo) {
+      if (cambios.activo === false && base.producto.activo) {
         const usos = await prisma.detalle_formulacion.findMany({
           where: {
             producto_intermedio_id: base.producto_id,
@@ -407,11 +452,179 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         }
       }
 
-      await prisma.producto.update({ where: { id: base.producto_id }, data: { activo } });
-      res.json({ id: base.id, producto_id: base.producto_id, producto: base.producto.nombre, activo });
+      // El nombre no se repite en la panadería (sin distinguir mayúsculas), ni siquiera con productos dados de baja
+      if (cambios.nombre !== undefined && cambios.nombre.toLowerCase() !== base.producto.nombre.toLowerCase()) {
+        const repetido = await prisma.producto.findFirst({
+          where: { panaderia_id: panaderiaId, id: { not: base.producto_id }, nombre: { equals: cambios.nombre, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (repetido) return res.status(409).json({ error: 'Ya existe un producto con ese nombre.' });
+      }
+
+      const actualizado = await prisma.producto.update({ where: { id: base.producto_id }, data: cambios });
+      res.json({
+        id: base.id,
+        producto_id: base.producto_id,
+        producto: actualizado.nombre,
+        activo: actualizado.activo,
+        precio_venta: actualizado.precio_venta == null ? null : Number(actualizado.precio_venta),
+      });
     } catch (error) {
-      console.error('Error al cambiar el estado del producto:', error);
-      res.status(500).json({ error: 'Error al cambiar el estado del producto' });
+      console.error('Error al cambiar el producto:', error);
+      res.status(500).json({ error: 'Error al cambiar el producto' });
+    }
+  });
+
+  // Dónde se usa un producto como ingrediente: los productos vigentes cuya receta lo lleva (solo gestión).
+  // Sirve para saber qué se afecta antes de cambiar o dar de baja un intermedio.
+  router.get('/:id/usado-en', soloGestion, async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido' });
+    try {
+      const panaderiaId = req.panaderiaId!;
+      const base = await prisma.formulacion.findFirst({ where: { id, panaderia_id: panaderiaId }, include: { producto: true } });
+      if (!base) return res.status(404).json({ error: 'Formulación no encontrada' });
+
+      const usos = await prisma.detalle_formulacion.findMany({
+        where: { producto_intermedio_id: base.producto_id, formulacion: { panaderia_id: panaderiaId, activa: true } },
+        include: { formulacion: { include: { producto: true } } },
+      });
+      const items = usos
+        .map((u) => ({
+          formulacion_id: u.formulacion.id,
+          producto_id: u.formulacion.producto_id,
+          producto: u.formulacion.producto.nombre,
+          activo: u.formulacion.producto.activo,
+          cantidad_g: Number(u.cantidad_estandar),
+        }))
+        .sort((a, b) => a.producto.localeCompare(b.producto, 'es'));
+      res.json({ producto_id: base.producto_id, producto: base.producto.nombre, es_intermedio: base.producto.es_intermedio, items });
+    } catch (error) {
+      console.error('Error al consultar dónde se usa el producto:', error);
+      res.status(500).json({ error: 'Error al consultar dónde se usa el producto' });
+    }
+  });
+
+  // Costo del lote mes a mes con lo que realmente se pagó por cada insumo (promedio ponderado de las entradas
+  // del mes). Si un mes no hubo compra, rige el último precio conocido; el insumo que nunca se compró usa el
+  // precio de hoy. Responde a "¿cuánto subió el costo de esta receta y por culpa de qué insumos?" (solo gestión).
+  router.get('/:id/costo-historico', soloGestion, async (req, res) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) return res.status(400).json({ error: 'Identificador no válido' });
+    const pedidos = Number(req.query.meses);
+    const meses = Number.isInteger(pedidos) && pedidos >= 1 && pedidos <= 36 ? pedidos : 12;
+
+    try {
+      const panaderiaId = req.panaderiaId!;
+      const f = await prisma.formulacion.findFirst({
+        where: { id, panaderia_id: panaderiaId },
+        include: { detalle_formulacion: true },
+      });
+      if (!f) return res.status(404).json({ error: 'Formulación no encontrada' });
+
+      const [costosHoy, recetas] = await Promise.all([costosPorUnidadBase(prisma, panaderiaId), recetasVigentes(prisma, panaderiaId)]);
+      const lineas = aLineasReceta(f.detalle_formulacion);
+      const rendimiento = f.rendimiento_esperado == null ? null : Number(f.rendimiento_esperado);
+      const expansion = expandirLineas(lineas, recetas, f.producto_id);
+      const ids = [...expansion.materias.keys()];
+
+      const desde = new Date();
+      desde.setUTCDate(1);
+      desde.setUTCHours(0, 0, 0, 0);
+      desde.setUTCMonth(desde.getUTCMonth() - (meses - 1));
+
+      const [lotes, previos] = await Promise.all([
+        prisma.lote.findMany({
+          where: { panaderia_id: panaderiaId, materia_prima_id: { in: ids }, created_at: { gte: desde } },
+          select: { materia_prima_id: true, cantidad_inicial: true, costo_unitario: true, created_at: true },
+        }),
+        // La última compra anterior a la ventana de cada insumo: precio de partida del primer mes
+        prisma.lote.findMany({
+          where: { panaderia_id: panaderiaId, materia_prima_id: { in: ids }, created_at: { lt: desde } },
+          orderBy: { created_at: 'desc' },
+          distinct: ['materia_prima_id'],
+          select: { materia_prima_id: true, costo_unitario: true },
+        }),
+      ]);
+
+      // Compras por mes y por insumo
+      const compras = new Map<string, Map<string, { valor: number; cantidad: number }>>();
+      for (const l of lotes) {
+        const cantidad = Number(l.cantidad_inicial);
+        const costo = Number(l.costo_unitario);
+        if (!l.materia_prima_id || cantidad <= 0 || costo <= 0) continue;
+        const mes = l.created_at.toISOString().slice(0, 7);
+        const porMes = compras.get(l.materia_prima_id) ?? new Map();
+        const celda = porMes.get(mes) ?? { valor: 0, cantidad: 0 };
+        celda.valor += cantidad * costo;
+        celda.cantidad += cantidad;
+        porMes.set(mes, celda);
+        compras.set(l.materia_prima_id, porMes);
+      }
+      const ultimo = new Map<string, number>(
+        previos.filter((p) => p.materia_prima_id && Number(p.costo_unitario) > 0).map((p) => [p.materia_prima_id as string, Number(p.costo_unitario)]),
+      );
+
+      const listaMeses: string[] = [];
+      for (let i = 0; i < meses; i++) {
+        const d = new Date(desde);
+        d.setUTCMonth(d.getUTCMonth() + i);
+        listaMeses.push(d.toISOString().slice(0, 7));
+      }
+
+      const primerPrecio = new Map<string, number>();
+      const puntos = listaMeses.map((mes) => {
+        const costosG = new Map<string, number | null>();
+        for (const idMateria of ids) {
+          const celda = compras.get(idMateria)?.get(mes);
+          if (celda) ultimo.set(idMateria, celda.valor / celda.cantidad);
+          const precio = ultimo.get(idMateria) ?? costosHoy.get(idMateria)?.costo ?? null;
+          costosG.set(idMateria, precio);
+          if (precio != null && !primerPrecio.has(idMateria)) primerPrecio.set(idMateria, precio);
+        }
+        const { costo, incompleto } = costearLineas(lineas, recetas, f.producto_id, costosG);
+        return {
+          mes,
+          costo_lote: redondear(costo),
+          costo_unidad: rendimiento ? redondear(costo / rendimiento) : null,
+          costo_incompleto: incompleto,
+          con_compras: ids.filter((i) => compras.get(i)?.has(mes)).length,
+        };
+      });
+
+      // Qué insumos explican el cambio: variación del precio entre el primer y el último mes, y cuánto pesa en el lote
+      const nombres = new Map(
+        (await prisma.materia_prima.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true } })).map((m) => [m.id, m.nombre]),
+      );
+      const insumos = ids
+        .map((idMateria) => {
+          const inicial = primerPrecio.get(idMateria) ?? null;
+          const final = ultimo.get(idMateria) ?? costosHoy.get(idMateria)?.costo ?? null;
+          const gramos = expansion.materias.get(idMateria) ?? 0;
+          return {
+            materia_prima_id: idMateria,
+            materia: nombres.get(idMateria) ?? 'Sin identificar',
+            tiene_compras: ultimo.has(idMateria),
+            costo_inicial: inicial,
+            costo_final: final,
+            variacion_pct: inicial != null && final != null && inicial > 0 ? redondear(((final - inicial) / inicial) * 100) : null,
+            efecto_lote: inicial != null && final != null ? redondear((final - inicial) * gramos) : null,
+          };
+        })
+        .sort((a, b) => Math.abs(b.efecto_lote ?? 0) - Math.abs(a.efecto_lote ?? 0));
+
+      res.json({
+        formulacion_id: f.id,
+        meses,
+        desde: desde.toISOString().slice(0, 7),
+        insumos_total: ids.length,
+        insumos_con_compras: insumos.filter((i) => i.tiene_compras).length,
+        puntos,
+        insumos,
+      });
+    } catch (error) {
+      console.error('Error al consultar el costo histórico de la formulación:', error);
+      res.status(500).json({ error: 'Error al consultar el costo histórico' });
     }
   });
 
@@ -463,6 +676,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             costo_unidad: rendimiento ? redondear(costo / rendimiento) : null,
             costo_incompleto: incompleto,
             aprobado_por: v.usuario?.nombre ?? null,
+            motivo_cambio: v.motivo_cambio,
           };
         }),
       });
@@ -500,6 +714,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
           {
             rendimiento: vigente.rendimiento_esperado == null ? null : Number(vigente.rendimiento_esperado),
             ingredientes: vigente.detalle_formulacion.map(aLinea),
+            ...fichaDe(vigente),
           },
           datos,
         )
@@ -560,6 +775,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             vigente_desde: hoy,
             rendimiento_esperado: datos.rendimiento,
             aprobado_por: req.usuario!.id,
+            ...datosFicha(datos),
             detalle_formulacion: {
               create: datos.ingredientes.map((l) => ({
                 materia_prima_id: l.materia_prima_id,

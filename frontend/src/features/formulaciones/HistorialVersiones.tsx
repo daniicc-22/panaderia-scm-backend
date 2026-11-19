@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GitCompare, MessageSquareText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Esqueleto } from '../../components/feedback/Esqueleto';
+import { Modal } from '../../components/ui/Modal';
+import { ComparacionVersiones } from './ComparacionVersiones';
 import { Panel } from '../inicio/Panel';
 import { getVersiones } from '../../services/formulacionesService';
 
@@ -21,6 +25,8 @@ export function HistorialVersiones({ formulacionId }: { formulacionId: string })
   });
 
   const versiones = [...(data?.versiones ?? [])].sort((a, b) => b.version - a.version);
+  // Pareja de versiones que se está comparando: la anterior y la nueva
+  const [comparando, setComparando] = useState<{ anterior: string; nueva: string; numeros: string } | null>(null);
 
   return (
     <Panel titulo="Historial de versiones" subtitulo="Las versiones anteriores no se modifican. El costo de cada una usa los precios de hoy.">
@@ -57,6 +63,12 @@ export function HistorialVersiones({ formulacionId }: { formulacionId: string })
                       )}
                       {aqui && <span className="rounded-full bg-azul-noche px-2 py-0.5 text-xs text-white">Estás aquí</span>}
                     </p>
+                    {v.motivo_cambio && (
+                      <p className="mt-0.5 flex items-start gap-1.5 text-sm text-grafito">
+                        <MessageSquareText size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-gris-texto" />
+                        <span>«{v.motivo_cambio}»</span>
+                      </p>
+                    )}
                     <p className="text-xs text-gris-texto">
                       {fechaCorta(v.vigente_desde)} → {v.vigente_hasta ? fechaCorta(v.vigente_hasta) : 'hoy'} · rinde {v.rendimiento ?? '—'} · {v.ingredientes} ingredientes
                       {v.aprobado_por ? ` · aprobó ${v.aprobado_por}` : ''}
@@ -76,6 +88,16 @@ export function HistorialVersiones({ formulacionId }: { formulacionId: string })
                         {delta.toLocaleString('es-CO', { maximumFractionDigits: 1 })} %
                       </span>
                     )}
+                    {anterior && (
+                      <button
+                        type="button"
+                        onClick={() => setComparando({ anterior: anterior.id, nueva: v.id, numeros: `v${anterior.version} → v${v.version}` })}
+                        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-pizarra hover:underline print:hidden"
+                      >
+                        <GitCompare size={14} aria-hidden="true" />
+                        Qué cambió
+                      </button>
+                    )}
                     {!aqui && (
                       <Link to={`/formulaciones/${v.id}`} className="min-h-11 content-center text-sm font-semibold text-pizarra hover:underline print:hidden">
                         Ver
@@ -88,6 +110,9 @@ export function HistorialVersiones({ formulacionId }: { formulacionId: string })
           })}
         </ol>
       )}
+      <Modal isOpen={comparando !== null} onClose={() => setComparando(null)} size="lg" title={comparando ? `Qué cambió: ${comparando.numeros}` : 'Qué cambió'}>
+        {comparando && <ComparacionVersiones idAnterior={comparando.anterior} idNueva={comparando.nueva} />}
+      </Modal>
     </Panel>
   );
 }
