@@ -368,7 +368,7 @@ describe('armarRecomendaciones: costo de pedir compartido', () => {
     const sinDemanda = insumo({ materia_prima_id: 'mp-b', consumo_declarado_semanal: null });
     const sinCosto = insumo({ materia_prima_id: 'mp-c', parametros: { ...base.parametros!, costo_pedido: null } });
     const r = armarCon([insumo(), sal(), alUso, sinDemanda, sinCosto], 'compartido');
-    const h = r.items.find((i) => i.nombre === 'Harina')!;
+    const h = r.items.find((i) => i.materia_prima_id === 'mp-harina')!;
     expect(h.costo_pedido_compartido).toEqual({ base: 1000, insumos: 2 });
     expect(h.modelo?.costo_pedido).toBe(500);
   });
