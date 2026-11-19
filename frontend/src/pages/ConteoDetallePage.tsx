@@ -18,7 +18,7 @@ import { ContarLotes } from '../features/conteos/ContarLotes';
 import { COLOR_ESTADO_CONTEO, ETIQUETA_ESTADO_CONTEO, formatoPorcentaje } from '../features/conteos/etiquetas';
 import { ResultadoConteo } from '../features/conteos/ResultadoConteo';
 import { formatoFechaIso } from '../features/inventario/formatos';
-import { accionConteo, getConteo } from '../services/conteosService';
+import { accionConteo, getConteo, getLotesPorContar } from '../services/conteosService';
 import { mensajeDeError } from '../services/errores';
 
 type Accion = 'enviar' | 'devolver' | 'descartar' | 'aplicar';
@@ -62,6 +62,8 @@ export function ConteoDetallePage() {
   const [aplicados, setAplicados] = useState<number | null>(null);
 
   const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
+  // Misma consulta que usa la lista de lotes: sirve para avisar cuánto falta por contar antes de enviar
+  const lotesPorContar = useQuery({ queryKey: ['conteos', id, 'lotes'], queryFn: () => getLotesPorContar(id), enabled: !!id });
   const conteo = useQuery({
     queryKey: ['conteos', id],
     queryFn: () => getConteo(id),
@@ -101,6 +103,8 @@ export function ConteoDetallePage() {
   const c = conteo.data;
   const texto = accion ? TEXTO[accion] : null;
   const diasAbierto = Math.floor((Date.now() - new Date(c.creado_at).getTime()) / 86_400_000);
+  const pendientes = (lotesPorContar.data?.items ?? []).filter((i) => !i.contado);
+  const pendientesA = pendientes.filter((i) => i.clase_abc === 'A').length;
   const cuentaParaImprimir = c.estado === 'enviado' || c.estado === 'aplicado';
 
   return (
@@ -225,6 +229,20 @@ export function ConteoDetallePage() {
         {accion && texto && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-gris-texto">{texto.mensaje}</p>
+            {accion === 'enviar' && (
+              <div className="rounded-lg border border-linea bg-hueso px-4 py-3 text-sm text-grafito">
+                <p>
+                  Contaste <span className="cifras font-semibold">{c.lineas.length}</span> {c.lineas.length === 1 ? 'lote' : 'lotes'}
+                  {lotesPorContar.data ? <> y faltan <span className="cifras font-semibold">{pendientes.length}</span> por contar.</> : '.'}
+                </p>
+                {pendientes.length > 0 && (
+                  <p className="mt-1 text-xs text-gris-texto">
+                    Los lotes sin contar no entran en la exactitud ni se ajustan.
+                    {pendientesA > 0 && <span className="font-semibold text-atencion-texto"> {pendientesA === 1 ? 'Falta 1 lote' : `Faltan ${pendientesA} lotes`} de Clase A: son los que más importan.</span>}
+                  </p>
+                )}
+              </div>
+            )}
             {accion === 'aplicar' && (
               <p className="text-sm text-grafito">
                 Exactitud de este conteo: <span className="font-semibold">{formatoPorcentaje(c.resumen.eri)}</span> · Diferencias:{' '}

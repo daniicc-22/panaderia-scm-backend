@@ -12,12 +12,14 @@ import type { DetalleConteo, LineaConteo, LoteContable } from '../../types/conte
 import { LineaForm, type LoteElegido } from './LineaForm';
 
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-type Filtro = 'pendientes' | 'contados' | 'todos';
+type Filtro = 'pendientes' | 'contados' | 'todos' | 'claseA';
+const COLOR_CLASE = { A: 'bg-trigo-suave text-atencion-texto', B: 'bg-azul-suave text-azul-noche', C: 'bg-arena text-gris-texto' } as const;
 type Fila = LoteContable & { linea?: LineaConteo };
 
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: 'pendientes', etiqueta: 'Por contar' },
   { valor: 'contados', etiqueta: 'Contados' },
+  { valor: 'claseA', etiqueta: 'Clase A por contar' },
   { valor: 'todos', etiqueta: 'Todos' },
 ];
 
@@ -41,6 +43,7 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
           codigo: l.codigo,
           nombre: l.nombre,
           unidad: l.unidad,
+          clase_abc: null,
           contado: true,
           linea: l,
         });
@@ -53,14 +56,19 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
     const t = sinTildes(busqueda.trim());
     return filas.filter(
       (f) =>
-        (filtro === 'todos' || (filtro === 'contados') === f.contado) &&
+        (filtro === 'todos' || (filtro === 'claseA' ? f.clase_abc === 'A' && !f.contado : (filtro === 'contados') === f.contado)) &&
         (!t || sinTildes(f.nombre).includes(t) || sinTildes(f.codigo).includes(t) || sinTildes(f.codigo_lote ?? '').includes(t)),
     );
   }, [filas, busqueda, filtro]);
 
   const total = filas.length;
   const contados = filas.filter((f) => f.contado).length;
-  const cuenta = (f: Filtro) => (f === 'todos' ? total : f === 'contados' ? contados : total - contados);
+  const cuenta = (f: Filtro) => (f === 'todos' ? total : f === 'contados' ? contados : f === 'claseA' ? filas.filter((x) => x.clase_abc === 'A' && !x.contado).length : total - contados);
+  const hayClases = filas.some((f) => f.clase_abc !== null);
+  const porClase = (['A', 'B', 'C'] as const).map((c) => {
+    const de = filas.filter((f) => f.clase_abc === c);
+    return { clase: c, total: de.length, contados: de.filter((f) => f.contado).length };
+  }).filter((c) => c.total > 0);
 
   if (lotes.isLoading) return <LoadingState mensaje="Cargando lotes..." />;
   if (lotes.isError) return <ErrorState onReintentar={() => lotes.refetch()} />;
@@ -81,7 +89,26 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
         </div>
       </div>
 
-      <p className="text-sm text-gris-texto">Toca un lote, cuenta lo que hay físicamente en la bodega y escribe la cantidad.</p>
+      <p className="text-sm text-gris-texto">
+        {hayClases ? 'Empieza por la Clase A: son los insumos que más pesan en el costo y donde más importa que el inventario sea exacto. ' : ''}
+        Toca un lote, cuenta lo que hay físicamente en la bodega y escribe la cantidad.
+      </p>
+      {porClase.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {porClase.map((c) => (
+            <div key={c.clase} className="rounded-lg border border-linea bg-tabla px-3 py-2">
+              <p className="flex items-center gap-2 text-xs font-semibold text-gris-texto">
+                <span className={`grid size-5 place-items-center rounded-full text-[11px] font-bold ${COLOR_CLASE[c.clase]}`}>{c.clase}</span>
+                Clase {c.clase}
+              </p>
+              <p className="cifras text-sm font-semibold text-grafito">
+                {c.contados} de {c.total}
+                {c.contados === c.total && <span className="ml-1 text-exito-texto">✓</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         <div className="relative w-full sm:max-w-xs">
@@ -134,7 +161,14 @@ export function ContarLotes({ detalle }: { detalle: DetalleConteo }) {
                 className={`group flex min-h-16 w-full items-center justify-between gap-3 rounded-tarjeta border border-l-4 border-linea bg-tabla p-3 text-left hover:bg-arena active:bg-arena focus-visible:outline-2 focus-visible:outline-trigo ${f.linea ? (f.linea.diferencia === 0 ? 'border-l-verde-bosque' : 'border-l-trigo') : 'border-l-borde-campo'}`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-display text-base font-semibold text-azul-noche">{f.nombre}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-display text-base font-semibold text-azul-noche">{f.nombre}</span>
+                    {f.clase_abc && (
+                      <span title={`Clase ${f.clase_abc} del ABC`} className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${COLOR_CLASE[f.clase_abc]}`}>
+                        {f.clase_abc}
+                      </span>
+                    )}
+                  </span>
                   <span className="block text-xs text-gris-texto">
                     Lote {f.codigo_lote ?? 'sin código'}
                     {f.fecha_vencimiento ? ` · vence ${formatoFecha(f.fecha_vencimiento)}` : ''}

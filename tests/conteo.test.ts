@@ -3,6 +3,7 @@ import {
   META_ERI,
   diferencia,
   exactitudLinea,
+  rangoClaseAbc,
   resumirConteo,
   revisarMotivo,
   validarCorreccion,
@@ -188,5 +189,12 @@ describe('validarCorreccion', () => {
     expect(validarCorreccion(null).ok).toBe(false);
     expect(validarCorreccion([]).ok).toBe(false);
     expect(validarCorreccion({ ...ok, observaciones: 'x'.repeat(301) }).ok).toBe(false);
+  });
+});
+
+describe('rangoClaseAbc', () => {
+  test('ordena A antes que B, C y los insumos sin clase', () => {
+    expect(['C', null, 'A', 'B'].sort((x, y) => rangoClaseAbc(x) - rangoClaseAbc(y))).toEqual(['A', 'B', 'C', null]);
+    expect(rangoClaseAbc(undefined)).toBe(3);
   });
 });
