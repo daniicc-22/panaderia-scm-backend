@@ -173,3 +173,14 @@ export interface AlertasVencimiento {
   };
   items: AlertaVencimiento[];
 }
+
+export interface EntregaDia {
+  fecha: string;
+  kg: number;
+  lotes: number;
+}
+
+export interface ResumenEntregas {
+  dias: EntregaDia[];
+  sin_peso: number;
+}
