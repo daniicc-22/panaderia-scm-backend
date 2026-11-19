@@ -8,6 +8,7 @@ import { EmptyState } from '../components/feedback/EmptyState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Panel } from '../features/inicio/Panel';
 import { CompletarVacios } from '../features/reposicion/CompletarVacios';
 import { ESTADOS, etiquetaFaltante } from '../features/reposicion/etiquetas';
@@ -18,6 +19,8 @@ import { getProveedores } from '../services/proveedoresService';
 import type { ItemParametros } from '../types/reposicion.types';
 
 type Filtro = 'todos' | 'faltan' | 'al_uso' | 'completos';
+const ETIQUETA_FILTRO: Record<Filtro, string> = { todos: 'Todos', faltan: 'Con datos por completar', completos: 'Completos', al_uso: 'Según la producción' };
+const RANGO_CLASE = (c: string | null) => (c === 'A' ? 0 : c === 'B' ? 1 : c === 'C' ? 2 : 3);
 
 // Captura de los parámetros que necesita el cálculo de reposición, insumo por insumo.
 export function ParametrosReposicionPage() {
@@ -43,18 +46,28 @@ export function ParametrosReposicionPage() {
   const items = parametros.data?.items ?? [];
   const sinCalendario = (proveedores.data ?? []).filter((p) => p.activo && p.alcance === 'panaderia' && p.dias_entrega.length === 0);
 
+  // Una sola definición de «al uso» y «con datos por completar», para que filtros, conteos y lista no se contradigan
+  const situacion = (i: ItemParametros) => {
+    const esAlUso = alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso';
+    const c = calculo.get(i.materia_prima_id);
+    return { esAlUso, c, faltan: !esAlUso && (c === undefined || c.faltantes.length > 0) };
+  };
+  const cumple = (i: ItemParametros, f: Filtro) => {
+    const { esAlUso, c, faltan } = situacion(i);
+    if (f === 'faltan') return faltan && (faltaCodigo === null || (c?.faltantes.includes(faltaCodigo) ?? false));
+    if (f === 'al_uso') return esAlUso;
+    if (f === 'completos') return !esAlUso && !faltan;
+    return true;
+  };
+  const cuenta = (f: Filtro) => items.filter((i) => (f === 'faltan' ? situacion(i).faltan : cumple(i, f))).length;
+
+  // Primero lo que falta y, dentro de eso, lo que más pesa (clase A): por ahí conviene empezar
   const visibles = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return items.filter((i) => {
-      if (texto && !i.nombre.toLowerCase().includes(texto) && !i.codigo.toLowerCase().includes(texto)) return false;
-      const esAlUso = alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso';
-      const c = calculo.get(i.materia_prima_id);
-      const faltan = !esAlUso && (c === undefined || c.faltantes.length > 0);
-      if (filtro === 'faltan') return faltan && (faltaCodigo === null || (c?.faltantes.includes(faltaCodigo) ?? false));
-      if (filtro === 'al_uso') return esAlUso;
-      if (filtro === 'completos') return !esAlUso && !faltan;
-      return true;
-    });
+    return items
+      .filter((i) => (!texto || i.nombre.toLowerCase().includes(texto) || i.codigo.toLowerCase().includes(texto)) && cumple(i, filtro))
+      .sort((a, b) => Number(situacion(b).faltan) - Number(situacion(a).faltan) || RANGO_CLASE(a.clase_abc) - RANGO_CLASE(b.clase_abc) || a.nombre.localeCompare(b.nombre, 'es'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, busqueda, filtro, faltaCodigo, calculo, alUso]);
 
   // Cuántos insumos tienen incompleto cada dato, para saber por dónde empezar
@@ -68,28 +81,19 @@ export function ParametrosReposicionPage() {
   }, [items, calculo, alUso]);
   const totalAlUso = items.filter((i) => alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso').length;
 
-  const cuantosFaltan = items.filter((i) => {
-    const esAlUso = alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso';
-    const c = calculo.get(i.materia_prima_id);
-    return !esAlUso && (c === undefined || c.faltantes.length > 0);
-  }).length;
+  const cuantosFaltan = items.filter((i) => situacion(i).faltan).length;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Parámetros de reposición</h1>
-          <p className="mt-1 text-sm text-niebla">
-            Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir
-            {parametros.data ? ` · ${cuantosFaltan} de ${items.length} con datos por completar` : ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        titulo="Parámetros de reposición"
+        subtitulo={`Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir${parametros.data ? ` · ${cuantosFaltan} de ${items.length} con datos por completar` : ''}`}
+        acciones={
           <Button type="button" onClick={() => setCompletando(true)} disabled={items.length === 0}>
             Completar vacíos
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <NavReposicion />
 
@@ -156,28 +160,29 @@ export function ParametrosReposicionPage() {
         </Panel>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3">
         <input
           type="search"
+          aria-label="Buscar insumo"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar insumo"
-          className="w-full rounded-md border border-borde-campo px-3 py-2 text-sm sm:max-w-xs"
+          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:max-w-xs sm:text-sm"
         />
-        <select
-          aria-label="Filtrar"
-          value={filtro}
-          onChange={(e) => {
-            setFiltro(e.target.value as Filtro);
-            setFaltaCodigo(null);
-          }}
-          className="rounded-md border border-borde-campo px-3 py-2 text-sm"
-        >
-          <option value="todos">Todos</option>
-          <option value="faltan">Con datos por completar</option>
-          <option value="completos">Completos</option>
-          <option value="al_uso">Se compran según la producción</option>
-        </select>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar insumos">
+          {(['todos', 'faltan', 'completos', 'al_uso'] as const).filter((f) => f === 'todos' || cuenta(f) > 0).map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filtro === f}
+              onClick={() => { setFiltro(f); setFaltaCodigo(null); }}
+              className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${filtro === f ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
+            >
+              {ETIQUETA_FILTRO[f]}
+              <span className="cifras text-xs opacity-80">{cuenta(f)}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {parametros.isLoading && <LoadingState />}
@@ -192,8 +197,7 @@ export function ParametrosReposicionPage() {
       </div>
       <ul className="flex flex-col overflow-hidden rounded-tarjeta border border-linea bg-tabla">
         {visibles.map((i) => {
-          const esAlUso = alUso.has(i.materia_prima_id) || i.parametros?.modo_reposicion === 'al_uso';
-          const c = calculo.get(i.materia_prima_id);
+          const { esAlUso, c } = situacion(i);
           return (
             <li
               key={i.materia_prima_id}
