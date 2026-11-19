@@ -59,11 +59,11 @@ export interface Indicadores {
   kgEntregasMes: number | null;
 }
 
-// Entregas del rango. El primer día con entradas suele ser la carga del inventario inicial
-// (no un pedido), así que se excluye cuando hay otros días.
+// Entregas del rango. El primer día con entradas es la carga del inventario inicial
+// (no un pedido), así que siempre se excluye.
 export function entregasEnRango(d: DatosIndicadores, r: Rango): EntregaDia[] {
   const todas = [...(d.entregas ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const validas = todas.length >= 2 ? todas.slice(1) : todas;
+  const validas = todas.slice(1);
   return validas.filter((e) => enRango(`${e.fecha}T12:00:00`, r));
 }
 
