@@ -353,6 +353,20 @@ describe('recomendarReposicion: ciclo económico', () => {
     expect(r.advertencias).toContain('nivel_objetivo_supera_maximo');
   });
 
+  it('el stock máximo recorta la cantidad del pedido (Q = mín(objetivo, Smáx) − lo que queda al llegar)', () => {
+    // Al llegar la entrega quedarían 3.000; el objetivo sería 9.000 pero el máximo es 5.000
+    const r = recomendarReposicion(entrada({ ...costos, stockMaximo: 5000 }));
+    expect(r.nivel_objetivo).toBe(5000);
+    expect(r.cantidad_recomendada).toBe(2000);
+    expect(r.advertencias).toContain('nivel_objetivo_supera_maximo');
+  });
+
+  it('si al llegar la entrega ya se supera el máximo, no se pide nada y se avisa', () => {
+    const r = recomendarReposicion(entrada({ ...costos, existencia: 8000, stockMaximo: 5000 }));
+    expect(r.cantidad_recomendada).toBe(0);
+    expect(r.advertencias).toContain('cantidad_limitada_por_maximo');
+  });
+
   it('avisa si la vida útil es menor que el tiempo entre entregas', () => {
     const r = recomendarReposicion(entrada({ ...costos, vidaUtilDias: 5 }));
     expect(r.advertencias).toContain('vida_util_menor_que_ciclo');

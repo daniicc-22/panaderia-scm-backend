@@ -276,6 +276,21 @@ export function ReposicionPage() {
 
       {data && (
         <>
+          {(() => {
+            // Si casi nada tiene existencias, las alertas rojas reflejan inventario sin cargar, no faltantes reales
+            const calculables = data.items.filter((i) => i.estado !== 'datos_insuficientes');
+            const sinStock = calculables.filter((i) => i.existencia <= 0).length;
+            if (calculables.length < 3 || sinStock < calculables.length * 0.5) return null;
+            return (
+              <Alert variant="warning">
+                {sinStock} de {calculables.length} insumos aparecen sin existencias. Si en la bodega sí hay producto, el inventario aún no está cargado y las
+                alertas de «Se acaba antes de la entrega» no son confiables.{' '}
+                <Link to="/inventario" className="font-medium underline">
+                  Cargar existencias
+                </Link>
+              </Alert>
+            );
+          })()}
           {data.resumen.datos_insuficientes > 0 && (
             <Alert variant="warning">
               {data.resumen.datos_insuficientes === 1 ? '1 insumo no se puede calcular' : `${data.resumen.datos_insuficientes} insumos no se pueden calcular`} porque

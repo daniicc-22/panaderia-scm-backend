@@ -272,7 +272,7 @@ export function CompletarVacios({ items, onTerminar }: Props) {
         titulo="Plazo de entrega"
         ayuda="Días entre pedir y recibir. Escribe 0 si lo piden y lo reciben el mismo día."
         sufijo="días"
-        placeholder="Ej. 0"
+        placeholder="Ej. 1"
         faltan={porCampo.plazo}
         valor={texto.plazo}
         onCambio={poner('plazo')}
