@@ -13,6 +13,7 @@ import { getFormulaciones, getFormulacionesConInactivos } from '../services/form
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
 type Filtro = 'todas' | 'finales' | 'intermedios' | 'incompletas';
+type Orden = 'nombre' | 'costo' | 'margen' | 'recientes';
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 export function FormulacionesPage() {
@@ -20,6 +21,7 @@ export function FormulacionesPage() {
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todas');
+  const [orden, setOrden] = useState<Orden>('nombre');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [creando, setCreando] = useState(false);
   const conInactivos = puedeGestionar && mostrarInactivos;
@@ -33,16 +35,27 @@ export function FormulacionesPage() {
   const incompletas = lista.filter((f) => f.costo_incompleto).length;
   const verCostos = lista.some((f) => f.costo_lote !== null);
 
+  const hayMargen = lista.some((f) => f.margen_pct !== null);
+
   const filtradas = useMemo(() => {
     const texto = sinTildes(busqueda.trim());
-    return lista.filter((f) => {
+    const visibles = lista.filter((f) => {
       if (texto && !sinTildes(f.producto).includes(texto)) return false;
       if (filtro === 'finales') return !f.es_intermedio;
       if (filtro === 'intermedios') return f.es_intermedio;
       if (filtro === 'incompletas') return f.costo_incompleto;
       return true;
     });
-  }, [lista, busqueda, filtro]);
+    const porNombre = (a: (typeof visibles)[number], b: (typeof visibles)[number]) => a.producto.localeCompare(b.producto, 'es');
+    // Lo que no tiene dato (sin costo o sin precio de venta) va al final
+    const mayorPrimero = (a: number | null, b: number | null) => (a === null ? 1 : b === null ? -1 : b - a);
+    return [...visibles].sort((a, b) => {
+      if (orden === 'costo') return mayorPrimero(a.costo_unidad, b.costo_unidad) || porNombre(a, b);
+      if (orden === 'margen') return (a.margen_pct === null ? 1 : b.margen_pct === null ? -1 : a.margen_pct - b.margen_pct) || porNombre(a, b);
+      if (orden === 'recientes') return b.vigente_desde.localeCompare(a.vigente_desde) || porNombre(a, b);
+      return porNombre(a, b);
+    });
+  }, [lista, busqueda, filtro, orden]);
 
   const chips: { id: Filtro; texto: string; n: number; ver: boolean }[] = [
     { id: 'todas', texto: 'Todas', n: lista.length, ver: true },
@@ -114,8 +127,17 @@ export function FormulacionesPage() {
               </button>
             ))}
         </div>
+        <label className="flex items-center gap-2 text-sm text-grafito lg:ml-auto">
+          <span className="font-medium text-gris-texto">Ordenar por</span>
+          <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)} className="min-h-11 rounded-lg border border-borde-campo bg-white px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-trigo">
+            <option value="nombre">Nombre</option>
+            {verCostos && <option value="costo">Costo por unidad (mayor primero)</option>}
+            {hayMargen && <option value="margen">Margen (menor primero)</option>}
+            <option value="recientes">Modificadas hace poco</option>
+          </select>
+        </label>
         {puedeGestionar && (
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-grafito lg:ml-auto">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-grafito">
             <input type="checkbox" className="size-4 accent-azul-noche" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
             Mostrar dados de baja
           </label>

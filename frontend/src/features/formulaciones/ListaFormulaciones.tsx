@@ -55,6 +55,11 @@ function Tarjeta({ f, indice }: { f: FormulacionResumen; indice: number }) {
               <p className="cifras font-display text-xl font-semibold text-azul-noche">{f.costo_unidad == null ? '—' : pesos2.format(f.costo_unidad)}</p>
             </div>
             <div className="text-right">
+              {f.margen_pct !== null && (
+                <p className={`cifras mb-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${f.margen_pct < 0 ? 'bg-critico-fondo text-critico-texto' : 'bg-exito-fondo text-exito-texto'}`} title={f.precio_venta !== null ? `Precio de venta ${pesos0.format(f.precio_venta)}` : undefined}>
+                  Margen {kg.format(f.margen_pct)} %
+                </p>
+              )}
               <p className="text-[11px] font-medium text-gris-texto">Por lote</p>
               <p className="cifras text-sm font-semibold text-grafito">{pesos0.format(f.costo_lote as number)}</p>
             </div>

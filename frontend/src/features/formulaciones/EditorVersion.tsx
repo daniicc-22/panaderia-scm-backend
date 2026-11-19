@@ -17,12 +17,18 @@ import {
   INGREDIENTES_MAX,
   NOMBRE_PRODUCTO_MAX,
   filaConSeleccion,
+  fichaVacia,
   filaVacia,
   validarEditor,
   validarNombreProducto,
+  validarPrecioVenta,
+  MERMA_HORNEADO_MAX,
+  MOTIVO_MAX,
+  PROCEDIMIENTO_MAX,
   valorSelector,
   valoresDesdeDetalle,
   type ErroresEditor,
+  type FichaEditor,
   type FilaEditor,
 } from './esquemaVersion';
 
@@ -36,12 +42,15 @@ interface Props {
 export function EditorVersion({ base, onTerminar }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const inicial = useMemo(() => (base ? valoresDesdeDetalle(base) : { rendimiento: '', filas: [filaVacia()] }), [base]);
+  const inicial = useMemo(() => (base ? valoresDesdeDetalle(base) : { rendimiento: '', filas: [filaVacia()], ficha: fichaVacia() }), [base]);
   const [nombre, setNombre] = useState('');
   const [esIntermedio, setEsIntermedio] = useState(false);
   const [errorNombre, setErrorNombre] = useState<string | undefined>();
   const [rendimiento, setRendimiento] = useState(inicial.rendimiento);
   const [filas, setFilas] = useState<FilaEditor[]>(inicial.filas);
+  const [ficha, setFicha] = useState<FichaEditor>(inicial.ficha);
+  const [precioVenta, setPrecioVenta] = useState('');
+  const [errorPrecio, setErrorPrecio] = useState<string | undefined>();
   const [errores, setErrores] = useState<ErroresEditor>({ filas: {} });
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [copiando, setCopiando] = useState(false);
@@ -89,16 +98,18 @@ export function EditorVersion({ base, onTerminar }: Props) {
   const rend = leerNumero(rendimiento);
 
   // Con una versión vigente de base, guardar sin cambiar nada no tiene sentido (el servidor lo rechaza)
-  const firma = (r: string, fs: FilaEditor[]) =>
+  const firma = (r: string, fs: FilaEditor[], fi: FichaEditor) =>
     JSON.stringify([
       leerNumero(r),
+      // El motivo no cuenta: describe el cambio, no la versión
+      [fi.procedimiento.replace(/\r\n?/g, '\n').trim(), leerNumero(fi.tiempoPreparacion), leerNumero(fi.tiempoHorneado), leerNumero(fi.temperatura), leerNumero(fi.merma)],
       fs.map((f) => [f.producto_intermedio_id || f.materia_prima_id || '', leerNumero(f.cantidad), f.tolerancia.trim() === '' ? null : leerNumero(f.tolerancia)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     ]);
-  const sinCambios = !!base?.activa && firma(rendimiento, filas) === firma(inicial.rendimiento, inicial.filas);
+  const sinCambios = !!base?.activa && firma(rendimiento, filas, ficha) === firma(inicial.rendimiento, inicial.filas, inicial.ficha);
 
   const guardar = useMutation({
-    mutationFn: ({ nombreProducto, datos }: { nombreProducto: string; datos: Parameters<typeof crearVersion>[1] }) =>
-      base ? crearVersion(base.id, datos) : crearProducto({ nombre: nombreProducto, es_intermedio: esIntermedio, ...datos }),
+    mutationFn: ({ nombreProducto, precio, datos }: { nombreProducto: string; precio: number | null; datos: Parameters<typeof crearVersion>[1] }) =>
+      base ? crearVersion(base.id, datos) : crearProducto({ nombre: nombreProducto, es_intermedio: esIntermedio, precio_venta: precio, ...datos }),
     onSuccess: async (creada) => {
       // El costo, el ABC y las listas cambian con la versión vigente
       await Promise.all([
@@ -150,11 +161,19 @@ export function EditorVersion({ base, onTerminar }: Props) {
       else nombreMal = true;
       setErrorNombre(n.ok ? (repetido ? 'Ya existe un producto con ese nombre.' : undefined) : n.error);
     }
-    const resultado = validarEditor({ rendimiento, filas }, idsActivas);
+    let precio: number | null = null;
+    let precioMal = false;
+    if (!base) {
+      const p = validarPrecioVenta(precioVenta);
+      if (p.ok) precio = p.valor;
+      else precioMal = true;
+      setErrorPrecio(p.ok ? undefined : p.error);
+    }
+    const resultado = validarEditor({ rendimiento, filas, ficha }, idsActivas);
     if (!resultado.ok) setErrores(resultado.errores);
-    if (nombreMal || !resultado.ok) return;
+    if (nombreMal || precioMal || !resultado.ok) return;
     setErrores({ filas: {} });
-    guardar.mutate({ nombreProducto, datos: resultado.datos });
+    guardar.mutate({ nombreProducto, precio, datos: resultado.datos });
   }
 
   if (materias.isLoading || formulaciones.isLoading) return <LoadingState mensaje="Cargando insumos..." />;
@@ -207,8 +226,22 @@ export function EditorVersion({ base, onTerminar }: Props) {
             {copiadoDe && !copiando && <p className="text-xs text-gris-texto">Se copiaron el rendimiento y los ingredientes. Ajusta lo que cambie en el producto nuevo.</p>}
           </>
         )}
-        <div className="sm:max-w-xs">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Input id="ver-rendimiento" label="Rinde (unidades por lote)" inputMode="decimal" value={rendimiento} onChange={(e) => setRendimiento(e.target.value)} error={errores.rendimiento} />
+          {!base && (
+            <Input
+              id="prod-precio"
+              label="Precio de venta por unidad (opcional)"
+              inputMode="decimal"
+              placeholder="Para calcular el margen"
+              value={precioVenta}
+              onChange={(e) => {
+                setPrecioVenta(e.target.value);
+                setErrorPrecio(undefined);
+              }}
+              error={errorPrecio}
+            />
+          )}
         </div>
       </section>
 
@@ -289,6 +322,48 @@ export function EditorVersion({ base, onTerminar }: Props) {
           </Button>
         </div>
       </section>
+
+      <section className={campoBloque}>
+        <div>
+          <h3 className="text-sm font-semibold text-azul-noche">Preparación y horneado <span className="font-normal text-gris-texto">(opcional)</span></h3>
+          <p className="text-xs text-gris-texto">Es lo que completa la ficha técnica: cómo se hace y cuánto se pierde al hornear. Sale en la ficha que se imprime.</p>
+        </div>
+        <label className="flex flex-col gap-1 text-sm font-medium text-grafito">
+          Procedimiento
+          <textarea
+            value={ficha.procedimiento}
+            onChange={(e) => setFicha((f) => ({ ...f, procedimiento: e.target.value }))}
+            rows={5}
+            placeholder={'1. Mezclar los secos.\n2. Amasar 10 minutos.\n3. Reposar 45 minutos…'}
+            className="min-h-11 w-full rounded-lg border border-borde-campo bg-white px-3 py-2 text-sm font-normal text-grafito placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo"
+          />
+          <span className={`text-xs font-normal ${errores.ficha?.procedimiento ? 'text-critico-texto' : 'text-gris-texto'}`}>
+            {errores.ficha?.procedimiento ?? `${ficha.procedimiento.length.toLocaleString('es-CO')} de ${PROCEDIMIENTO_MAX.toLocaleString('es-CO')} caracteres`}
+          </span>
+        </label>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Input id="f-prep" label="Preparación (min)" inputMode="numeric" value={ficha.tiempoPreparacion} onChange={(e) => setFicha((f) => ({ ...f, tiempoPreparacion: e.target.value }))} error={errores.ficha?.tiempoPreparacion} />
+          <Input id="f-horno" label="Horneado (min)" inputMode="numeric" value={ficha.tiempoHorneado} onChange={(e) => setFicha((f) => ({ ...f, tiempoHorneado: e.target.value }))} error={errores.ficha?.tiempoHorneado} />
+          <Input id="f-temp" label="Temperatura (°C)" inputMode="numeric" value={ficha.temperatura} onChange={(e) => setFicha((f) => ({ ...f, temperatura: e.target.value }))} error={errores.ficha?.temperatura} />
+          <Input id="f-merma" label={`Merma al hornear (%, máx. ${MERMA_HORNEADO_MAX})`} inputMode="decimal" value={ficha.merma} onChange={(e) => setFicha((f) => ({ ...f, merma: e.target.value }))} error={errores.ficha?.merma} />
+        </div>
+        <p className="text-xs text-gris-texto">La merma es lo que pierde la masa en el horno (agua que se evapora). Con ella la ficha calcula el peso de cada unidad ya horneada.</p>
+      </section>
+
+      {base && (
+        <section className={campoBloque}>
+          <label className="flex flex-col gap-1 text-sm font-semibold text-azul-noche">
+            ¿Por qué cambias la receta? <span className="font-normal text-gris-texto">(opcional, queda en el historial)</span>
+            <input
+              value={ficha.motivo}
+              onChange={(e) => setFicha((f) => ({ ...f, motivo: e.target.value }))}
+              maxLength={MOTIVO_MAX}
+              placeholder="Ej.: bajamos el azúcar por el alza de precio"
+              className="min-h-11 w-full rounded-lg border border-borde-campo bg-white px-3 text-sm font-normal text-grafito placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo"
+            />
+          </label>
+        </section>
+      )}
 
       <section aria-label="Resumen de la formulación" className="grid grid-cols-2 gap-3 rounded-tarjeta bg-azul-noche p-4 text-white sm:grid-cols-4">
         <div>

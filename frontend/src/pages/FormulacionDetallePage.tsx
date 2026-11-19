@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Power, RotateCcw, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Pencil, Power, RotateCcw, Tag, TriangleAlert } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Esqueleto } from '../components/feedback/Esqueleto';
@@ -10,7 +10,11 @@ import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { EditorVersion } from '../features/formulaciones/EditorVersion';
+import { CostoEnElTiempo } from '../features/formulaciones/CostoEnElTiempo';
+import { EditarProductoForm } from '../features/formulaciones/EditarProductoForm';
 import { IngredientesReceta } from '../features/formulaciones/IngredientesReceta';
+import { PanelPreparacion } from '../features/formulaciones/PanelPreparacion';
+import { UsadoEn } from '../features/formulaciones/UsadoEn';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/useAuth';
 import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
@@ -32,6 +36,7 @@ export function FormulacionDetallePage() {
   const puedeGestionar = ROLES_GESTION.includes(usuario?.rol ?? '');
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState(false);
+  const [editandoProducto, setEditandoProducto] = useState(false);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
@@ -109,6 +114,12 @@ export function FormulacionDetallePage() {
               <>
                 <BotonImprimir etiqueta="Ficha técnica" />
                 {puedeGestionar && (
+                  <Button type="button" variant="secondary" onClick={() => setEditandoProducto(true)}>
+                    <Tag size={16} aria-hidden="true" />
+                    Editar producto
+                  </Button>
+                )}
+                {puedeGestionar && (
                   <Button type="button" onClick={() => setEditando(true)}>
                     <Pencil size={16} aria-hidden="true" />
                     {data.activa ? 'Editar formulación' : 'Usar como base'}
@@ -151,7 +162,7 @@ export function FormulacionDetallePage() {
             </Alert>
           )}
 
-          <div className={`grid grid-cols-2 gap-3 ${verCostos ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+          <div className={`grid grid-cols-2 gap-3 ${verCostos ? (data.margen_pct != null ? 'lg:grid-cols-5' : 'lg:grid-cols-4') : 'lg:grid-cols-3'}`}>
             <Indicador etiqueta="Rinde" valor={data.rendimiento == null ? '—' : String(data.rendimiento)} detalle="unidades por lote" tono="azul" indice={0} />
             <Indicador
               etiqueta="Peso del lote"
@@ -168,6 +179,15 @@ export function FormulacionDetallePage() {
             {verCostos && (
               <Indicador etiqueta="Costo por unidad" valor={data.costo_unidad == null ? '—' : pesos2.format(data.costo_unidad)} tono="gris" indice={3} />
             )}
+            {verCostos && data.margen_pct != null && (
+              <Indicador
+                etiqueta="Margen por unidad"
+                valor={`${numero.format(data.margen_pct)} %`}
+                detalle={`Vende a ${pesos0.format(data.precio_venta ?? 0)} · gana ${pesos2.format(data.margen_unidad ?? 0)}`}
+                tono={data.margen_pct < 0 ? 'rojo' : 'verde'}
+                indice={4}
+              />
+            )}
           </div>
 
           {verCostos && data.costo_incompleto && (
@@ -180,6 +200,20 @@ export function FormulacionDetallePage() {
           )}
 
           <IngredientesReceta data={data} verCostos={verCostos} />
+
+          <PanelPreparacion data={data} puedeGestionar={puedeGestionar} />
+
+          {puedeGestionar && data.es_intermedio && (
+            <div className="print:hidden">
+              <UsadoEn formulacionId={data.id} />
+            </div>
+          )}
+
+          {puedeGestionar && verCostos && (
+            <div className="print:hidden">
+              <CostoEnElTiempo formulacionId={data.id} tieneRendimiento={data.rendimiento != null} />
+            </div>
+          )}
         </>
       )}
 
@@ -211,6 +245,12 @@ export function FormulacionDetallePage() {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {puedeGestionar && data && (
+        <Modal isOpen={editandoProducto} onClose={() => setEditandoProducto(false)} title="Editar producto">
+          {editandoProducto && <EditarProductoForm formulacion={data} onTerminar={() => setEditandoProducto(false)} />}
         </Modal>
       )}
 

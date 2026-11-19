@@ -1,10 +1,13 @@
 import { httpClient } from './httpClient';
 import type {
+  CambiosProducto,
+  CostoHistorico,
   DatosProductoNuevo,
   DatosVersion,
   FormulacionDetalle,
   FormulacionResumen,
   HistorialVersiones,
+  UsadoEn,
 } from '../types/formulacion.types';
 
 // Sin parámetros a propósito: TanStack Query le pasa un objeto de contexto a la función de consulta
@@ -41,10 +44,23 @@ export async function crearProducto(datos: DatosProductoNuevo) {
   return data;
 }
 
-export async function cambiarEstadoProducto(id: string, activo: boolean) {
-  const { data } = await httpClient.patch<{ id: string; producto_id: string; producto: string; activo: boolean }>(
+// Dar de baja, reactivar, renombrar o fijar el precio de venta del producto de una formulación
+export async function cambiarProducto(id: string, cambios: CambiosProducto) {
+  const { data } = await httpClient.patch<{ id: string; producto_id: string; producto: string; activo: boolean; precio_venta: number | null }>(
     `/formulaciones/${id}/producto`,
-    { activo },
+    cambios,
   );
+  return data;
+}
+
+export const cambiarEstadoProducto = (id: string, activo: boolean) => cambiarProducto(id, { activo });
+
+export async function getUsadoEn(id: string): Promise<UsadoEn> {
+  const { data } = await httpClient.get<UsadoEn>(`/formulaciones/${id}/usado-en`);
+  return data;
+}
+
+export async function getCostoHistorico(id: string, meses = 12): Promise<CostoHistorico> {
+  const { data } = await httpClient.get<CostoHistorico>(`/formulaciones/${id}/costo-historico`, { params: { meses } });
   return data;
 }
