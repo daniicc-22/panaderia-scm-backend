@@ -64,6 +64,8 @@ export function ProduccionPage() {
     onSuccess: async (r) => {
       await queryClient.invalidateQueries({ queryKey: ['inventario'] });
       await queryClient.invalidateQueries({ queryKey: ['produccion'] });
+      void queryClient.invalidateQueries({ queryKey: ['reposicion'] });
+      void queryClient.invalidateQueries({ queryKey: ['inicio'] });
       setExito(
         `Producción registrada: ${lotes} ${lotes === 1 ? 'lote' : 'lotes'} de ${r.plan.formulacion.producto}. Los insumos ya se descontaron del inventario. Cuando termine la tanda, ciérrala abajo con lo que salió.`,
       );
@@ -150,6 +152,7 @@ export function ProduccionPage() {
                 setErrorLotes(null);
                 limpiarPlan();
               }}
+              onKeyDown={(e) => e.key === 'Enter' && alCalcular()}
             />
             {elegida && lotesValidos && (
               <span className="text-xs text-gris-texto">

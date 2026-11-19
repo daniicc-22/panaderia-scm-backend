@@ -28,7 +28,7 @@ export function RegistrarMerma() {
   const [loteId, setLoteId] = useState('');
   const [produccionId, setProduccionId] = useState('');
   const [causaId, setCausaId] = useState('');
-  const [etapa, setEtapa] = useState<EtapaMerma>('almacenamiento');
+  const [etapa, setEtapa] = useState<EtapaMerma | ''>('');
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [unidadEntrada, setUnidadEntrada] = useState<'g' | 'kg'>('g');
   const [errorForm, setErrorForm] = useState<string | null>(null);
@@ -45,7 +45,9 @@ export function RegistrarMerma() {
 
   const insumos = (inventario.data?.items ?? []).filter((i) => i.stock > 0);
   const lotesConStock = (lotes.data?.lotes ?? []).filter((l) => l.cantidad_disponible > 0);
-  const lote = lotesConStock.find((l) => l.id === loteId);
+  // Si el insumo tiene un solo lote con existencias, no hace falta pedir que lo elija
+  const loteElegido = loteId || (lotesConStock.length === 1 ? lotesConStock[0].id : '');
+  const lote = lotesConStock.find((l) => l.id === loteElegido);
   const unidadInsumo = lotes.data?.materia.unidad ?? 'g';
   const produccionesValidas = (producciones.data ?? []).filter((p) => p.estado === 'en_curso' || p.estado === 'finalizada');
 
@@ -60,9 +62,9 @@ export function RegistrarMerma() {
     mutationFn: () =>
       registrarMerma({
         causa_id: causaId,
-        etapa: tipo === 'produccion' ? 'produccion' : etapa,
+        etapa: tipo === 'produccion' ? 'produccion' : (etapa as EtapaMerma),
         cantidad: Math.round(cantidad * 1000) / 1000,
-        ...(tipo === 'insumo' ? { lote_id: loteId, ...(etapa === 'produccion' && produccionId ? { produccion_id: produccionId } : {}) } : { produccion_id: produccionId }),
+        ...(tipo === 'insumo' ? { lote_id: loteElegido, ...(etapa === 'produccion' && produccionId ? { produccion_id: produccionId } : {}) } : { produccion_id: produccionId }),
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -76,6 +78,7 @@ export function RegistrarMerma() {
       setLoteId('');
       setProduccionId('');
       setMateriaId('');
+      setEtapa('');
       setErrorForm(null);
     },
   });
@@ -95,7 +98,8 @@ export function RegistrarMerma() {
     setExito(null);
     registrar.reset();
     if (tipo === 'insumo' && !materiaId) return setErrorForm('Elige el insumo.');
-    if (tipo === 'insumo' && !loteId) return setErrorForm('Elige el lote.');
+    if (tipo === 'insumo' && !loteElegido) return setErrorForm('Elige el lote.');
+    if (tipo === 'insumo' && !etapa) return setErrorForm('Elige la etapa en la que se perdió.');
     if (tipo === 'produccion' && !produccionId) return setErrorForm('Elige la producción.');
     if (!causaId) return setErrorForm('Elige la causa.');
     if (!cantidadValida) return setErrorForm(`Escribe una cantidad mayor que 0 y hasta ${MERMA_MAX.toLocaleString('es-CO')} g.`);
@@ -162,7 +166,7 @@ export function RegistrarMerma() {
               <select
                 id="mm-lote"
                 className={CAMPO}
-                value={loteId}
+                value={loteElegido}
                 onChange={(e) => {
                   setLoteId(e.target.value);
                   setErrorForm(null);
@@ -186,10 +190,12 @@ export function RegistrarMerma() {
               className={CAMPO}
               value={etapa}
               onChange={(e) => {
-                setEtapa(e.target.value as EtapaMerma);
+                setEtapa(e.target.value as EtapaMerma | '');
                 setProduccionId('');
+                setErrorForm(null);
               }}
             >
+              <option value="">Elige la etapa</option>
               {ETAPAS.map((e) => (
                 <option key={e} value={e}>{ETIQUETA_ETAPA[e]}</option>
               ))}
@@ -279,6 +285,7 @@ export function RegistrarMerma() {
               setCantidadTexto(e.target.value);
               setErrorForm(null);
             }}
+            onKeyDown={(e) => e.key === 'Enter' && enviar()}
           />
           {enGramos && (
             <select

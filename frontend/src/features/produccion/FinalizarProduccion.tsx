@@ -31,6 +31,12 @@ export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }:
     },
   });
 
+  // Lo que salió frente a lo esperado, mientras se escribe: un valor muy lejano casi siempre es un error de digitación
+  const valor = leerProducida(texto);
+  const pct = valor !== null && planificada ? Math.round((valor / planificada) * 1000) / 10 : null;
+  const lejano = pct !== null && (pct > 130 || pct < 50);
+  const colorPct = pct === null ? '' : lejano || Math.abs(pct - 100) > 10 ? 'text-critico-texto' : Math.abs(pct - 100) > 5 ? 'text-atencion-texto' : 'text-exito-texto';
+
   function enviar() {
     const cantidad = leerProducida(texto);
     if (cantidad === null) {
@@ -57,8 +63,14 @@ export function FinalizarProduccion({ id, planificada, onCerrar, onFinalizada }:
             setErrorCampo(null);
             finalizar.reset();
           }}
+          onKeyDown={(e) => e.key === 'Enter' && enviar()}
         />
         {planificada !== null && <span className="text-xs text-gris-texto">Se esperaban {planificada.toLocaleString('es-CO')} unidades.</span>}
+        {pct !== null && (
+          <span className={`text-xs font-semibold ${colorPct}`}>
+            {pct.toLocaleString('es-CO')} % de lo esperado{lejano ? ': revisa que lo escribiste bien' : ''}
+          </span>
+        )}
         {errorCampo && <span className="text-xs text-critico-texto">{errorCampo}</span>}
       </div>
       {finalizar.isError && <Alert variant="error">{mensajeDeError(finalizar.error, 'No se pudo cerrar la producción.')}</Alert>}

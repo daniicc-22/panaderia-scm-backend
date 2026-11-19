@@ -43,7 +43,8 @@ export function ProduccionesRecientes() {
   const { usuario } = useAuth();
   const esGestion = usuario?.rol === 'administrador' || usuario?.rol === 'superadministrador';
 
-  const todas = lista.data ?? [];
+  // Las que siguen en curso van primero: son las que falta cerrar (el orden por fecha se conserva dentro de cada grupo)
+  const todas = [...(lista.data ?? [])].sort((a, b) => Number(b.estado === 'en_curso') - Number(a.estado === 'en_curso'));
   const filtradas = todas.filter((p) => filtro === 'todas' || p.estado === filtro);
   const visibles = verTodas ? filtradas : filtradas.slice(0, 8);
   const cuenta = (f: 'todas' | EstadoProduccion) => (f === 'todas' ? todas.length : todas.filter((p) => p.estado === f).length);
