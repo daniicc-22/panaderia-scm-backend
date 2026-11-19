@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   fechaHoyColombia,
+  fichaCompleta,
   hayCambios,
   validarCambiosProducto,
   validarProductoNuevo,
@@ -312,5 +313,20 @@ describe('ficha técnica de la versión', () => {
     expect(ok.ok).toBe(true);
     if (ok.ok) expect(ok.datos.precio_venta).toBe(2000);
     expect(validarProductoNuevo({ nombre: 'Rosca', ...base, precio_venta: -5 }).ok).toBe(false);
+  });
+});
+
+describe('fichaCompleta', () => {
+  test('un producto que se hornea necesita procedimiento, tiempo y temperatura de horneado', () => {
+    expect(fichaCompleta({ procedimiento: 'Amasar', tiempo_horneado_min: 25, temperatura_horneado_c: 180 }, false)).toBe(true);
+    expect(fichaCompleta({ procedimiento: 'Amasar', tiempo_horneado_min: 25, temperatura_horneado_c: null }, false)).toBe(false);
+    expect(fichaCompleta({ procedimiento: 'Amasar', tiempo_horneado_min: null, temperatura_horneado_c: 180 }, false)).toBe(false);
+    expect(fichaCompleta({ procedimiento: null, tiempo_horneado_min: 25, temperatura_horneado_c: 180 }, false)).toBe(false);
+  });
+
+  test('un intermedio solo necesita el procedimiento', () => {
+    expect(fichaCompleta({ procedimiento: 'Mezclar y reposar' }, true)).toBe(true);
+    expect(fichaCompleta({ procedimiento: '   ' }, true)).toBe(false);
+    expect(fichaCompleta({}, true)).toBe(false);
   });
 });

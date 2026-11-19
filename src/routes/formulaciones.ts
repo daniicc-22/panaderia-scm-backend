@@ -8,6 +8,7 @@ import { autorizarRoles } from '../middleware/autenticacion';
 import { resumirNombres } from '../utils/texto';
 import {
   fechaHoyColombia,
+  fichaCompleta,
   hayCambios,
   validarCambiosProducto,
   type FichaVersion,
@@ -233,6 +234,8 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
             costo_lote: verCostos ? redondear(costo) : null,
             costo_unidad: verCostos && rendimiento ? redondear(costo / rendimiento) : null,
             costo_incompleto: verCostos ? incompleto : false,
+            tiene_procedimiento: !!f.procedimiento,
+            ficha_completa: fichaCompleta(f, f.producto.es_intermedio),
             precio_venta: verCostos && f.producto.precio_venta != null ? Number(f.producto.precio_venta) : null,
             margen_pct: verCostos && rendimiento ? margen(f.producto.precio_venta, costo / rendimiento).margen_pct : null,
           };
@@ -254,7 +257,7 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
       const verCostos = puedeVerCostos(req.usuario?.rol);
       const f = await prisma.formulacion.findFirst({
         where: { id, panaderia_id: panaderiaId },
-        include: { producto: true, detalle_formulacion: { include: { unidad_medida: true } } },
+        include: { producto: true, usuario: { select: { nombre: true } }, detalle_formulacion: { include: { unidad_medida: true } } },
       });
       if (!f) return res.status(404).json({ error: 'Formulación no encontrada' });
 
@@ -325,6 +328,8 @@ export function crearRouterFormulaciones(prisma: PrismaClient) {
         precio_venta: verCostos && f.producto.precio_venta != null ? Number(f.producto.precio_venta) : null,
         ...(verCostos && rendimiento ? margen(f.producto.precio_venta, costoTotal / rendimiento) : { margen_unidad: null, margen_pct: null }),
         ...fichaDe(f),
+        ficha_completa: fichaCompleta(f, f.producto.es_intermedio),
+        aprobado_por: f.usuario?.nombre ?? null,
         ingredientes,
       });
     } catch (error) {

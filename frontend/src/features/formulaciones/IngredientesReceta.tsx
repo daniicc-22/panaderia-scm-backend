@@ -8,8 +8,10 @@ const num = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 const num1 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
-// Un color por ingrediente, el mismo en la barra de composición y en su fila
-const COLORES = ['var(--color-azul-noche)', 'var(--color-trigo)', 'var(--color-verde-bosque)', 'var(--color-terracota)', 'var(--color-pizarra)', 'var(--color-grafico-neutro)'];
+// Los cinco ingredientes que más cuestan tienen su propio color (el mismo en la barra y en su fila);
+// el resto se agrupa en "Otros" con un gris neutro, para que ningún color se repita
+const COLORES = ['var(--color-azul-noche)', 'var(--color-trigo)', 'var(--color-verde-bosque)', 'var(--color-terracota)', 'var(--color-pizarra)'];
+const COLOR_OTROS = 'var(--color-grafico-neutro)';
 
 function cantidad(unidad: string, valor: number): string {
   if (unidad === 'g' && Math.abs(valor) >= 1000) return `${num.format(valor / 1000)} kg`;
@@ -69,14 +71,18 @@ export function IngredientesReceta({ data, verCostos }: { data: FormulacionDetal
   const escalado = Math.abs(factor - 1) > 1e-9;
 
   const ordenados = useMemo(() => [...data.ingredientes].sort((a, b) => b.cantidad - a.cantidad), [data.ingredientes]);
-  const colorDe = useMemo(() => new Map(ordenados.map((i, n) => [`${i.tipo}-${i.codigo ?? i.nombre}`, COLORES[n % COLORES.length]])), [ordenados]);
+  const porCosto = useMemo(() => (verCostos ? [...ordenados].filter((i) => i.costo != null && i.costo > 0).sort((a, b) => (b.costo as number) - (a.costo as number)) : []), [ordenados, verCostos]);
+  const colorDe = useMemo(() => new Map(porCosto.slice(0, COLORES.length).map((i, n) => [`${i.tipo}-${i.codigo ?? i.nombre}`, COLORES[n]])), [porCosto]);
   const harinaG = ordenados.filter((i) => i.unidad === 'g' && sinTildes(i.nombre).includes('harina')).reduce((s, i) => s + i.cantidad, 0);
   const mayorCosto = verCostos ? [...ordenados].filter((i) => i.costo != null).sort((a, b) => (b.costo as number) - (a.costo as number))[0] : undefined;
   const claveDe = (i: IngredienteFormulacion) => `${i.tipo}-${i.codigo ?? i.nombre}`;
 
-  const segmentos = verCostos && data.costo_lote
-    ? [...ordenados].filter((i) => i.costo != null && i.costo > 0).sort((a, b) => (b.costo as number) - (a.costo as number))
+  const totalSeg = data.costo_lote ?? 0;
+  const segmentos: { clave: string; nombre: string; costo: number; color: string }[] = totalSeg > 0
+    ? porCosto.slice(0, COLORES.length).map((i, n) => ({ clave: claveDe(i), nombre: i.nombre, costo: i.costo as number, color: COLORES[n] }))
     : [];
+  const otros = totalSeg > 0 ? porCosto.slice(COLORES.length) : [];
+  if (otros.length > 0) segmentos.push({ clave: 'otros', nombre: `Otros ${otros.length} ingredientes`, costo: otros.reduce((s, i) => s + (i.costo as number), 0), color: COLOR_OTROS });
 
   function mover(delta: number) {
     const nuevo = Math.max(0.5, Math.round((factor + delta) * 2) / 2);
@@ -129,16 +135,25 @@ export function IngredientesReceta({ data, verCostos }: { data: FormulacionDetal
         <div className="mb-3">
           <p className="mb-1.5 text-xs font-semibold text-gris-texto">Así se reparte el costo del lote</p>
           <div className="flex h-3.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Composición del costo por ingrediente">
-            {segmentos.map((i) => (
-              <div key={claveDe(i)} title={`${i.nombre}: ${num1.format(((i.costo as number) / (data.costo_lote as number)) * 100)} %`} style={{ width: `${((i.costo as number) / (data.costo_lote as number)) * 100}%`, background: colorDe.get(claveDe(i)) }} />
+            {segmentos.map((g) => (
+              <div key={g.clave} title={`${g.nombre}: ${num1.format((g.costo / totalSeg) * 100)} %`} style={{ width: `${(g.costo / totalSeg) * 100}%`, background: g.color }} />
             ))}
           </div>
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-grafito">
+            {segmentos.map((g) => (
+              <li key={g.clave} className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: g.color }} />
+                {g.nombre}
+                <span className="cifras text-gris-texto">{num1.format((g.costo / totalSeg) * 100)} %</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
       <ul className="divide-y divide-linea border-t border-linea">
         {ordenados.map((i) => (
-          <Fila key={claveDe(i)} i={i} factor={factor} color={colorDe.get(claveDe(i)) ?? COLORES[0]} harinaG={harinaG} total={data.costo_lote} verCostos={verCostos} mayor={!!mayorCosto && mayorCosto === i && ordenados.length > 2} />
+          <Fila key={claveDe(i)} i={i} factor={factor} color={colorDe.get(claveDe(i)) ?? COLOR_OTROS} harinaG={harinaG} total={data.costo_lote} verCostos={verCostos} mayor={!!mayorCosto && mayorCosto === i && ordenados.length > 2} />
         ))}
       </ul>
 

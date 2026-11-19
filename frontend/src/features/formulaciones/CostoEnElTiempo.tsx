@@ -22,10 +22,13 @@ export function CostoEnElTiempo({ formulacionId, tieneRendimiento }: { formulaci
   if (isLoading) return <Esqueleto className="h-56" />;
   if (isError || !data) return <Panel titulo="Costo en el tiempo"><p className="text-sm text-critico-texto">No se pudo cargar el costo histórico.</p></Panel>;
 
-  const usarUnidad = tieneRendimiento && data.puntos.every((p) => p.costo_unidad !== null);
-  const valor = (i: number) => (usarUnidad ? (data.puntos[i].costo_unidad as number) : data.puntos[i].costo_lote);
+  // Los meses anteriores a la primera compra real no dicen nada: la línea arranca donde hay datos
+  const inicio = Math.max(0, data.puntos.findIndex((p) => p.con_compras > 0));
+  const puntos = data.puntos.slice(inicio);
+  const usarUnidad = tieneRendimiento && puntos.every((p) => p.costo_unidad !== null);
+  const valor = (i: number) => (usarUnidad ? (puntos[i].costo_unidad as number) : puntos[i].costo_lote);
   const formato = usarUnidad ? (n: number) => pesos2.format(n) : (n: number) => pesos0.format(n);
-  const v = data.puntos.map((_, i) => valor(i));
+  const v = puntos.map((_, i) => valor(i));
   const primero = v[0];
   const ultimo = v[v.length - 1];
   const variacion = primero > 0 ? ((ultimo - primero) / primero) * 100 : null;
@@ -34,8 +37,11 @@ export function CostoEnElTiempo({ formulacionId, tieneRendimiento }: { formulaci
   const sube = (variacion ?? 0) > 0;
 
   const W = 640, H = 190, L = 12, R = 12, T = 18, B = 28;
-  const min = Math.min(...v), max = Math.max(...v);
-  const rango = max - min || 1;
+  const minD = Math.min(...v), maxD = Math.max(...v);
+  // Holgura arriba y abajo: una serie casi plana no debe quedar pegada al borde ni dejar un vacío raro
+  const holgura = (maxD - minD) * 0.2 || maxD * 0.05 || 1;
+  const min = minD - holgura, max = maxD + holgura;
+  const rango = max - min;
   const x = (i: number) => (v.length === 1 ? W / 2 : L + (i / (v.length - 1)) * (W - L - R));
   const y = (val: number) => H - B - ((val - min) / rango) * (H - B - T);
 
@@ -44,7 +50,7 @@ export function CostoEnElTiempo({ formulacionId, tieneRendimiento }: { formulaci
   return (
     <Panel
       titulo="Costo en el tiempo"
-      subtitulo={`Costo ${usarUnidad ? 'por unidad' : 'por lote'} desde ${etiquetaMes(data.desde)}, con el precio real pagado por cada insumo`}
+      subtitulo={`Costo ${usarUnidad ? 'por unidad' : 'por lote'} desde ${etiquetaMes(puntos[0].mes)}, con el precio real pagado por cada insumo`}
       accion={
         variacion !== null && !plano ? (
           <span className={`cifras inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-bold ${sube ? 'bg-critico-fondo text-critico-texto' : 'bg-exito-fondo text-exito-texto'}`}>
@@ -58,17 +64,25 @@ export function CostoEnElTiempo({ formulacionId, tieneRendimiento }: { formulaci
         <p className="rounded-lg bg-hueso px-4 py-6 text-center text-sm text-gris-texto">
           Aún no hay entradas de mercancía de los insumos de esta receta. El costo histórico se arma solo, con cada compra que registres en Inventario.
         </p>
+      ) : puntos.length < 2 ? (
+        <div className="rounded-lg bg-hueso px-4 py-5 text-center">
+          <p className="text-xs font-medium text-gris-texto">Costo {usarUnidad ? 'por unidad' : 'por lote'} con el precio real pagado</p>
+          <p className="cifras font-display text-2xl font-semibold text-azul-noche">{formato(v[0])}</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gris-texto">
+            Todas las compras registradas son de {etiquetaMes(puntos[0].mes)}, así que aún no hay una evolución que dibujar. Aparecerá cuando haya compras en otros meses.
+          </p>
+        </div>
       ) : (
         <>
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Costo ${usarUnidad ? 'por unidad' : 'por lote'} mes a mes`}>
-            {[min, max].map((g) => <line key={g} x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--color-linea)" strokeDasharray="3 4" />)}
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full select-none" role="img" aria-label={`Costo ${usarUnidad ? 'por unidad' : 'por lote'} mes a mes`}>
+            {(plano ? [minD] : [minD, maxD]).map((g) => <line key={g} x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--color-linea)" strokeDasharray="3 4" />)}
             <polyline points={v.map((val, i) => `${x(i)},${y(val)}`).join(' ')} fill="none" stroke="var(--color-azul-noche)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
             {v.map((val, i) => (
-              <g key={data.puntos[i].mes} onMouseEnter={() => setActivo(i)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(i)} onBlur={() => setActivo(null)} tabIndex={0}>
+              <g key={puntos[i].mes} className="outline-none" style={{ outline: 'none' }} onMouseEnter={() => setActivo(i)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(i)} onBlur={() => setActivo(null)} tabIndex={0}>
                 <circle cx={x(i)} cy={y(val)} r={16} fill="transparent" />
-                <circle cx={x(i)} cy={y(val)} r={activo === i || i === v.length - 1 ? 5 : 3} fill={data.puntos[i].con_compras > 0 ? 'var(--color-azul-noche)' : 'var(--color-tabla)'} stroke="var(--color-azul-noche)" strokeWidth={2} />
-                {(i % Math.ceil(v.length / 8) === 0 || i === v.length - 1) && (
-                  <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--color-gris-texto)">{etiquetaMes(data.puntos[i].mes)}</text>
+                <circle cx={x(i)} cy={y(val)} r={activo === i || i === v.length - 1 ? 5 : 3} fill={puntos[i].con_compras > 0 ? 'var(--color-azul-noche)' : 'var(--color-tabla)'} stroke="var(--color-azul-noche)" strokeWidth={2} />
+                {(i === 0 || i === v.length - 1 || (i % Math.ceil(v.length / 6) === 0 && v.length - 1 - i >= Math.ceil(v.length / 6))) && (
+                  <text x={x(i)} y={H - 8} textAnchor={i === 0 ? 'start' : i === v.length - 1 ? 'end' : 'middle'} fontSize="10" fill="var(--color-gris-texto)">{etiquetaMes(puntos[i].mes)}</text>
                 )}
                 {(activo === i || (activo === null && i === v.length - 1)) && (
                   <text x={Math.min(Math.max(x(i), 52), W - 52)} y={y(val) - 11} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--color-grafito)">{formato(val)}</text>

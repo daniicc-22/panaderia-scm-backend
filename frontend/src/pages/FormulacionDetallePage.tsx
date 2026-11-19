@@ -17,6 +17,7 @@ import { PanelPreparacion } from '../features/formulaciones/PanelPreparacion';
 import { UsadoEn } from '../features/formulaciones/UsadoEn';
 import { HistorialVersiones } from '../features/formulaciones/HistorialVersiones';
 import { useAuth } from '../features/auth/useAuth';
+import { getMiPanaderia } from '../services/panaderiaService';
 import { cambiarEstadoProducto, getFormulacion } from '../services/formulacionesService';
 import { mensajeDeError } from '../services/errores';
 
@@ -45,6 +46,7 @@ export function FormulacionDetallePage() {
     enabled: !!id,
   });
 
+  const { data: panaderia } = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
   const verCostos = data?.costo_lote != null;
 
   const cambiarEstado = useMutation({
@@ -101,7 +103,20 @@ export function FormulacionDetallePage() {
 
       {data && (
         <>
+          <div className="hidden print:block">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gris-texto">{panaderia?.nombre ?? ''}</p>
+            <h1 className="font-display text-2xl font-semibold text-azul-noche">Ficha técnica de producción</h1>
+            <p className="mt-1 text-lg font-semibold text-grafito">{data.producto}</p>
+            <dl className="mt-3 grid grid-cols-4 gap-3 border-y border-linea py-2 text-xs">
+              <div><dt className="text-gris-texto">Versión</dt><dd className="font-semibold text-grafito">v{data.version}{data.activa ? ' (vigente)' : ' (anterior)'}</dd></div>
+              <div><dt className="text-gris-texto">Vigente desde</dt><dd className="font-semibold text-grafito">{fechaCorta(data.vigente_desde)}</dd></div>
+              <div><dt className="text-gris-texto">Aprobó</dt><dd className="font-semibold text-grafito">{data.aprobado_por ?? '—'}</dd></div>
+              <div><dt className="text-gris-texto">Impresa el</dt><dd className="font-semibold text-grafito">{new Date().toLocaleDateString('es-CO')}</dd></div>
+            </dl>
+          </div>
+
           <PageHeader
+            ocultarAlImprimir
             titulo={data.producto}
             subtitulo={
               <>
@@ -214,6 +229,15 @@ export function FormulacionDetallePage() {
               <CostoEnElTiempo formulacionId={data.id} tieneRendimiento={data.rendimiento != null} />
             </div>
           )}
+
+          <div className="mt-10 hidden grid-cols-3 gap-10 text-xs text-gris-texto print:grid">
+            {['Elaboró', 'Revisó', 'Aprobó'].map((rol) => (
+              <div key={rol} className="border-t border-grafito pt-1.5">
+                <p className="font-semibold text-grafito">{rol}</p>
+                <p>Nombre y firma</p>
+              </div>
+            ))}
+          </div>
         </>
       )}
 

@@ -12,7 +12,7 @@ import { Indicador } from '../features/inicio/Panel';
 import { getFormulaciones, getFormulacionesConInactivos } from '../services/formulacionesService';
 
 const ROLES_GESTION = ['administrador', 'superadministrador'];
-type Filtro = 'todas' | 'finales' | 'intermedios' | 'incompletas';
+type Filtro = 'todas' | 'finales' | 'intermedios' | 'incompletas' | 'sinficha';
 type Orden = 'nombre' | 'costo' | 'margen' | 'recientes';
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -33,6 +33,9 @@ export function FormulacionesPage() {
   const lista = data ?? [];
   const intermedios = lista.filter((f) => f.es_intermedio).length;
   const incompletas = lista.filter((f) => f.costo_incompleto).length;
+  const conFicha = lista.filter((f) => f.ficha_completa).length;
+  const sinFicha = lista.length - conFicha;
+  const pctFicha = lista.length > 0 ? Math.round((conFicha / lista.length) * 100) : 0;
   const verCostos = lista.some((f) => f.costo_lote !== null);
 
   const hayMargen = lista.some((f) => f.margen_pct !== null);
@@ -44,6 +47,7 @@ export function FormulacionesPage() {
       if (filtro === 'finales') return !f.es_intermedio;
       if (filtro === 'intermedios') return f.es_intermedio;
       if (filtro === 'incompletas') return f.costo_incompleto;
+      if (filtro === 'sinficha') return !f.ficha_completa;
       return true;
     });
     const porNombre = (a: (typeof visibles)[number], b: (typeof visibles)[number]) => a.producto.localeCompare(b.producto, 'es');
@@ -61,6 +65,7 @@ export function FormulacionesPage() {
     { id: 'todas', texto: 'Todas', n: lista.length, ver: true },
     { id: 'finales', texto: 'Productos finales', n: lista.length - intermedios, ver: intermedios > 0 },
     { id: 'intermedios', texto: 'Intermedios', n: intermedios, ver: intermedios > 0 },
+    { id: 'sinficha', texto: 'Sin ficha completa', n: sinFicha, ver: puedeGestionar && sinFicha > 0 },
     { id: 'incompletas', texto: 'Costo incompleto', n: incompletas, ver: verCostos && incompletas > 0 },
   ];
 
@@ -91,7 +96,11 @@ export function FormulacionesPage() {
       {data && lista.length > 0 && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Indicador etiqueta="Recetas" valor="—" numero={lista.length} detalle="Con versión vigente" tono="azul" indice={0} />
-          <Indicador etiqueta="Productos finales" valor="—" numero={lista.length - intermedios} tono="amarillo" indice={1} />
+          {puedeGestionar ? (
+            <Indicador etiqueta="Ficha técnica completa" valor={`${conFicha} de ${lista.length}`} detalle={`${pctFicha} % estandarizadas`} tono={sinFicha === 0 ? 'verde' : 'amarillo'} indice={1} />
+          ) : (
+            <Indicador etiqueta="Productos finales" valor="—" numero={lista.length - intermedios} tono="amarillo" indice={1} />
+          )}
           <Indicador etiqueta="Intermedios" valor="—" numero={intermedios} detalle="Masas y bases reutilizables" tono="verde" indice={2} />
           {verCostos && (
             <Indicador etiqueta="Costo incompleto" valor="—" numero={incompletas} detalle={incompletas > 0 ? 'Falta algún precio' : 'Todas con costo completo'} tono="gris" indice={3} />
@@ -99,17 +108,34 @@ export function FormulacionesPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative w-full lg:max-w-xs">
-          <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar producto"
-            aria-label="Buscar producto"
-            className="min-h-11 w-full rounded-lg border border-borde-campo bg-white pl-9 pr-3 text-base placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="relative w-full sm:max-w-xs">
+            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto"
+              aria-label="Buscar producto"
+              className="min-h-11 w-full rounded-lg border border-borde-campo bg-white pl-9 pr-3 text-base placeholder:text-gris-texto focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-grafito sm:ml-auto">
+            <span className="whitespace-nowrap font-medium text-gris-texto">Ordenar por</span>
+            <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)} className="min-h-11 rounded-lg border border-borde-campo bg-white px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-trigo">
+              <option value="nombre">Nombre</option>
+              {verCostos && <option value="costo">Costo por unidad (mayor primero)</option>}
+              {hayMargen && <option value="margen">Margen (menor primero)</option>}
+              <option value="recientes">Modificadas hace poco</option>
+            </select>
+          </label>
+          {puedeGestionar && (
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-grafito">
+              <input type="checkbox" className="size-4 accent-azul-noche" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
+              Mostrar dados de baja
+            </label>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {chips
@@ -120,34 +146,20 @@ export function FormulacionesPage() {
                 type="button"
                 aria-pressed={filtro === c.id}
                 onClick={() => setFiltro(c.id)}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${filtro === c.id ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
+                className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${filtro === c.id ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
               >
                 {c.texto}
                 <span className="cifras text-xs opacity-80">{c.n}</span>
               </button>
             ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-grafito lg:ml-auto">
-          <span className="font-medium text-gris-texto">Ordenar por</span>
-          <select value={orden} onChange={(e) => setOrden(e.target.value as Orden)} className="min-h-11 rounded-lg border border-borde-campo bg-white px-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-trigo">
-            <option value="nombre">Nombre</option>
-            {verCostos && <option value="costo">Costo por unidad (mayor primero)</option>}
-            {hayMargen && <option value="margen">Margen (menor primero)</option>}
-            <option value="recientes">Modificadas hace poco</option>
-          </select>
-        </label>
-        {puedeGestionar && (
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-grafito">
-            <input type="checkbox" className="size-4 accent-azul-noche" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
-            Mostrar dados de baja
-          </label>
-        )}
       </div>
 
       {!isError && (
         <ListaFormulaciones
           formulaciones={filtradas}
           cargando={isLoading}
+          mostrarFicha={puedeGestionar}
           vacio={busqueda || filtro !== 'todas' ? 'Ninguna receta coincide con el filtro.' : 'Aún no hay recetas. Crea el primer producto con su formulación.'}
         />
       )}
