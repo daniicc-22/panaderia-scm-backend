@@ -1,5 +1,6 @@
 import { Menu } from 'lucide-react';
 import { Logo } from '../brand/Logo';
+import { NOMBRE_APP } from '../brand/marca';
 
 interface HeaderProps {
   onAbrirMenu: () => void;
@@ -19,7 +20,7 @@ export function Header({ onAbrirMenu }: HeaderProps) {
         <Menu size={22} />
       </button>
       <Logo size={28} />
-      <span className="font-display text-base font-semibold">Panadería SCM</span>
+      <span className="font-display text-base font-semibold">{NOMBRE_APP}</span>
     </header>
   );
 }
