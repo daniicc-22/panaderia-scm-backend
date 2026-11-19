@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +11,11 @@ import { ErrorState } from '../../components/feedback/ErrorState';
 import { crearProducto, crearVersion, getFormulaciones } from '../../services/formulacionesService';
 import { getMateriasPrimas } from '../../services/materiasPrimasService';
 import { mensajeDeError } from '../../services/errores';
+import { leerNumero } from '../precios/numeros';
 import type { FormulacionDetalle } from '../../types/formulacion.types';
 import {
   INGREDIENTES_MAX,
+  NOMBRE_PRODUCTO_MAX,
   filaConSeleccion,
   filaVacia,
   validarEditor,
@@ -57,6 +60,39 @@ export function EditorVersion({ base, onTerminar }: Props) {
     [formulaciones.data, base?.producto_id],
   );
   const intermedioPorId = useMemo(() => new Map(intermedios.map((f) => [f.producto_id, f])), [intermedios]);
+
+  // Resumen en vivo de lo que se está escribiendo
+  const resumen = useMemo(() => {
+    let pesoG = 0;
+    let costo = 0;
+    let sinPrecio = 0;
+    let intermediosSinCosto = 0;
+    for (const f of filas) {
+      const c = leerNumero(f.cantidad);
+      if (c === null) continue;
+      if (f.producto_intermedio_id) {
+        pesoG += c;
+        intermediosSinCosto += 1;
+        continue;
+      }
+      const m = f.materia_prima_id ? porId.get(f.materia_prima_id) : undefined;
+      if (!m) continue;
+      if (m.unidad === 'g') pesoG += c;
+      const unit = m.presentaciones.find((pr) => pr.costo_por_unidad_base != null)?.costo_por_unidad_base;
+      if (unit == null) sinPrecio += 1;
+      else costo += c * unit;
+    }
+    return { pesoG, costo, sinPrecio, intermediosSinCosto };
+  }, [filas, porId]);
+  const rend = leerNumero(rendimiento);
+
+  // Con una versión vigente de base, guardar sin cambiar nada no tiene sentido (el servidor lo rechaza)
+  const firma = (r: string, fs: FilaEditor[]) =>
+    JSON.stringify([
+      leerNumero(r),
+      fs.map((f) => [f.producto_intermedio_id || f.materia_prima_id || '', leerNumero(f.cantidad), f.tolerancia.trim() === '' ? null : leerNumero(f.tolerancia)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    ]);
+  const sinCambios = !!base?.activa && firma(rendimiento, filas) === firma(inicial.rendimiento, inicial.filas);
 
   const guardar = useMutation({
     mutationFn: ({ nombreProducto, datos }: { nombreProducto: string; datos: Parameters<typeof crearVersion>[1] }) =>
@@ -103,8 +139,9 @@ export function EditorVersion({ base, onTerminar }: Props) {
     return <ErrorState onReintentar={() => void Promise.all([materias.refetch(), formulaciones.refetch()])} />;
   }
 
+  const campoBloque = 'flex flex-col gap-3 rounded-tarjeta border border-linea bg-hueso p-4';
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
       <Alert variant="info">
         {!base
           ? 'Se crea el producto con su primera versión (v1), ya vigente. Cuenta en el ABC con el supuesto de 6 lotes por semana hasta que exista el plan de producción.'
@@ -113,51 +150,35 @@ export function EditorVersion({ base, onTerminar }: Props) {
             : `Se crea una versión nueva con estos valores, que pasa a ser la vigente. La versión vigente queda como anterior; la v${base.version} no se modifica. Cambiará el costo del lote y el ABC.`}
       </Alert>
 
-      {!base && (
-        <div className="flex flex-col gap-3 sm:max-w-md">
-          <Input
-            id="prod-nombre"
-            label="Nombre del producto"
-            maxLength={120}
-            autoFocus
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            error={errorNombre}
-          />
-          <label className="flex items-start gap-2 text-sm text-grafito">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={esIntermedio}
-              onChange={(e) => setEsIntermedio(e.target.checked)}
-            />
-            <span>
-              <span className="font-medium">Es un producto intermedio</span>
-              <span className="block text-xs text-gris-texto">
-                Una masa base o una galleta que se usa como ingrediente de otros productos. Su cantidad se mide en gramos.
+      <section className={campoBloque}>
+        <h3 className="text-sm font-semibold text-azul-noche">{base ? 'Rendimiento' : 'Producto'}</h3>
+        {!base && (
+          <>
+            <Input id="prod-nombre" label="Nombre del producto" maxLength={NOMBRE_PRODUCTO_MAX} autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} error={errorNombre} />
+            <label className={`flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-3 text-sm text-grafito transition-colors ${esIntermedio ? 'border-verde-bosque' : 'border-linea'}`}>
+              <input type="checkbox" className="mt-0.5 size-4 accent-verde-bosque" checked={esIntermedio} onChange={(e) => setEsIntermedio(e.target.checked)} />
+              <span>
+                <span className="font-semibold">Es un producto intermedio</span>
+                <span className="block text-xs text-gris-texto">Una masa base o una galleta que se usa como ingrediente de otros productos. Su cantidad se mide en gramos.</span>
               </span>
-            </span>
-          </label>
+            </label>
+          </>
+        )}
+        <div className="sm:max-w-xs">
+          <Input id="ver-rendimiento" label="Rinde (unidades por lote)" inputMode="decimal" value={rendimiento} onChange={(e) => setRendimiento(e.target.value)} error={errores.rendimiento} />
         </div>
-      )}
+      </section>
 
-      <div className="sm:max-w-xs">
-        <Input
-          id="ver-rendimiento"
-          label="Rinde (unidades por lote)"
-          inputMode="decimal"
-          value={rendimiento}
-          onChange={(e) => setRendimiento(e.target.value)}
-          error={errores.rendimiento}
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="hidden gap-2 text-xs font-semibold uppercase tracking-wide text-gris-texto sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <section className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-sm font-semibold text-azul-noche">Ingredientes</h3>
+          <span className="text-xs text-gris-texto">{filas.length} de {INGREDIENTES_MAX}</span>
+        </div>
+        <div className="hidden gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-gris-texto sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem]">
           <span>Ingrediente</span>
           <span>Cantidad</span>
-          <span>Tolerancia %</span>
-          <span className="w-16" />
+          <span>Tolerancia ± %</span>
+          <span />
         </div>
 
         {filas.map((fila, i) => {
@@ -167,20 +188,13 @@ export function EditorVersion({ base, onTerminar }: Props) {
           const unidad = materia?.unidad ?? fila.unidad;
           const enLista = !!fila.materia_prima_id && idsActivas.has(fila.materia_prima_id);
           return (
-            <div
-              key={fila.clave}
-              className="grid grid-cols-1 gap-2 rounded-md border border-linea p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start sm:border-0 sm:p-0"
-            >
+            <div key={fila.clave} className="grid grid-cols-1 gap-2 rounded-lg border border-linea bg-white p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_2.75rem] sm:items-start">
               <Select
                 aria-label={`Ingrediente ${i + 1}`}
                 value={valorSelector(fila)}
                 onChange={(e) =>
                   setFilas((actuales) =>
-                    actuales.map((f) =>
-                      f.clave === fila.clave
-                        ? filaConSeleccion(f, e.target.value, (id) => intermedioPorId.get(id)?.producto ?? '')
-                        : f,
-                    ),
+                    actuales.map((f) => (f.clave === fila.clave ? filaConSeleccion(f, e.target.value, (id) => intermedioPorId.get(id)?.producto ?? '') : f)),
                   )
                 }
                 error={err.materia}
@@ -192,11 +206,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
                 )}
                 <optgroup label="Insumos">
                   {activas.map((m) => (
-                    <option
-                      key={m.id}
-                      value={`m:${m.id}`}
-                      disabled={m.id !== fila.materia_prima_id && filas.some((o) => o.materia_prima_id === m.id)}
-                    >
+                    <option key={m.id} value={`m:${m.id}`} disabled={m.id !== fila.materia_prima_id && filas.some((o) => o.materia_prima_id === m.id)}>
                       {m.codigo} · {m.nombre}
                     </option>
                   ))}
@@ -204,14 +214,7 @@ export function EditorVersion({ base, onTerminar }: Props) {
                 {intermedios.length > 0 && (
                   <optgroup label="Productos intermedios">
                     {intermedios.map((f) => (
-                      <option
-                        key={f.producto_id}
-                        value={`i:${f.producto_id}`}
-                        disabled={
-                          f.producto_id !== fila.producto_intermedio_id &&
-                          filas.some((o) => o.producto_intermedio_id === f.producto_id)
-                        }
-                      >
+                      <option key={f.producto_id} value={`i:${f.producto_id}`} disabled={f.producto_id !== fila.producto_intermedio_id && filas.some((o) => o.producto_intermedio_id === f.producto_id)}>
                         {f.producto}
                       </option>
                     ))}
@@ -219,28 +222,16 @@ export function EditorVersion({ base, onTerminar }: Props) {
                 )}
               </Select>
 
-              <Input
-                aria-label={`Cantidad del ingrediente ${i + 1}`}
-                inputMode="decimal"
-                placeholder={unidad ? `en ${unidad}` : 'Cantidad'}
-                value={fila.cantidad}
-                onChange={(e) => cambiarFila(fila.clave, { cantidad: e.target.value })}
-                error={err.cantidad}
-              />
-              <Input
-                aria-label={`Tolerancia del ingrediente ${i + 1}`}
-                inputMode="decimal"
-                placeholder="Opcional"
-                value={fila.tolerancia}
-                onChange={(e) => cambiarFila(fila.clave, { tolerancia: e.target.value })}
-                error={err.tolerancia}
-              />
+              <Input aria-label={`Cantidad del ingrediente ${i + 1}`} inputMode="decimal" placeholder={unidad ? `en ${unidad}` : 'Cantidad'} value={fila.cantidad} onChange={(e) => cambiarFila(fila.clave, { cantidad: e.target.value })} error={err.cantidad} />
+              <Input aria-label={`Tolerancia del ingrediente ${i + 1}`} inputMode="decimal" placeholder="Opcional" value={fila.tolerancia} onChange={(e) => cambiarFila(fila.clave, { tolerancia: e.target.value })} error={err.tolerancia} />
               <button
                 type="button"
-                className="w-16 py-2 text-left text-sm font-medium text-critico-texto hover:underline"
+                aria-label={`Quitar el ingrediente ${i + 1}`}
+                title="Quitar"
+                className="grid size-11 place-items-center rounded-lg border border-borde-campo text-critico-texto transition-colors hover:bg-critico-fondo"
                 onClick={() => setFilas((actuales) => actuales.filter((f) => f.clave !== fila.clave))}
               >
-                Quitar
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
           );
@@ -249,24 +240,47 @@ export function EditorVersion({ base, onTerminar }: Props) {
         {errores.general && <span className="text-xs text-critico-texto">{errores.general}</span>}
 
         <div>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={filas.length >= INGREDIENTES_MAX}
-            onClick={() => setFilas((actuales) => [...actuales, filaVacia()])}
-          >
+          <Button type="button" variant="secondary" disabled={filas.length >= INGREDIENTES_MAX} onClick={() => setFilas((actuales) => [...actuales, filaVacia()])}>
+            <Plus size={16} aria-hidden="true" />
             Agregar ingrediente
           </Button>
         </div>
-      </div>
+      </section>
+
+      <section aria-label="Resumen de la formulación" className="grid grid-cols-2 gap-3 rounded-tarjeta bg-azul-noche p-4 text-white sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-niebla">Peso del lote</p>
+          <p className="cifras font-display text-xl font-semibold">{resumen.pesoG >= 1000 ? `${(resumen.pesoG / 1000).toLocaleString('es-CO', { maximumFractionDigits: 2 })} kg` : `${resumen.pesoG.toLocaleString('es-CO', { maximumFractionDigits: 1 })} g`}</p>
+        </div>
+        <div>
+          <p className="text-xs text-niebla">Gramos por unidad</p>
+          <p className="cifras font-display text-xl font-semibold">{rend && rend > 0 ? (resumen.pesoG / rend).toLocaleString('es-CO', { maximumFractionDigits: 1 }) : '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-niebla">Costo estimado</p>
+          <p className="cifras font-display text-xl font-semibold">{resumen.costo > 0 ? resumen.costo.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }) : '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-niebla">Costo por unidad</p>
+          <p className="cifras font-display text-xl font-semibold">{resumen.costo > 0 && rend && rend > 0 ? (resumen.costo / rend).toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2 }) : '—'}</p>
+        </div>
+        {(resumen.sinPrecio > 0 || resumen.intermediosSinCosto > 0) && (
+          <p className="col-span-full text-xs text-niebla">
+            Costo parcial: {resumen.sinPrecio > 0 ? `${resumen.sinPrecio} ${resumen.sinPrecio === 1 ? 'insumo sin precio' : 'insumos sin precio'}` : ''}
+            {resumen.sinPrecio > 0 && resumen.intermediosSinCosto > 0 ? ' y ' : ''}
+            {resumen.intermediosSinCosto > 0 ? 'los intermedios se costean al guardar' : ''}.
+          </p>
+        )}
+      </section>
 
       {errorServidor && <Alert variant="error">{errorServidor}</Alert>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {sinCambios && <span className="mr-auto text-xs text-gris-texto">Cambia algo para poder guardar una versión nueva.</span>}
         <Button type="button" variant="secondary" onClick={onTerminar} disabled={guardar.isPending}>
           Cancelar
         </Button>
-        <Button type="submit" isLoading={guardar.isPending}>
+        <Button type="submit" isLoading={guardar.isPending} disabled={sinCambios}>
           {base ? 'Guardar como versión nueva' : 'Crear producto'}
         </Button>
       </div>

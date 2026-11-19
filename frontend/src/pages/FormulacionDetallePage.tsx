@@ -183,7 +183,11 @@ export function FormulacionDetallePage() {
         </>
       )}
 
-      {puedeGestionar && id && <HistorialVersiones formulacionId={id} />}
+      {puedeGestionar && id && (
+        <div className="print:hidden">
+          <HistorialVersiones formulacionId={id} />
+        </div>
+      )}
 
       {puedeGestionar && data && (
         <Modal isOpen={confirmandoBaja} onClose={() => setConfirmandoBaja(false)} title="Dar de baja el producto">

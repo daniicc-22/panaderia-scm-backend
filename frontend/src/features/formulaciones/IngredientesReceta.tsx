@@ -102,7 +102,8 @@ export function IngredientesReceta({ data, verCostos }: { data: FormulacionDetal
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             inputMode="decimal"
-            className="cifras min-h-11 w-16 rounded-lg border border-borde-campo bg-white text-center text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-trigo"
+            aria-invalid={texto.trim() !== '' && !(leido > 0)}
+            className={`cifras min-h-11 w-16 ${texto.trim() !== '' && !(leido > 0) ? 'border-critico ring-1 ring-critico' : ''} rounded-lg border border-borde-campo bg-white text-center text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-trigo`}
           />
           <button type="button" className={boton} onClick={() => mover(0.5)} aria-label="Más lotes">
             <Plus size={16} />
