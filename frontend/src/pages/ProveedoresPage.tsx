@@ -5,6 +5,8 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { CompararProveedores } from '../features/proveedores/CompararProveedores';
+import { HistorialCostos } from '../features/proveedores/HistorialCostos';
 import { ListaProveedores } from '../features/proveedores/ListaProveedores';
 import { OfertasProveedor } from '../features/proveedores/OfertasProveedor';
 import { EntregaProveedorForm } from '../features/proveedores/EntregaProveedorForm';
@@ -12,6 +14,13 @@ import { ProveedorForm } from '../features/proveedores/ProveedorForm';
 import { editarProveedor, getProveedores } from '../services/proveedoresService';
 import { mensajeDeError } from '../services/errores';
 import type { Proveedor } from '../types/proveedor.types';
+
+type Vista = 'proveedores' | 'comparar' | 'historial';
+const VISTAS: { id: Vista; texto: string }[] = [
+  { id: 'proveedores', texto: 'Proveedores' },
+  { id: 'comparar', texto: 'Comparar por insumo' },
+  { id: 'historial', texto: 'Historial de costos' },
+];
 
 const textoPrecios = (n: number) => (n === 1 ? '1 precio vigente' : `${n} precios vigentes`);
 
@@ -22,6 +31,7 @@ export function ProveedoresPage() {
   const [porDesactivar, setPorDesactivar] = useState<Proveedor | null>(null);
   const [verOferta, setVerOferta] = useState<Proveedor | null>(null);
   const [conEntrega, setConEntrega] = useState<Proveedor | null>(null);
+  const [vista, setVista] = useState<Vista>('proveedores');
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['proveedores'], queryFn: getProveedores });
@@ -89,9 +99,27 @@ export function ProveedoresPage() {
         }
       />
 
+      <div role="tablist" aria-label="Vistas de proveedores" className="flex gap-1 overflow-x-auto border-b border-linea">
+        {VISTAS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            role="tab"
+            aria-selected={vista === v.id}
+            onClick={() => setVista(v.id)}
+            className={`min-h-11 whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors ${vista === v.id ? 'border-azul-noche text-azul-noche' : 'border-transparent text-gris-texto hover:text-azul-noche'}`}
+          >
+            {v.texto}
+          </button>
+        ))}
+      </div>
+
       {aviso && <Alert variant={aviso.tipo}>{aviso.texto}</Alert>}
 
-      {isError ? (
+      {vista === 'comparar' && data && <CompararProveedores proveedores={data} />}
+      {vista === 'historial' && <HistorialCostos />}
+
+      {vista !== 'proveedores' ? null : isError ? (
         <Alert variant="error">
           No se pudieron cargar los proveedores.{' '}
           <button type="button" className="font-semibold underline" onClick={() => refetch()}>

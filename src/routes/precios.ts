@@ -223,5 +223,77 @@ export function crearRouterPrecios(prisma: PrismaClient) {
     }
   });
 
+
+  // Historial del costo real de compra por insumo: promedio ponderado por mes de los lotes recibidos
+  router.get('/historial', async (req, res) => {
+    const pedidos = Number(req.query.meses);
+    const meses = Number.isInteger(pedidos) && pedidos >= 1 && pedidos <= 36 ? pedidos : 12;
+    try {
+      const desde = new Date();
+      desde.setUTCDate(1);
+      desde.setUTCHours(0, 0, 0, 0);
+      desde.setUTCMonth(desde.getUTCMonth() - (meses - 1));
+
+      const lotes = await prisma.lote.findMany({
+        where: { panaderia_id: req.panaderiaId!, materia_prima_id: { not: null }, created_at: { gte: desde } },
+        select: {
+          materia_prima_id: true,
+          cantidad_inicial: true,
+          costo_unitario: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'asc' },
+      });
+
+      const ids = [...new Set(lotes.map((l) => l.materia_prima_id).filter((x): x is string => !!x))];
+      const materias = await prisma.materia_prima.findMany({
+        where: { id: { in: ids }, panaderia_id: req.panaderiaId! },
+        select: { id: true, nombre: true, unidad_medida: { select: { codigo: true } } },
+      });
+      const datosMateria = new Map(materias.map((m) => ({ ...m })).map((m) => [m.id, m]));
+
+      type Acum = { materia_prima_id: string; materia: string; unidad: string; meses: Map<string, { valor: number; cantidad: number }> };
+      const porMateria = new Map<string, Acum>();
+      for (const l of lotes) {
+        const cantidad = Number(l.cantidad_inicial);
+        const costo = Number(l.costo_unitario);
+        const materia = l.materia_prima_id ? datosMateria.get(l.materia_prima_id) : undefined;
+        if (!l.materia_prima_id || !materia || cantidad <= 0 || costo <= 0) continue;
+        const mes = l.created_at.toISOString().slice(0, 7);
+        let acum = porMateria.get(l.materia_prima_id);
+        if (!acum) {
+          acum = { materia_prima_id: l.materia_prima_id, materia: materia.nombre, unidad: materia.unidad_medida.codigo, meses: new Map() };
+          porMateria.set(l.materia_prima_id, acum);
+        }
+        const celda = acum.meses.get(mes) ?? { valor: 0, cantidad: 0 };
+        celda.valor += cantidad * costo;
+        celda.cantidad += cantidad;
+        acum.meses.set(mes, celda);
+      }
+
+      const items = [...porMateria.values()]
+        .map((a) => {
+          const puntos = [...a.meses.entries()]
+            .sort(([x], [y]) => x.localeCompare(y))
+            .map(([mes, c]) => ({ mes, costo_por_unidad_base: c.valor / c.cantidad, cantidad: c.cantidad }));
+          const primero = puntos[0].costo_por_unidad_base;
+          const ultimo = puntos[puntos.length - 1].costo_por_unidad_base;
+          return {
+            materia_prima_id: a.materia_prima_id,
+            materia: a.materia,
+            unidad: a.unidad,
+            puntos,
+            variacion_pct: puntos.length > 1 ? ((ultimo - primero) / primero) * 100 : null,
+          };
+        })
+        .sort((x, y) => x.materia.localeCompare(y.materia, 'es'));
+
+      res.json({ meses, desde: desde.toISOString().slice(0, 7), items });
+    } catch (error) {
+      console.error('Error al consultar el historial de costos:', error);
+      res.status(500).json({ error: 'Error al consultar el historial de costos' });
+    }
+  });
+
   return router;
 }
