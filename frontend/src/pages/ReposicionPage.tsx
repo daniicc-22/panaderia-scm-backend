@@ -10,11 +10,16 @@ import { LoadingState } from '../components/feedback/LoadingState';
 import { ESTADOS, etiquetaAdvertencia, etiquetaFaltante, ORIGEN_DEMANDA } from '../features/reposicion/etiquetas';
 import { formatoCantidad, formatoDinero, formatoFecha } from '../features/inventario/formatos';
 import { BotonImprimir } from '../components/ui/BotonImprimir';
+import { PageHeader } from '../components/layout/PageHeader';
+import { useAuth } from '../features/auth/useAuth';
+import { getMiPanaderia } from '../services/panaderiaService';
 import { Indicador, Seccion } from '../features/inicio/Panel';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { getRecomendaciones } from '../services/reposicionService';
 import type { EstadoReposicion, ItemRecomendacion } from '../types/reposicion.types';
 
+const INICIAL = 12;
+const RANGO_CLASE = (c: string | null) => (c === 'A' ? 0 : c === 'B' ? 1 : c === 'C' ? 2 : 3);
 const ORDEN_RESUMEN: EstadoReposicion[] = ['quiebre_probable', 'riesgo', 'pedir_hoy', 'pedir', 'datos_insuficientes', 'sobreinventario', 'ok'];
 
 function textoCobertura(i: ItemRecomendacion): string {
@@ -35,11 +40,11 @@ const COLOR_BARRA: Record<EstadoReposicion, string> = {
 // Días de cobertura que llenan la barra completa
 const DIAS_BARRA = 21;
 
-function FilaInsumo({ i }: { i: ItemRecomendacion }) {
+function FilaInsumo({ i, soloImpresion }: { i: ItemRecomendacion; soloImpresion?: boolean }) {
   const estado = ESTADOS[i.estado];
   const hayExtras = i.faltantes.length > 0 || i.advertencias.length > 0 || (i.cantidad_recomendada > 0 && (i.proveedor || i.fecha_limite_pedido));
   return (
-    <li className="overflow-hidden rounded-tarjeta border border-linea bg-tabla">
+    <li className={`overflow-hidden rounded-tarjeta border border-linea bg-tabla ${soloImpresion ? 'hidden print:block' : ''}`}>
       <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center sm:gap-5">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-azul-noche">{i.nombre}</p>
@@ -122,27 +127,38 @@ function FilaInsumo({ i }: { i: ItemRecomendacion }) {
 export function ReposicionPage() {
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['reposicion', 'recomendaciones'], queryFn: getRecomendaciones });
   const [estado, setEstado] = useState<EstadoReposicion | null>(null);
+  const [verTodos, setVerTodos] = useState(false);
+  const { usuario } = useAuth();
+  const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
 
   // Lo más urgente primero: el orden es el mismo de los filtros
   const visibles = useMemo(
     () =>
       (data?.items ?? [])
         .filter((i) => estado === null || i.estado === estado)
-        .sort((a, b) => ORDEN_RESUMEN.indexOf(a.estado) - ORDEN_RESUMEN.indexOf(b.estado)),
+        .sort(
+          (a, b) =>
+            ORDEN_RESUMEN.indexOf(a.estado) - ORDEN_RESUMEN.indexOf(b.estado) ||
+            RANGO_CLASE(a.clase_abc) - RANGO_CLASE(b.clase_abc) ||
+            (a.cobertura_dias ?? Infinity) - (b.cobertura_dias ?? Infinity) ||
+            a.nombre.localeCompare(b.nombre, 'es'),
+        ),
     [data, estado],
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-pizarra px-4 py-5 text-white sm:-mx-6 sm:-mt-6 sm:px-7 sm:py-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-white sm:text-[28px]">Reposición</h1>
-          <p className="mt-1 text-sm text-niebla">
-            Qué pedir, cuándo y cuánto{data ? ` · cálculo de hoy, ${formatoFecha(data.fecha)}` : ''}
-          </p>
-        </div>
-        <BotonImprimir />
+    <div className="ficha-impresion flex flex-col gap-4">
+      <div className="hidden print:block">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gris-texto">{panaderia.data?.nombre ?? ''}</p>
+        <h1 className="font-display text-2xl font-semibold text-azul-noche">Reposición: qué pedir</h1>
+        <p className="mt-1 text-sm text-gris-texto">{data ? `Cálculo del ${formatoFecha(data.fecha)}` : ''}</p>
       </div>
+      <PageHeader
+        ocultarAlImprimir
+        titulo="Reposición"
+        subtitulo={`Qué pedir, cuándo y cuánto${data ? ` · cálculo de hoy, ${formatoFecha(data.fecha)}` : ''}`}
+        acciones={data && <BotonImprimir etiqueta="Imprimir pedidos" />}
+      />
       <NavReposicion />
 
       {isLoading && (
@@ -166,14 +182,14 @@ export function ReposicionPage() {
             </Alert>
           )}
 
-          <section aria-label="Resumen" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <section aria-label="Resumen" className="kpis grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Indicador
               indice={0}
               tono="azul"
               etiqueta="Para pedir"
               valor={String(data.resumen.quiebre_probable + data.resumen.pedir_hoy + data.resumen.pedir)}
               numero={data.resumen.quiebre_probable + data.resumen.pedir_hoy + data.resumen.pedir}
-              detalle="insumos que hay que pedir"
+              detalle={data.pedidos.length > 0 ? `${data.pedidos.length} ${data.pedidos.length === 1 ? 'proveedor' : 'proveedores'} · ${formatoDinero(data.pedidos.reduce((t, p) => t + p.costos.total, 0))}` : 'insumos que hay que pedir'}
             />
             <Indicador
               indice={1}
@@ -186,26 +202,6 @@ export function ReposicionPage() {
             <Indicador indice={2} tono="gris" etiqueta="Faltan datos" valor={String(data.resumen.datos_insuficientes)} numero={data.resumen.datos_insuficientes} detalle="no se pueden calcular" />
             <Indicador indice={3} tono="verde" etiqueta="Suficiente" valor={String(data.resumen.ok)} numero={data.resumen.ok} detalle="alcanzan hasta la próxima entrega" />
           </section>
-
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
-            <button
-              type="button"
-              onClick={() => setEstado(null)}
-              className={`min-h-11 rounded-full border px-3 text-sm ${estado === null ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo text-grafito'}`}
-            >
-              Todos ({data.items.length})
-            </button>
-            {ORDEN_RESUMEN.filter((e) => data.resumen[e] > 0).map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setEstado(estado === e ? null : e)}
-                className={`min-h-11 rounded-full border px-3 text-sm ${estado === e ? 'border-azul-noche bg-info-fondo text-pizarra' : 'border-borde-campo text-grafito'}`}
-              >
-                {ESTADOS[e].etiqueta} ({data.resumen[e]})
-              </button>
-            ))}
-          </div>
 
           {data.pedidos.length > 0 && (
             <Seccion titulo="Pedidos por proveedor">
@@ -255,13 +251,33 @@ export function ReposicionPage() {
           )}
 
           <section className="flex flex-col gap-3" aria-label="Por insumo">
-            <h2 className="text-sm font-semibold text-azul-noche">Por insumo ({visibles.length})</h2>
+            <h2 className="font-display text-lg font-semibold text-azul-noche">Por insumo ({visibles.length})</h2>
+          <div className="flex flex-wrap gap-2 print:hidden" role="group" aria-label="Filtrar por estado">
+            {([null, ...ORDEN_RESUMEN.filter((e) => data.resumen[e] > 0)] as (EstadoReposicion | null)[]).map((e) => (
+              <button
+                key={e ?? 'todos'}
+                type="button"
+                aria-pressed={estado === e}
+                onClick={() => { setEstado(estado === e ? null : e); setVerTodos(false); }}
+                className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors ${estado === e ? 'border-azul-noche bg-azul-noche text-white' : 'border-borde-campo bg-white text-azul-noche hover:bg-arena'}`}
+              >
+                {e === null ? 'Todos' : ESTADOS[e].etiqueta}
+                <span className="cifras text-xs opacity-80">{e === null ? data.items.length : data.resumen[e]}</span>
+              </button>
+            ))}
+          </div>
+
             {visibles.length === 0 ? <EmptyState titulo="Sin insumos" mensaje="Ningún insumo tiene ese estado." /> : (
               <ul className="flex flex-col gap-2">
-                {visibles.map((i) => (
-                  <FilaInsumo key={i.materia_prima_id} i={i} />
+                {visibles.map((i, n) => (
+                  <FilaInsumo key={i.materia_prima_id} i={i} soloImpresion={!verTodos && n >= INICIAL} />
                 ))}
               </ul>
+            )}
+            {visibles.length > INICIAL && (
+              <button type="button" onClick={() => setVerTodos((v) => !v)} className="min-h-11 w-fit text-sm font-semibold text-pizarra hover:underline print:hidden">
+                {verTodos ? 'Ver menos' : `Ver los ${visibles.length} insumos`}
+              </button>
             )}
           </section>
 
