@@ -22,6 +22,7 @@ import { ConteoDetallePage } from '../../pages/ConteoDetallePage';
 import { CambiarContrasenaPage } from '../../pages/CambiarContrasenaPage';
 import { UsuariosPage } from '../../pages/UsuariosPage';
 import { PanaderiasPage } from '../../pages/PanaderiasPage';
+import { IndicadoresPage } from '../../pages/IndicadoresPage';
 import { PorRol } from '../../components/layout/PorRol';
 import { TableroOperario } from '../../features/operario/TableroOperario';
 import { ExistenciasOperario } from '../../features/operario/ExistenciasOperario';
@@ -65,6 +66,7 @@ export function AppRouter() {
           <Route path="/reposicion" element={<ReposicionPage />} />
           <Route path="/reposicion/eoq" element={<AnalisisEoqPage />} />
           <Route path="/reposicion/parametros" element={<ParametrosReposicionPage />} />
+          <Route path="/indicadores" element={<IndicadoresPage />} />
         </Route>
       </Route>
 
