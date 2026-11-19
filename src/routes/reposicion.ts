@@ -9,6 +9,7 @@ import { elegirPrecio } from '../utils/precios';
 import { revisarCoherencia, validarParametros } from '../utils/parametrosInventario';
 import {
   armarRecomendaciones,
+  type ModoCostoPedido,
   type ClaseAbc,
   type DatosInsumo,
   type DatosProveedor,
@@ -137,9 +138,18 @@ export async function cargarDatosReposicion(prisma: PrismaClient, panaderiaId: s
   return { hoy, hora, insumos, proveedores: datosProveedores };
 }
 
-export async function cargarRecomendaciones(prisma: PrismaClient, panaderiaId: string, ahora: Date = new Date()) {
+// Por defecto el costo de pedir se reparte entre los insumos del mismo proveedor: un pedido cubre varios insumos.
+// `?costo_pedido=por_insumo` da el EOQ clásico (cada insumo con el costo completo) para comparar.
+export const modoCostoPedido = (valor: unknown): ModoCostoPedido => (valor === 'por_insumo' ? 'por_insumo' : 'compartido');
+
+export async function cargarRecomendaciones(
+  prisma: PrismaClient,
+  panaderiaId: string,
+  ahora: Date = new Date(),
+  costoPedido: ModoCostoPedido = 'compartido',
+) {
   const datos = await cargarDatosReposicion(prisma, panaderiaId, ahora);
-  return armarRecomendaciones(datos);
+  return armarRecomendaciones(datos, { costoPedido });
 }
 
 export function crearRouterReposicion(prisma: PrismaClient, ahora: () => Date = () => new Date()) {
@@ -150,7 +160,7 @@ export function crearRouterReposicion(prisma: PrismaClient, ahora: () => Date = 
   // Qué pedir, cuándo y cuánto, insumo por insumo y agrupado por proveedor
   router.get('/recomendaciones', async (req, res) => {
     try {
-      res.json(await cargarRecomendaciones(prisma, req.panaderiaId!, ahora()));
+      res.json(await cargarRecomendaciones(prisma, req.panaderiaId!, ahora(), modoCostoPedido(req.query.costo_pedido)));
     } catch (error) {
       console.error('Error al calcular las recomendaciones de reposición:', error);
       res.status(500).json({ error: 'Error al calcular las recomendaciones de reposición' });
@@ -162,7 +172,7 @@ export function crearRouterReposicion(prisma: PrismaClient, ahora: () => Date = 
     const panaderiaId = req.panaderiaId!;
     try {
       const momento = ahora();
-      const recomendaciones = await cargarRecomendaciones(prisma, panaderiaId, momento);
+      const recomendaciones = await cargarRecomendaciones(prisma, panaderiaId, momento, modoCostoPedido(req.query.costo_pedido));
       const { filas, omitidos } = armarFilasCorte(recomendaciones.items);
       if (filas.length === 0) {
         return res.status(422).json({

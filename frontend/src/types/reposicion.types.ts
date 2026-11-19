@@ -51,6 +51,8 @@ export interface ItemRecomendacion {
     // Costo anual de pedir y guardar pidiendo justo el EOQ
     costo_anual_eoq: number;
   } | null;
+  // Con el costo de pedir compartido: lo que se cargó y entre cuántos insumos del proveedor se reparte
+  costo_pedido_compartido: { base: number; insumos: number } | null;
   cantidad_recomendada: number;
   presentacion: string | null;
   presentaciones_a_pedir: number | null;
@@ -86,8 +88,12 @@ export interface InsumoAlUso {
   demanda_origen: OrigenDemanda | null;
 }
 
+// 'compartido': el costo de un pedido se reparte entre los insumos que van juntos. 'por_insumo': EOQ clásico, cada insumo lo lleva completo.
+export type ModoCostoPedido = 'compartido' | 'por_insumo';
+
 export interface RespuestaRecomendaciones {
   fecha: string;
+  costo_pedido_modo: ModoCostoPedido;
   resumen: Record<EstadoReposicion, number>;
   items: ItemRecomendacion[];
   al_uso: InsumoAlUso[];

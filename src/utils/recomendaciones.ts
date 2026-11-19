@@ -109,6 +109,11 @@ export interface ItemRecomendacion {
   cantidad_recomendada: number;
   presentacion: string | null;
   presentaciones_a_pedir: number | null;
+  /**
+   * Con el costo de pedir compartido: el costo por pedido que se cargó y entre cuántos insumos del
+   * mismo proveedor se reparte. Es null cuando cada insumo carga su costo completo.
+   */
+  costo_pedido_compartido: { base: number; insumos: number } | null;
   /** Dinero: la ruta lo quita si quien consulta no puede ver costos. */
   costos: { precio_presentacion: number; valor_pedido: number; costo_total_anual: number | null } | null;
 }
@@ -136,8 +141,22 @@ export interface InsumoAlUso {
   demanda_origen: OrigenDemanda | null;
 }
 
+/**
+ * Cómo se carga el costo de hacer un pedido (S):
+ * - `por_insumo`: cada insumo lleva S completo, como en el EOQ clásico de un solo producto.
+ * - `compartido`: un pedido al proveedor cubre varios insumos, así que S se reparte entre los
+ *   insumos del mismo proveedor que tienen demanda y se piden por ciclo (no los `al_uso`).
+ */
+export type ModoCostoPedido = 'por_insumo' | 'compartido';
+
+export interface OpcionesRecomendaciones {
+  costoPedido?: ModoCostoPedido;
+}
+
 export interface ResultadoRecomendaciones {
   fecha: FechaCivil;
+  /** Cómo se cargó el costo por pedido en este cálculo. */
+  costo_pedido_modo: ModoCostoPedido;
   resumen: Record<EstadoReposicion, number>;
   items: ItemRecomendacion[];
   /** Insumos en modo `al_uso`: no se calcula cuándo pedirlos y no cuentan en el resumen ni en las alertas. */
@@ -168,8 +187,23 @@ export interface EntradaRecomendaciones {
   proveedores: readonly DatosProveedor[];
 }
 
-export function armarRecomendaciones(entrada: EntradaRecomendaciones): ResultadoRecomendaciones {
+export function armarRecomendaciones(
+  entrada: EntradaRecomendaciones,
+  opciones: OpcionesRecomendaciones = {},
+): ResultadoRecomendaciones {
+  const modoCosto: ModoCostoPedido = opciones.costoPedido ?? 'por_insumo';
   const proveedores = new Map(entrada.proveedores.map((p) => [p.id, p]));
+
+  // Cuántos insumos comparten el pedido de cada proveedor (solo los que de verdad se piden por ciclo)
+  const insumosPorProveedor = new Map<string, number>();
+  if (modoCosto === 'compartido') {
+    for (const i of entrada.insumos) {
+      if (i.parametros?.modo_reposicion === 'al_uso' || !i.oferta || i.parametros?.costo_pedido == null) continue;
+      const d = resolverDemanda({ real: i.consumo_real, declaradaSemanal: i.consumo_declarado_semanal, estimadaSemanal: i.consumo_estimado_semanal });
+      if (d === null) continue;
+      insumosPorProveedor.set(i.oferta.proveedor_id, (insumosPorProveedor.get(i.oferta.proveedor_id) ?? 0) + 1);
+    }
+  }
   const items: ItemRecomendacion[] = [];
   const alUso: InsumoAlUso[] = [];
 
@@ -210,6 +244,11 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
         ? { diasEntrega: proveedor.dias_entrega, plazoDias: plazo }
         : null;
 
+    // Costo de pedir: completo por insumo o repartido entre los insumos del mismo pedido
+    const insumosEnPedido =
+      modoCosto === 'compartido' && oferta ? Math.max(1, insumosPorProveedor.get(oferta.proveedor_id) ?? 1) : 1;
+    const costoPedido = par?.costo_pedido == null ? null : par.costo_pedido / insumosEnPedido;
+
     // Stock de seguridad: días de consumo si están definidos; si no, el stock mínimo en unidades
     let stockSeguridad: number | null = null;
     if (par?.dias_seguridad != null && demanda !== null) stockSeguridad = demanda.diaria * par.dias_seguridad;
@@ -229,7 +268,7 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
       fechaPedido,
       existencia: insumo.existencia,
       demanda,
-      costoPedido: par?.costo_pedido ?? null,
+      costoPedido,
       costoMantener,
       stockSeguridad,
       calendario,
@@ -282,15 +321,17 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
       ciclo_economico_dias: r.ciclo_economico_dias === null ? null : redondear(r.ciclo_economico_dias, 1),
       ciclos_elegidos: r.ciclos_elegidos,
       modelo:
-        r.eoq !== null && r.costo_anual_eoq !== null && demanda !== null && par?.costo_pedido != null && costoMantener !== null
+        r.eoq !== null && r.costo_anual_eoq !== null && demanda !== null && costoPedido !== null && costoMantener !== null
           ? {
               demanda_anual: redondear(demanda.anual),
-              costo_pedido: par.costo_pedido,
+              costo_pedido: redondear(costoPedido, 2),
               costo_mantener: redondear(costoMantener, 4),
               cantidad_politica: r.cantidad_politica === null ? null : redondear(r.cantidad_politica),
               costo_anual_eoq: redondear(r.costo_anual_eoq, 2),
             }
           : null,
+      costo_pedido_compartido:
+        modoCosto === 'compartido' && par?.costo_pedido != null ? { base: par.costo_pedido, insumos: insumosEnPedido } : null,
       cantidad_recomendada: redondear(r.cantidad_recomendada),
       presentacion: oferta ? oferta.presentacion : null,
       presentaciones_a_pedir: presentaciones,
@@ -359,5 +400,5 @@ export function armarRecomendaciones(entrada: EntradaRecomendaciones): Resultado
 
   alUso.sort((a, b) => comparar(a.nombre, b.nombre) || comparar(a.materia_prima_id, b.materia_prima_id));
 
-  return { fecha: entrada.hoy, resumen, items, al_uso: alUso, pedidos };
+  return { fecha: entrada.hoy, costo_pedido_modo: modoCosto, resumen, items, al_uso: alUso, pedidos };
 }
