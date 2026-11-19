@@ -80,6 +80,8 @@ export interface LoteContable {
   codigo: string;
   nombre: string;
   unidad: string;
+  // Clase ABC del insumo (A = el que más pesa en el costo); null si no se pudo clasificar
+  clase_abc: 'A' | 'B' | 'C' | null;
   contado: boolean;
 }
 

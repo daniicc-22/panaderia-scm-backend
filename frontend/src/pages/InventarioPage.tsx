@@ -6,6 +6,10 @@ import { BotonImprimir } from '../components/ui/BotonImprimir';
 import { Indicador } from '../features/inicio/Panel';
 import { useAuth } from '../features/auth/useAuth';
 import { getMiPanaderia } from '../services/panaderiaService';
+import { getRecomendaciones } from '../services/reposicionService';
+import { ESTADOS } from '../features/reposicion/etiquetas';
+import type { ItemRecomendacion } from '../types/reposicion.types';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
@@ -27,8 +31,12 @@ import {
 import { getInventario, getOpcionesEntrada } from '../services/inventarioService';
 import type { EntradaRegistrada, EstadoStock, ItemInventario } from '../types/inventario.types';
 
-type Filtro = 'todos' | 'con_stock' | EstadoStock;
-type Orden = 'nombre' | 'vencimiento' | 'valor';
+type Filtro = 'todos' | 'con_stock' | 'por_pedir' | EstadoStock;
+type Orden = 'nombre' | 'vencimiento' | 'valor' | 'urgencia';
+const ROLES_GESTION = ['administrador', 'superadministrador'];
+// Estados de reposición que piden una compra; el número ordena de más a menos urgente
+const URGENCIA: Record<string, number> = { quiebre_probable: 0, pedir_hoy: 1, riesgo: 2, pedir: 3 };
+const COLOR_CLASE = { A: 'bg-trigo-suave text-atencion-texto', B: 'bg-azul-suave text-azul-noche', C: 'bg-arena text-gris-texto' } as const;
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 const BORDE_ESTADO: Record<EstadoStock, string> = {
@@ -41,6 +49,7 @@ const BORDE_ESTADO: Record<EstadoStock, string> = {
 const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: 'todos', etiqueta: 'Todos' },
   { valor: 'con_stock', etiqueta: 'Con existencias' },
+  { valor: 'por_pedir', etiqueta: 'Por pedir' },
   { valor: 'por_vencer', etiqueta: 'Por vencer' },
   { valor: 'vencido', etiqueta: 'Vencidos' },
   { valor: 'sin_stock', etiqueta: 'Sin existencias' },
@@ -51,6 +60,12 @@ export function InventarioPage() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [orden, setOrden] = useState<Orden>('nombre');
   const { usuario } = useAuth();
+  const esGestion = ROLES_GESTION.includes(usuario?.rol ?? '');
+  // Reposición es solo de gestión: el operario ve existencias, no compras
+  const reposicion = useQuery({ queryKey: ['reposicion', 'recomendaciones'], queryFn: getRecomendaciones, enabled: esGestion });
+  const recDe = useMemo(() => new Map<string, ItemRecomendacion>((reposicion.data?.items ?? []).map((r) => [r.materia_prima_id, r])), [reposicion.data]);
+  const porPedir = useMemo(() => (reposicion.data?.items ?? []).filter((r) => r.estado in URGENCIA).sort((a, b) => URGENCIA[a.estado] - URGENCIA[b.estado]), [reposicion.data]);
+  const verReposicion = esGestion && !!reposicion.data;
   const panaderia = useQuery({ queryKey: ['mi-panaderia', usuario?.id], queryFn: getMiPanaderia, enabled: !!usuario, staleTime: 5 * 60 * 1000 });
   const [entradaAbierta, setEntradaAbierta] = useState(false);
   const [conLotes, setConLotes] = useState<ItemInventario | null>(null);
@@ -83,10 +98,14 @@ export function InventarioPage() {
   const visibles = useMemo(() => {
     const texto = sinTildes(busqueda.trim());
     const filtrados = (items ?? []).filter(
-      (i) => (filtro === 'todos' || (filtro === 'con_stock' ? i.estado !== 'sin_stock' : i.estado === filtro)) && (!texto || sinTildes(i.nombre).includes(texto) || sinTildes(i.codigo).includes(texto)),
+      (i) => (filtro === 'todos' || (filtro === 'con_stock' ? i.estado !== 'sin_stock' : filtro === 'por_pedir' ? (recDe.get(i.materia_prima_id)?.estado ?? '') in URGENCIA : i.estado === filtro)) && (!texto || sinTildes(i.nombre).includes(texto) || sinTildes(i.codigo).includes(texto)),
     );
     const porNombre = (x: ItemInventario, y: ItemInventario) => x.nombre.localeCompare(y.nombre, 'es');
     return [...filtrados].sort((x, y) => {
+      if (orden === 'urgencia') {
+        const u = (i: ItemInventario) => URGENCIA[recDe.get(i.materia_prima_id)?.estado ?? ''] ?? 9;
+        return u(x) - u(y) || porNombre(x, y);
+      }
       // Los insumos con existencias van primero: los agotados no deben tapar lo que sí hay
       const conStock = Number(y.stock > 0) - Number(x.stock > 0);
       if (conStock !== 0) return conStock;
@@ -95,9 +114,9 @@ export function InventarioPage() {
       if (orden === 'valor') return (y.valor ?? -1) - (x.valor ?? -1) || porNombre(x, y);
       return porNombre(x, y);
     });
-  }, [items, busqueda, filtro, orden]);
+  }, [items, busqueda, filtro, orden, recDe]);
 
-  const conteoFiltro = (f: Filtro) => (f === 'todos' ? (items ?? []).length : f === 'con_stock' ? (items ?? []).filter((i) => i.estado !== 'sin_stock').length : (items ?? []).filter((i) => i.estado === f).length);
+  const conteoFiltro = (f: Filtro) => (f === 'todos' ? (items ?? []).length : f === 'por_pedir' ? (items ?? []).filter((i) => (recDe.get(i.materia_prima_id)?.estado ?? '') in URGENCIA).length : f === 'con_stock' ? (items ?? []).filter((i) => i.estado !== 'sin_stock').length : (items ?? []).filter((i) => i.estado === f).length);
 
   function abrirEntrada() {
     setRegistrada(null);
@@ -157,6 +176,17 @@ export function InventarioPage() {
         <AlertasVencimiento />
       </div>
 
+      {verReposicion && porPedir.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-tarjeta border border-trigo bg-atencion-fondo px-4 py-3 text-sm text-atencion-texto print:hidden">
+          <p>
+            <span className="font-semibold">{porPedir.length === 1 ? '1 insumo' : `${porPedir.length} insumos`} para pedir:</span>{' '}
+            {porPedir.slice(0, 3).map((r) => r.nombre).join(', ')}
+            {porPedir.length > 3 ? ` y ${porPedir.length - 3} más` : ''}.
+          </p>
+          <Link to="/reposicion" className="font-semibold underline">Ver en Reposición</Link>
+        </div>
+      )}
+
       {items && (
         <div className={`kpis grid grid-cols-2 gap-3 ${verValor ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
           <Indicador etiqueta="Con existencias" valor="—" numero={conteo.con_stock} detalle={`de ${items.length} insumos`} tono="azul" indice={0} />
@@ -186,11 +216,12 @@ export function InventarioPage() {
               <option value="nombre">Nombre</option>
               <option value="vencimiento">Vencimiento más próximo</option>
               {verValor && <option value="valor">Mayor valor</option>}
+              {verReposicion && <option value="urgencia">Más urgentes de pedir</option>}
             </select>
           </label>
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
-          {FILTROS.map((f) => (
+          {FILTROS.filter((f) => f.valor !== 'por_pedir' || verReposicion).map((f) => (
             <button
               key={f.valor}
               type="button"
@@ -250,7 +281,7 @@ export function InventarioPage() {
             <table className="min-w-full divide-y divide-linea">
               <thead className="bg-hueso">
                 <tr>
-                  {['Código', 'Insumo', 'Existencias', 'Lotes', 'Próximo vencimiento', 'Estado', ...(verValor ? ['Valor'] : []), ''].map((h) => (
+                  {['Código', 'Insumo', 'Existencias', ...(verReposicion ? ['Reposición'] : []), 'Lotes', 'Próximo vencimiento', 'Estado', ...(verValor ? ['Valor'] : []), ''].map((h) => (
                     <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-azul-noche ${h === '' ? 'print:hidden' : ''}`}>
                       {h}
                     </th>
@@ -261,8 +292,22 @@ export function InventarioPage() {
                 {visibles.map((i) => (
                   <tr key={i.materia_prima_id} className={`hover:bg-hueso ${i.estado === 'vencido' ? 'bg-critico-fondo/40' : ''}`}>
                     <td className="px-4 py-3 text-sm text-grafito">{i.codigo}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-grafito">{i.nombre}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-grafito">
+                      <span className="flex items-center gap-2">
+                        {i.nombre}
+                        {recDe.get(i.materia_prima_id)?.clase_abc && (
+                          <span title={`Clase ${recDe.get(i.materia_prima_id)?.clase_abc} del ABC`} className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${COLOR_CLASE[recDe.get(i.materia_prima_id)!.clase_abc!]}`}>
+                            {recDe.get(i.materia_prima_id)?.clase_abc}
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className={`cifras px-4 py-3 text-sm ${i.stock > 0 ? 'font-semibold text-grafito' : 'text-gris-texto'}`}>{formatoCantidad(i.stock, i.unidad)}</td>
+                    {verReposicion && (
+                      <td className="px-4 py-3 text-sm">
+                        <CeldaReposicion r={recDe.get(i.materia_prima_id)} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm text-grafito">{i.lotes_activos}</td>
                     <td className="px-4 py-3 text-sm text-grafito">
                       {i.proximo_vencimiento ? (
@@ -325,5 +370,19 @@ export function InventarioPage() {
         {conLotes && <LotesPanel key={conLotes.materia_prima_id} materiaId={conLotes.materia_prima_id} hoy={hoy} />}
       </Modal>
     </div>
+  );
+}
+
+// Qué dice Reposición de este insumo: si hay que pedirlo, o cuántos días alcanza lo que hay
+function CeldaReposicion({ r }: { r: ItemRecomendacion | undefined }) {
+  if (!r || r.estado === 'datos_insuficientes') return <span className="text-gris-texto">—</span>;
+  const e = ESTADOS[r.estado];
+  return (
+    <span className="flex flex-col items-start gap-0.5">
+      <Badge color={e.color}>{e.etiqueta}</Badge>
+      {r.cobertura_dias !== null && r.existencia > 0 && (
+        <span className="cifras text-xs text-gris-texto">Alcanza ~{Math.floor(r.cobertura_dias)} {Math.floor(r.cobertura_dias) === 1 ? 'día' : 'días'}</span>
+      )}
+    </span>
   );
 }
