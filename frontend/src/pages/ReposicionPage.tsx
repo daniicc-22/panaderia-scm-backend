@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Printer } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
@@ -208,10 +208,17 @@ function TarjetaPedido({ p, hoy, items, unico }: { p: PedidoProveedor; hoy: stri
             {abierto ? 'Ver menos' : `Ver los ${lineas.length} insumos del pedido`}
           </button>
         )}
+        <Link
+          to={`/reposicion/pedido/${p.proveedor.id}`}
+          className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-md border border-borde-campo bg-white px-3 text-sm font-semibold text-azul-noche hover:bg-arena"
+        >
+          <Printer size={16} aria-hidden="true" />
+          Orden para imprimir
+        </Link>
         <button
           type="button"
           onClick={copiar}
-          className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-md border border-borde-campo bg-white px-3 text-sm font-semibold text-azul-noche hover:bg-arena"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-borde-campo bg-white px-3 text-sm font-semibold text-azul-noche hover:bg-arena"
         >
           {copiado ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           {copiado ? 'Pedido copiado' : 'Copiar pedido'}
