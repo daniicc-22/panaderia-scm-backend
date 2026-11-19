@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Check, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
@@ -16,6 +17,7 @@ import { ParametroForm } from '../features/reposicion/ParametroForm';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
 import { getParametrosReposicion, getRecomendaciones } from '../services/reposicionService';
 import { getProveedores } from '../services/proveedoresService';
+import { formatoDinero } from '../features/inventario/formatos';
 import type { ItemParametros } from '../types/reposicion.types';
 
 type Filtro = 'todos' | 'faltan' | 'al_uso' | 'completos';
@@ -66,7 +68,7 @@ export function ParametrosReposicionPage() {
     const texto = busqueda.trim().toLowerCase();
     return items
       .filter((i) => (!texto || i.nombre.toLowerCase().includes(texto) || i.codigo.toLowerCase().includes(texto)) && cumple(i, filtro))
-      .sort((a, b) => Number(situacion(b).faltan) - Number(situacion(a).faltan) || RANGO_CLASE(a.clase_abc) - RANGO_CLASE(b.clase_abc) || a.nombre.localeCompare(b.nombre, 'es'));
+      .sort((a, b) => Number(situacion(a).esAlUso) - Number(situacion(b).esAlUso) || Number(situacion(b).faltan) - Number(situacion(a).faltan) || RANGO_CLASE(a.clase_abc) - RANGO_CLASE(b.clase_abc) || a.nombre.localeCompare(b.nombre, 'es'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, busqueda, filtro, faltaCodigo, calculo, alUso]);
 
@@ -87,7 +89,7 @@ export function ParametrosReposicionPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         titulo="Parámetros de reposición"
-        subtitulo={`Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir${parametros.data ? ` · ${cuantosFaltan} de ${items.length} con datos por completar` : ''}`}
+        subtitulo={`Lo que el sistema necesita saber de cada insumo para decir cuándo y cuánto pedir${parametros.data ? ` · ${cuantosFaltan === 0 ? `${items.length} insumos, todos con sus datos` : `${cuantosFaltan} de ${items.length} con datos por completar`}` : ''}`}
         acciones={
           <Button type="button" onClick={() => setCompletando(true)} disabled={items.length === 0}>
             Completar vacíos
@@ -161,14 +163,17 @@ export function ParametrosReposicionPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        <input
-          type="search"
-          aria-label="Buscar insumo"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar insumo"
-          className="min-h-11 w-full rounded-md border border-borde-campo px-3 py-2 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:max-w-xs sm:text-sm"
-        />
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gris-texto" />
+          <input
+            type="search"
+            aria-label="Buscar insumo"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar insumo"
+            className="min-h-11 w-full rounded-md border border-borde-campo bg-white py-2 pl-9 pr-3 text-base focus:outline-hidden focus:ring-2 focus:ring-trigo sm:text-sm"
+          />
+        </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar insumos">
           {(['todos', 'faltan', 'completos', 'al_uso'] as const).filter((f) => f === 'todos' || cuenta(f) > 0).map((f) => (
             <button
@@ -192,7 +197,7 @@ export function ParametrosReposicionPage() {
       <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_minmax(0,1.8fr)_5rem] gap-4 px-3 text-xs font-semibold uppercase tracking-wider text-gris-texto sm:grid" aria-hidden="true">
         <span>Insumo</span>
         <span>Estado</span>
-        <span>Qué falta</span>
+        <span>Datos</span>
         <span />
       </div>
       <ul className="flex flex-col overflow-hidden rounded-tarjeta border border-linea bg-tabla">
@@ -213,9 +218,23 @@ export function ParametrosReposicionPage() {
               <div>
                 {esAlUso ? <Badge color="blue">Según la producción</Badge> : c ? <Badge color={ESTADOS[c.estado].color}>{ESTADOS[c.estado].etiqueta}</Badge> : <Badge>Sin calcular</Badge>}
               </div>
-              <p className="text-xs text-gris-texto">
-                {esAlUso ? 'No necesita parámetros de reposición' : c && c.faltantes.length > 0 ? c.faltantes.map(etiquetaFaltante).join(', ') : c ? 'Completo' : '—'}
-              </p>
+              <div className="text-xs text-gris-texto">
+                {esAlUso ? (
+                  'No necesita parámetros de reposición'
+                ) : c && c.faltantes.length > 0 ? (
+                  <p className="font-medium text-atencion-texto">Falta: {c.faltantes.map(etiquetaFaltante).join(', ')}</p>
+                ) : c ? (
+                  <p className="flex flex-wrap items-center gap-1.5">
+                    <Check size={14} aria-label="Completo" className="text-verde-bosque" />
+                    {i.parametros?.dias_seguridad != null && <span className="rounded bg-hueso px-1.5 py-0.5">Seguridad {i.parametros.dias_seguridad} d</span>}
+                    {i.parametros?.plazo_dias != null && <span className="rounded bg-hueso px-1.5 py-0.5">Entrega {i.parametros.plazo_dias} d</span>}
+                    {i.parametros?.costo_pedido != null && <span className="rounded bg-hueso px-1.5 py-0.5">Pedido {formatoDinero(i.parametros.costo_pedido)}</span>}
+                    {i.parametros === null || (i.parametros.dias_seguridad == null && i.parametros.plazo_dias == null && i.parametros.costo_pedido == null) ? <span>Completo</span> : null}
+                  </p>
+                ) : (
+                  '—'
+                )}
+              </div>
               <div className="sm:text-right">
                 <Button type="button" variant="secondary" onClick={() => setEditando(i)}>
                   Editar

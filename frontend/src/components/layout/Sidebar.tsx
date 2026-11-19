@@ -73,7 +73,7 @@ const GRUPOS_MENU: GrupoMenu[] = [
     items: [
       { etiqueta: 'Reposición', ruta: '/reposicion', icono: ShoppingCart, rolesPermitidos: GESTION },
       { etiqueta: 'Análisis EOQ', ruta: '/reposicion/eoq', icono: ChartLine, rolesPermitidos: GESTION },
-      { etiqueta: 'Parámetros de reposición', ruta: '/reposicion/parametros', icono: SlidersHorizontal, rolesPermitidos: GESTION },
+      { etiqueta: 'Parámetros', ruta: '/reposicion/parametros', icono: SlidersHorizontal, rolesPermitidos: GESTION },
       { etiqueta: 'Clasificación ABC', ruta: '/clasificacion-abc', icono: ChartPie, rolesPermitidos: GESTION },
       { etiqueta: 'Indicadores del proyecto', ruta: '/indicadores', icono: Target, rolesPermitidos: GESTION },
     ],
