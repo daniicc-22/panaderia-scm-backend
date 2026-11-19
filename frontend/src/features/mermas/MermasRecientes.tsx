@@ -67,7 +67,7 @@ export function MermasRecientes() {
       ) : lista.isError ? (
         <ErrorState onReintentar={() => lista.refetch()} />
       ) : todas.length === 0 ? (
-        <EmptyState mensaje="Todavía no hay mermas registradas." />
+        <EmptyState titulo="Sin mermas registradas" mensaje="Cuando registres una, aparecerá aquí con su causa, etapa y cantidad." />
       ) : (
         <ul className="flex flex-col gap-2">
           {visibles.map((m) => (

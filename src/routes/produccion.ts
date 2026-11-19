@@ -410,13 +410,16 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
         existencias.set(l.materia_prima_id!, (existencias.get(l.materia_prima_id!) ?? 0) + Number(l.cantidad_disponible));
       }
 
+      // Intermedios que impiden calcular: se nombran para que se sepa cuál receta arreglar
+      const intermediosConProblema = new Map<number, { sinReceta: string[]; ciclos: string[] }>();
       const productos: ProductoProducible[] = formulaciones
         .filter((f) => f.producto.activo && !f.producto.es_intermedio)
-        .map((f) => {
+        .map((f, indice) => {
           const lineas = aLineasReceta(f.detalle_formulacion);
           const need = necesidadesDeProduccion(lineas, recetas, f.producto_id, 1);
           let bloqueo: string | null = null;
           if (need.sin_receta.size > 0 || need.ciclos.size > 0) {
+            intermediosConProblema.set(indice, { sinReceta: [...need.sin_receta], ciclos: [...need.ciclos] });
             bloqueo = 'La receta usa un producto intermedio sin receta vigente o con referencia circular.';
           } else if (need.materias.size === 0) {
             bloqueo = 'La receta no tiene insumos.';
@@ -445,6 +448,24 @@ export function crearRouterProduccion(prisma: PrismaClient, ahora: () => Date = 
             bloqueo,
           };
         });
+
+      if (intermediosConProblema.size > 0) {
+        const ids = [...new Set([...intermediosConProblema.values()].flatMap((x) => [...x.sinReceta, ...x.ciclos]))];
+        let nombres = new Map<string, string>();
+        try {
+          const filas = await prisma.producto.findMany({ where: { id: { in: ids }, panaderia_id: panaderiaId }, select: { id: true, nombre: true } });
+          nombres = new Map(filas.map((x) => [x.id, x.nombre]));
+        } catch {
+          // Sin nombres se conserva el mensaje general
+        }
+        const lista = (xs: string[]) => xs.map((id) => `«${nombres.get(id) ?? 'un producto intermedio'}»`).join(', ');
+        for (const [indice, x] of intermediosConProblema) {
+          const partes: string[] = [];
+          if (x.sinReceta.length > 0) partes.push(`${lista(x.sinReceta)} no tiene receta vigente`);
+          if (x.ciclos.length > 0) partes.push(`${lista(x.ciclos)} se referencia a sí mismo`);
+          productos[indice].bloqueo = `Falta arreglar un intermedio: ${partes.join(' y ')}.`;
+        }
+      }
 
       const items = queSePuedeProducir(
         productos,
