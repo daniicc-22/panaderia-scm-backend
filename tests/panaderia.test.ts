@@ -97,3 +97,21 @@ test('resolverPanaderia: un fallo de la base de datos responde 500', async () =>
   assert.equal(res.statusCode, 500);
   assert.equal(siguiente, false);
 });
+
+test('resolverPanaderia: un usuario desactivado después de recibir su token ya no entra (401)', async () => {
+  const { prisma } = prismaFalso({
+    asignacion: { panaderia_id: 'p-1', usuario: { activo: false, rol: { codigo: 'administrador' } } },
+  });
+  const { res, siguiente } = await ejecutar(prisma, { id: 'u-1', rol: 'administrador' });
+  assert.equal(res.statusCode, 401);
+  assert.equal(siguiente, false);
+});
+
+test('resolverPanaderia: manda el rol actual de la base de datos, no el que trae el token', async () => {
+  const { prisma } = prismaFalso({
+    asignacion: { panaderia_id: 'p-1', usuario: { activo: true, rol: { codigo: 'operario' } } },
+  });
+  const { req, siguiente } = await ejecutar(prisma, { id: 'u-1', rol: 'administrador' });
+  assert.equal(siguiente, true);
+  assert.equal(req.usuario.rol, 'operario');
+});

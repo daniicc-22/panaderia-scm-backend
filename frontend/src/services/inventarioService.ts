@@ -26,8 +26,8 @@ export async function getOpcionesEntrada(): Promise<OpcionesEntrada> {
   return data;
 }
 
-export async function registrarEntrada(datos: DatosEntrada): Promise<EntradaRegistrada> {
-  const { data } = await httpClient.post<EntradaRegistrada>('/inventario/entradas', datos);
+export async function registrarEntrada(datos: DatosEntrada, timeoutMs?: number): Promise<EntradaRegistrada> {
+  const { data } = await httpClient.post<EntradaRegistrada>('/inventario/entradas', datos, timeoutMs ? { timeout: timeoutMs } : undefined);
   return data;
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Loader2, Printer } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -137,17 +138,27 @@ export function CargaInicialPage() {
       const f = filas[m.id];
       cambiar(m.id, { estado: 'guardando', mensaje: '' });
       try {
-        await registrarEntrada({
-          materia_prima_id: m.id,
-          presentacion_id: f.presentacion_id,
-          cantidad: aNumero(f.cantidad),
-          ...(f.vencimiento ? { fecha_vencimiento: f.vencimiento } : {}),
-        });
+        // Código fijo por insumo y día: si la respuesta se pierde (señal, servidor lento) y se reintenta, el servidor
+        // responde «ya existe» en vez de crear el lote dos veces
+        await registrarEntrada(
+          {
+            materia_prima_id: m.id,
+            presentacion_id: f.presentacion_id,
+            cantidad: aNumero(f.cantidad),
+            codigo_lote: `INI-${hoy.replaceAll('-', '')}-${m.codigo}`,
+            ...(f.vencimiento ? { fecha_vencimiento: f.vencimiento } : {}),
+          },
+          60_000,
+        );
         setFilas((prev) => ({ ...prev, [m.id]: { ...prev[m.id], estado: 'guardada', mensaje: '' } }));
       } catch (error) {
+        // 409 con el código propio de esta carga: la entrada ya quedó guardada en un intento anterior
+        const yaGuardada = isAxiosError(error) && error.response?.status === 409 && /ya existe un lote/i.test(String(error.response?.data?.error ?? ''));
         setFilas((prev) => ({
           ...prev,
-          [m.id]: { ...prev[m.id], estado: 'error', mensaje: mensajeDeError(error, 'No se pudo guardar.') },
+          [m.id]: yaGuardada
+            ? { ...prev[m.id], estado: 'guardada', mensaje: '' }
+            : { ...prev[m.id], estado: 'error', mensaje: mensajeDeError(error, 'No se pudo guardar.') },
         }));
       }
     }
