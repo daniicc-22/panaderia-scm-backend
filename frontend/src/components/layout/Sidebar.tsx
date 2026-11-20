@@ -28,6 +28,7 @@ import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
 import type { RolCodigo } from '../../types/auth.types';
 import { Logo } from '../brand/Logo';
+import { SelectorPanaderia } from './SelectorPanaderia';
 import { LEMA_APP, NOMBRE_APP } from '../brand/marca';
 
 interface ItemMenu {
@@ -163,11 +164,15 @@ export function Sidebar({ abierto, onCerrar }: SidebarProps) {
           </button>
         </div>
 
-        {panaderia?.nombre && (
-          <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-noche-tarjeta px-3 py-2 text-sm text-trigo">
-            <Store size={16} aria-hidden="true" />
-            <span className="truncate">{panaderia.nombre}</span>
-          </div>
+        {usuario?.rol === 'superadministrador' ? (
+          <SelectorPanaderia nombreActual={panaderia?.nombre} />
+        ) : (
+          panaderia?.nombre && (
+            <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-noche-tarjeta px-3 py-2 text-sm text-trigo">
+              <Store size={16} aria-hidden="true" />
+              <span className="truncate">{panaderia.nombre}</span>
+            </div>
+          )
         )}
 
         <nav aria-label="Menú principal" className="flex-1 overflow-y-auto px-3 pb-4">

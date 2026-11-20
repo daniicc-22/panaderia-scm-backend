@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { EVENTO_SESION_EXPIRADA } from '../../services/httpClient';
+import { setPanaderiaActivaId } from '../../services/panaderiaActiva';
 import { login as loginService } from './authService';
 import type { Credenciales, Usuario } from '../../types/auth.types';
 import { AuthContext } from './useAuth';
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function cerrarSesion() {
+    setPanaderiaActivaId(null);
     localStorage.removeItem(CLAVE_TOKEN);
     localStorage.removeItem(CLAVE_USUARIO);
     setUsuario(null);

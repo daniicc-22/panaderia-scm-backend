@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { env } from '../app/config/env';
+import { getPanaderiaActivaId } from './panaderiaActiva';
 
 // Aviso a la sesión de la pantalla: el servidor dejó de aceptar el token (venció o el usuario se desactivó)
 export const EVENTO_SESION_EXPIRADA = 'panaderia:sesion-expirada';
@@ -17,6 +18,12 @@ httpClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('panaderia_token');
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
+  }
+  // El superadministrador elige qué panadería ve; el servidor lo ignora para los demás roles
+  const panaderiaId = getPanaderiaActivaId();
+  const url = String(config.url ?? '');
+  if (panaderiaId && !url.startsWith('/login') && !url.startsWith('/panaderias')) {
+    config.params = { ...(config.params ?? {}), panaderiaId };
   }
   return config;
 });
