@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { EVENTO_SESION_EXPIRADA } from '../../services/httpClient';
 import { login as loginService } from './authService';
 import type { Credenciales, Usuario } from '../../types/auth.types';
 import { AuthContext } from './useAuth';
@@ -52,6 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(CLAVE_USUARIO);
     setUsuario(null);
   }
+
+  // Si el servidor rechaza el token (venció o el usuario se desactivó), la pantalla vuelve al inicio de sesión
+  useEffect(() => {
+    const alExpirar = () => {
+      localStorage.removeItem(CLAVE_USUARIO);
+      setUsuario(null);
+    };
+    window.addEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+  }, []);
 
   function actualizarUsuario(cambios: Partial<Usuario>) {
     setUsuario((actual) => {

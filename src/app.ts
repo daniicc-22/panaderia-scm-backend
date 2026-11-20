@@ -1,4 +1,4 @@
-import express, { type Express } from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -21,6 +21,9 @@ import { crearRouterUsuarios } from './routes/usuarios';
 import { crearRouterCuenta } from './routes/cuenta';
 import { crearRouterPanaderias } from './routes/panaderias';
 import { interpretarIdentificador } from './utils/usuarios';
+
+// Hash de relleno: si el usuario no existe se compara igual, para que el tiempo de respuesta no delate qué usuarios existen
+const HASH_RELLENO = '$2b$10$/zvEDua6wpXU5lt2g3ZUt.yZOF8f8WEnKH44HL2Dhq0MOlSdNMPVm';
 
 interface CredencialesLogin {
   // Nombre de usuario o correo. «email» se sigue aceptando para no romper clientes anteriores.
@@ -100,6 +103,7 @@ export function crearApp(prisma: PrismaClient): Express {
       });
 
       if (!usuario || !usuario.activo) {
+        await bcrypt.compare(password, HASH_RELLENO);
         return res.status(401).json({ error: 'Credenciales incorrectas' });
       }
 
@@ -183,6 +187,17 @@ export function crearApp(prisma: PrismaClient): Express {
       console.error('Error al consultar la panadería:', error);
       res.status(500).json({ error: 'Error al consultar la panadería' });
     }
+  });
+
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  });
+
+  app.use((err: { type?: string; status?: number }, _req: Request, res: Response, _next: NextFunction) => {
+    if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'El cuerpo de la petición no es un JSON válido.' });
+    if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'La petición es demasiado grande.' });
+    console.error('Error no controlado:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
   });
 
   return app;
