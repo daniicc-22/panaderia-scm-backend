@@ -5,6 +5,7 @@ import { KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
 import { Logo } from '../brand/Logo';
+import { InstalarApp } from '../pwa/InstalarApp';
 
 // Interfaz del operario: sin menú ni pestañas. El inicio es un tablero de botones grandes
 // y cada pantalla tiene su botón para volver. Nunca muestra dinero (lo garantiza también el backend).
@@ -47,6 +48,7 @@ export function OperarioLayout() {
               </span>
             </Link>
             <div className="flex shrink-0 items-center gap-2">
+              <InstalarApp className={botonBarra} soloIcono />
               <NavLink to="/cambiar-contrasena" className={botonBarra} aria-label="Cambiar contraseña" title="Cambiar contraseña">
                 <KeyRound size={22} />
               </NavLink>

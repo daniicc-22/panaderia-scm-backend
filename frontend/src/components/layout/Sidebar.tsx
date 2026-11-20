@@ -28,6 +28,7 @@ import { useAuth } from '../../features/auth/useAuth';
 import { getMiPanaderia } from '../../services/panaderiaService';
 import type { RolCodigo } from '../../types/auth.types';
 import { Logo } from '../brand/Logo';
+import { InstalarApp } from '../pwa/InstalarApp';
 import { SelectorPanaderia } from './SelectorPanaderia';
 import { LEMA_APP, NOMBRE_APP } from '../brand/marca';
 
@@ -209,6 +210,10 @@ export function Sidebar({ abierto, onCerrar }: SidebarProps) {
             </div>
           ))}
         </nav>
+
+        <div className="px-3 pb-1">
+          <InstalarApp className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm text-niebla transition-colors hover:bg-noche-tarjeta hover:text-white" />
+        </div>
 
         {usuario && (
           <div className="flex items-center gap-3 border-t border-noche-borde px-4 py-4">

@@ -132,7 +132,7 @@ export function ConteosPage() {
                 const tono = cuenta ? colorEri(c.resumen.eri, datos.meta_eri) : 'gray';
                 const colorEtiqueta = tono === 'green' ? 'text-exito-texto' : tono === 'yellow' ? 'text-atencion-texto' : tono === 'red' ? 'text-critico-texto' : 'text-grafito';
                 return (
-                  <li key={c.id} className={`flex items-stretch gap-2 ${c.estado === 'descartado' ? 'opacity-70' : ''}`}>
+                  <li key={c.id} className={`flex flex-col gap-2 sm:flex-row sm:items-stretch ${c.estado === 'descartado' ? 'opacity-70' : ''}`}>
                     <Link to={`/conteos/${c.id}`} className="group flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-tarjeta border border-linea bg-tabla p-3 hover:bg-arena focus-visible:outline-2 focus-visible:outline-trigo">
                       <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-lg bg-azul-suave text-azul-noche">
                         <ClipboardCheck size={20} />
@@ -166,7 +166,7 @@ export function ConteosPage() {
                         type="button"
                         aria-label={`Eliminar el conteo n.º ${c.numero}`}
                         onClick={() => setPorEliminar(c)}
-                        className="min-h-16 shrink-0 rounded-tarjeta border border-linea bg-tabla px-3 text-sm font-medium text-critico-texto hover:bg-critico-fondo"
+                        className="min-h-11 shrink-0 rounded-tarjeta border border-linea bg-tabla px-3 text-sm sm:min-h-16 font-medium text-critico-texto hover:bg-critico-fondo"
                       >
                         Eliminar
                       </button>

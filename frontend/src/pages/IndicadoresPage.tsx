@@ -85,7 +85,36 @@ function celdaVariacion(f: Fila) {
 
 function TablaIndicadores({ titulo, filas, conCorte, color }: { titulo: string; filas: Fila[]; conCorte: boolean; color: string }) {
   return (
-    <section className="overflow-x-auto rounded-tarjeta border border-linea bg-white" aria-label={titulo}>
+    <>
+    <section className="overflow-hidden rounded-tarjeta border border-linea bg-white sm:hidden" aria-label={titulo}>
+      <h3 className={`px-4 py-3 font-display text-base font-semibold text-white ${color}`}>{titulo}</h3>
+      <ul className="divide-y divide-linea">
+        {filas.map((f) => (
+          <li key={f.nombre} className="px-4 py-3">
+            <p className="font-semibold text-grafito">{f.nombre}</p>
+            <p className="text-[11px] text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : f.sentido === 'sube' ? 'Mejor si sube' : 'Solo referencia'}</p>
+            <p className="mt-1 text-xs text-gris-texto">{f.formula}</p>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+              {conCorte && (
+                <>
+                  <dt className="text-gris-texto">Pre-test</dt>
+                  <dd className="cifras text-right">{f.pre != null ? f.formato(f.pre) : '—'}</dd>
+                </>
+              )}
+              <dt className="text-gris-texto">{conCorte ? 'Post-test' : 'Desde el primer registro'}</dt>
+              <dd className="cifras text-right font-semibold text-grafito">{f.post != null ? f.formato(f.post) : '—'}</dd>
+              {conCorte && (
+                <>
+                  <dt className="text-gris-texto">Variación</dt>
+                  <dd className="cifras text-right">{celdaVariacion(f)}</dd>
+                </>
+              )}
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section className="hidden overflow-x-auto rounded-tarjeta border border-linea bg-white sm:block" aria-label={titulo}>
       <table className="w-full min-w-[46rem] text-sm">
         <caption className={`px-4 py-3 text-left font-display text-base font-semibold text-white ${color}`}>{titulo}</caption>
         <thead className="bg-tabla text-left text-azul-noche">
@@ -113,6 +142,7 @@ function TablaIndicadores({ titulo, filas, conCorte, color }: { titulo: string; 
         </tbody>
       </table>
     </section>
+    </>
   );
 }
 

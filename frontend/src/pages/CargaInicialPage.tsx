@@ -30,6 +30,7 @@ interface Fila {
 
 const FILA_VACIA: Fila = { presentacion_id: '', cantidad: '', vencimiento: '', estado: 'pendiente', mensaje: '' };
 const CLAVE_BORRADOR = 'carga-inicial-borrador-v1';
+const CAMPO_MOVIL = 'min-h-11 text-base!';
 const CAMPO = 'rounded-lg border bg-white px-2 py-1.5 text-sm text-grafito focus:outline-hidden focus:ring-2 focus:ring-trigo';
 
 type Borrador = Record<string, Pick<Fila, 'presentacion_id' | 'cantidad' | 'vencimiento'>>;
@@ -167,6 +168,75 @@ export function CargaInicialPage() {
     await queryClient.invalidateQueries({ queryKey: ['reposicion'] });
   }
 
+  // Los mismos campos se pintan en la tabla (pantalla grande) y en tarjetas (celular)
+  function datosFila(m: MateriaEntrada) {
+    const f = filas[m.id] ?? FILA_VACIA;
+    const bloqueada = f.estado === 'guardada' || f.estado === 'guardando' || guardando;
+    const pres = m.presentaciones.find((p) => p.id === f.presentacion_id);
+    const n = aNumero(f.cantidad);
+    const error = f.cantidad.trim() !== '' ? erroresPorId.get(m.id) : undefined;
+    const fefo = m.criterio_rotacion === 'FEFO';
+    const entra = pres && Number.isFinite(n) && n > 0 ? formatoCantidad(Math.round(n * pres.contenido * 1000) / 1000, m.unidad) : '—';
+    const presentacionEl = (clase: string) => (
+      <select
+        aria-label={`Presentación de ${m.nombre}`}
+        className={`${CAMPO} border-borde-campo ${clase}`}
+        value={f.presentacion_id}
+        disabled={bloqueada}
+        onChange={(e) => cambiar(m.id, { presentacion_id: e.target.value })}
+      >
+        <option value="">Elige…</option>
+        {m.presentaciones
+          .filter((p) => p.proveedores.length > 0)
+          .map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre}
+            </option>
+          ))}
+      </select>
+    );
+    const cantidadEl = (clase: string) => (
+      <input
+        aria-label={`Cantidad de ${m.nombre}`}
+        className={`${CAMPO} ${error ? 'border-critico-texto' : 'border-borde-campo'} ${clase}`}
+        inputMode="decimal"
+        autoComplete="off"
+        placeholder="0"
+        value={f.cantidad}
+        disabled={bloqueada}
+        onChange={(e) => cambiar(m.id, { cantidad: e.target.value })}
+      />
+    );
+    const vencimientoEl = (clase: string) => (
+      <input
+        type="date"
+        aria-label={`Vencimiento de ${m.nombre}`}
+        className={`${CAMPO} ${error && fefo ? 'border-critico-texto' : 'border-borde-campo'} ${clase}`}
+        value={f.vencimiento}
+        min={hoy}
+        disabled={bloqueada}
+        onChange={(e) => cambiar(m.id, { vencimiento: e.target.value })}
+      />
+    );
+    const estadoEl = (
+      <>
+        {f.estado === 'guardada' && (
+          <Badge color="green">
+            <CheckCircle2 size={12} aria-hidden /> Guardada
+          </Badge>
+        )}
+        {f.estado === 'guardando' && (
+          <Badge color="blue">
+            <Loader2 size={12} className="animate-spin" aria-hidden /> Guardando
+          </Badge>
+        )}
+        {f.estado === 'error' && <span className="text-xs font-medium text-critico-texto">{f.mensaje}</span>}
+        {f.estado === 'pendiente' && error && <span className="text-xs font-medium text-critico-texto">{error}</span>}
+      </>
+    );
+    return { f, fefo, entra, presentacionEl, cantidadEl, vencimientoEl, estadoEl };
+  }
+
   const hayErrorServidor = cargables.some((m) => filas[m.id]?.estado === 'error');
   const terminado = guardadas > 0 && conCantidad.length === 0 && !guardando;
 
@@ -207,7 +277,42 @@ export function CargaInicialPage() {
             </Alert>
           )}
 
-          <Card className="overflow-x-auto p-0">
+          <ul className="flex flex-col gap-3 sm:hidden">
+            {cargables.map((m) => {
+              const d = datosFila(m);
+              return (
+                <li key={m.id} className={`rounded-tarjeta border border-linea p-3 ${d.f.estado === 'guardada' ? 'bg-exito-fondo/40' : 'bg-white'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium text-grafito">{m.nombre}</div>
+                      <div className="text-xs text-gris-texto">
+                        {m.codigo}
+                        {d.fefo ? ' · por vencimiento' : ''}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">{d.estadoEl}</div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="col-span-2 flex flex-col gap-1 text-xs font-medium text-gris-texto">
+                      Presentación
+                      {d.presentacionEl(`${CAMPO_MOVIL} w-full`)}
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-gris-texto">
+                      Cantidad
+                      {d.cantidadEl(`${CAMPO_MOVIL} w-full`)}
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-gris-texto">
+                      Vence
+                      {d.vencimientoEl(`${CAMPO_MOVIL} w-full`)}
+                    </label>
+                  </div>
+                  {d.entra !== '—' && <p className="mt-2 text-xs text-gris-texto">Entra al inventario: <strong className="text-grafito">{d.entra}</strong></p>}
+                </li>
+              );
+            })}
+          </ul>
+
+          <Card className="hidden overflow-x-auto p-0 sm:block">
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="border-b border-linea text-xs uppercase text-gris-texto">
                 <tr>
@@ -221,81 +326,21 @@ export function CargaInicialPage() {
               </thead>
               <tbody>
                 {cargables.map((m) => {
-                  const f = filas[m.id] ?? FILA_VACIA;
-                  const bloqueada = f.estado === 'guardada' || f.estado === 'guardando' || guardando;
-                  const pres = m.presentaciones.find((p) => p.id === f.presentacion_id);
-                  const n = aNumero(f.cantidad);
-                  const error = f.cantidad.trim() !== '' ? erroresPorId.get(m.id) : undefined;
-                  const fefo = m.criterio_rotacion === 'FEFO';
+                  const d = datosFila(m);
                   return (
-                    <tr key={m.id} className={`border-b border-linea last:border-0 ${f.estado === 'guardada' ? 'bg-exito-fondo/40' : ''}`}>
+                    <tr key={m.id} className={`border-b border-linea last:border-0 ${d.f.estado === 'guardada' ? 'bg-exito-fondo/40' : ''}`}>
                       <td className="px-3 py-2">
                         <div className="font-medium text-grafito">{m.nombre}</div>
                         <div className="text-xs text-gris-texto">
                           {m.codigo}
-                          {fefo ? ' · por vencimiento' : ''}
+                          {d.fefo ? ' · por vencimiento' : ''}
                         </div>
                       </td>
-                      <td className="px-3 py-2">
-                        <select
-                          aria-label={`Presentación de ${m.nombre}`}
-                          className={`${CAMPO} border-borde-campo`}
-                          value={f.presentacion_id}
-                          disabled={bloqueada}
-                          onChange={(e) => cambiar(m.id, { presentacion_id: e.target.value })}
-                        >
-                          <option value="">Elige…</option>
-                          {m.presentaciones
-                            .filter((p) => p.proveedores.length > 0)
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.nombre}
-                              </option>
-                            ))}
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          aria-label={`Cantidad de ${m.nombre}`}
-                          className={`${CAMPO} w-24 ${error ? 'border-critico-texto' : 'border-borde-campo'}`}
-                          inputMode="decimal"
-                          autoComplete="off"
-                          placeholder="0"
-                          value={f.cantidad}
-                          disabled={bloqueada}
-                          onChange={(e) => cambiar(m.id, { cantidad: e.target.value })}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-gris-texto">
-                        {pres && Number.isFinite(n) && n > 0
-                          ? formatoCantidad(Math.round(n * pres.contenido * 1000) / 1000, m.unidad)
-                          : '—'}
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="date"
-                          aria-label={`Vencimiento de ${m.nombre}`}
-                          className={`${CAMPO} ${error && fefo ? 'border-critico-texto' : 'border-borde-campo'}`}
-                          value={f.vencimiento}
-                          min={hoy}
-                          disabled={bloqueada}
-                          onChange={(e) => cambiar(m.id, { vencimiento: e.target.value })}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        {f.estado === 'guardada' && (
-                          <Badge color="green">
-                            <CheckCircle2 size={12} aria-hidden /> Guardada
-                          </Badge>
-                        )}
-                        {f.estado === 'guardando' && (
-                          <Badge color="blue">
-                            <Loader2 size={12} className="animate-spin" aria-hidden /> Guardando
-                          </Badge>
-                        )}
-                        {f.estado === 'error' && <span className="text-xs font-medium text-critico-texto">{f.mensaje}</span>}
-                        {f.estado === 'pendiente' && error && <span className="text-xs font-medium text-critico-texto">{error}</span>}
-                      </td>
+                      <td className="px-3 py-2">{d.presentacionEl('')}</td>
+                      <td className="px-3 py-2">{d.cantidadEl('w-24')}</td>
+                      <td className="px-3 py-2 text-gris-texto">{d.entra}</td>
+                      <td className="px-3 py-2">{d.vencimientoEl('')}</td>
+                      <td className="px-3 py-2">{d.estadoEl}</td>
                     </tr>
                   );
                 })}
