@@ -29,6 +29,7 @@ import { getMiPanaderia } from '../../services/panaderiaService';
 import type { RolCodigo } from '../../types/auth.types';
 import { Logo } from '../brand/Logo';
 import { SelectorPanaderia } from './SelectorPanaderia';
+import { LEMA_APP, NOMBRE_APP } from '../brand/marca';
 
 interface ItemMenu {
   etiqueta: string;
@@ -148,7 +149,10 @@ export function Sidebar({ abierto, onCerrar }: SidebarProps) {
         <div className="flex items-center justify-between gap-2 px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
             <Logo size={34} />
-            <span className="font-display text-lg font-semibold text-white">Panadería SCM</span>
+            <span className="min-w-0">
+              <span className="block font-display text-lg leading-tight font-semibold text-white">{NOMBRE_APP}</span>
+              <span className="block text-[11px] leading-tight text-trigo">{LEMA_APP}</span>
+            </span>
           </div>
           <button
             type="button"

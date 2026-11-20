@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
-  Sistema de diseño Panadería SCM (ver el sistema de diseño "Panadería SCM").
+  Sistema de diseño de Levain (antes «Panadería SCM»; ver el sistema de diseño).
   Cada color de la paleta es una clase de Tailwind: bg-azul-noche, text-trigo,
   border-linea, bg-terracota, etc. Las fuentes se cargan en main.tsx.
 */
@@ -63,6 +63,7 @@
   --animate-desliza: desliza 320ms ease-out both;
   --animate-late: late 1.2s ease-in-out infinite;
   --animate-crece: crece 2.6s ease-in-out infinite;
+  --animate-leva: leva 3s ease-in-out infinite;
   --animate-flota: flota 7s linear infinite;
   --animate-hornea: hornea 700ms ease-in-out infinite;
 
@@ -81,6 +82,10 @@
   @keyframes crece {
     0%, 100% { transform: scaleY(0.35); }
     50% { transform: scaleY(1); }
+  }
+  @keyframes leva {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
   }
   @keyframes flota {
     0% { transform: translateY(0) rotate(0deg); opacity: 0; }
