@@ -147,6 +147,14 @@ export function InventarioPage() {
         acciones={
           <>
             {items && items.length > 0 && <BotonImprimir etiqueta="Imprimir inventario" />}
+            {esGestion && (
+              <Link
+                to="/inventario/carga-inicial"
+                className="inline-flex min-h-10 items-center rounded-lg border border-white/40 px-4 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                Carga inicial
+              </Link>
+            )}
             <Button
               type="button"
               disabled={!opciones.data}

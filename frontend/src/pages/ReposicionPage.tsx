@@ -285,7 +285,7 @@ export function ReposicionPage() {
               <Alert variant="warning">
                 {sinStock} de {calculables.length} insumos aparecen sin existencias. Si en la bodega sí hay producto, el inventario aún no está cargado y las
                 alertas de «Se acaba antes de la entrega» no son confiables.{' '}
-                <Link to="/inventario" className="font-medium underline">
+                <Link to="/inventario/carga-inicial" className="font-medium underline">
                   Cargar existencias
                 </Link>
               </Alert>
