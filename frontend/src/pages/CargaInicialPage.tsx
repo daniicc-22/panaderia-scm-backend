@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, Printer } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { LoadingState } from '../components/feedback/LoadingState';
@@ -92,6 +92,16 @@ export function CargaInicialPage() {
     if (iniciado) guardarBorrador(filas);
   }, [filas, iniciado]);
 
+  // Escape cancela la confirmación de guardado
+  useEffect(() => {
+    if (!confirmando) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmando(false);
+    };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [confirmando]);
+
   const hoy = opciones.data?.fecha ?? '';
   const materias = useMemo(() => opciones.data?.materias ?? [], [opciones.data]);
   const cargables = useMemo(
@@ -155,9 +165,16 @@ export function CargaInicialPage() {
         titulo="Carga inicial de inventario"
         subtitulo="Registra de una vez lo que hay hoy en la bodega, con su fecha de vencimiento."
         acciones={
-          <Link to="/inventario" className="text-sm font-medium text-white underline">
-            Volver a Existencias
-          </Link>
+          <>
+            <Link to="/inventario/hoja-conteo" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-grafico-neutro px-4 text-sm font-semibold text-white transition-colors hover:bg-azul-noche print:hidden">
+              <Printer size={16} aria-hidden="true" />
+              Hoja de conteo
+            </Link>
+            <Link to="/inventario" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-grafico-neutro px-4 text-sm font-semibold text-white transition-colors hover:bg-azul-noche print:hidden">
+              <ArrowLeft size={16} aria-hidden="true" />
+              Existencias
+            </Link>
+          </>
         }
       />
 
