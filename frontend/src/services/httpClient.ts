@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { env } from '../app/config/env';
-import { getPanaderiaActivaId } from './panaderiaActiva';
+import { getPanaderiaActivaId, setPanaderiaActivaId } from './panaderiaActiva';
 
 // Aviso a la sesión de la pantalla: el servidor dejó de aceptar el token (venció o el usuario se desactivó)
 export const EVENTO_SESION_EXPIRADA = 'panaderia:sesion-expirada';
@@ -42,6 +42,11 @@ httpClient.interceptors.response.use(
         localStorage.removeItem('panaderia_token');
         window.dispatchEvent(new Event(EVENTO_SESION_EXPIRADA));
       }
+    }
+    // La panadería elegida ya no existe o se desactivó: se vuelve a la predeterminada
+    if (error.response?.status === 404 && error.response?.data?.error === 'No hay panadería disponible' && getPanaderiaActivaId()) {
+      setPanaderiaActivaId(null);
+      window.location.reload();
     }
     return Promise.reject(error);
   },

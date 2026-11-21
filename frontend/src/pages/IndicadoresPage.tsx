@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CircleCheck, CircleHelp, CircleX, Download } from 'lucide-react';
+import { CircleCheck, CircleHelp, CircleX, Download, ListOrdered } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../features/auth/useAuth';
@@ -83,9 +83,49 @@ function celdaVariacion(f: Fila) {
   );
 }
 
-function TablaIndicadores({ titulo, filas, conCorte, color }: { titulo: string; filas: Fila[]; conCorte: boolean; color: string }) {
+// Índice de la página: cada entrada salta a su sección
+const SECCIONES = [
+  { id: 'ind-corte', texto: 'Inicio de la intervención', color: 'bg-trigo' },
+  { id: 'ind-hipotesis', texto: 'Hipótesis de investigación', color: 'bg-grafito' },
+  { id: 'ind-desperdicio', texto: 'Reducción del desperdicio', color: 'bg-terracota' },
+  { id: 'ind-eficiencia', texto: 'Eficiencia operativa', color: 'bg-verde-bosque' },
+  { id: 'ind-pedidos', texto: 'Pedidos a proveedores', color: 'bg-gris-texto' },
+  { id: 'ind-trazabilidad', texto: 'Trazabilidad y calidad', color: 'bg-pizarra' },
+  { id: 'ind-estandarizacion', texto: 'Estandarización técnica', color: 'bg-azul-noche' },
+  { id: 'ind-control', texto: 'Control de inventarios y catálogo', color: 'bg-azul-noche' },
+] as const;
+
+function IndicePagina() {
   return (
-    <>
+    <nav aria-label="Índice de indicadores" className="rounded-tarjeta border border-linea bg-white p-4">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-azul-noche">
+        <ListOrdered size={16} aria-hidden="true" />
+        Índice
+      </h2>
+      <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {SECCIONES.map((s, i) => (
+          <li key={s.id}>
+            <a
+              href={`#${s.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="flex min-h-11 items-center gap-3 rounded-lg border border-linea bg-tabla px-3 py-2 text-sm font-medium text-grafito transition-colors hover:border-pizarra hover:bg-white"
+            >
+              <span className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold text-white ${s.color}`}>{i + 1}</span>
+              {s.texto}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+function TablaIndicadores({ id, titulo, filas, conCorte, color }: { id: string; titulo: string; filas: Fila[]; conCorte: boolean; color: string }) {
+  return (
+    <div id={id} className="scroll-mt-24">
     <section className="overflow-hidden rounded-tarjeta border border-linea bg-white sm:hidden" aria-label={titulo}>
       <h3 className={`px-4 py-3 font-display text-base font-semibold text-white ${color}`}>{titulo}</h3>
       <ul className="divide-y divide-linea">
@@ -142,7 +182,7 @@ function TablaIndicadores({ titulo, filas, conCorte, color }: { titulo: string; 
         </tbody>
       </table>
     </section>
-    </>
+    </div>
   );
 }
 
@@ -205,7 +245,7 @@ export function IndicadoresPage() {
   const consumoMes = abc.data ? (abc.data.total_valor_anual / 312) * DIAS_MES_LABORAL : null;
   const rotacion = consumoMes != null && valorInventario > 0 ? consumoMes / valorInventario : null;
   const productos = (formulaciones.data ?? []).filter((f) => f.producto_activo && !f.es_intermedio);
-  const conFicha = productos.filter((f) => f.ingredientes > 0 && !f.costo_incompleto).length;
+  const conFicha = productos.filter((f) => f.ficha_completa).length;
   const estandarizacion = productos.length ? (conFicha / productos.length) * 100 : null;
 
   // ---- Hipótesis
@@ -274,10 +314,12 @@ export function IndicadoresPage() {
         }
       />
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <IndicePagina />
+
         {/* ---- Fecha de corte */}
-        <section className="flex flex-col gap-3 rounded-tarjeta border border-linea bg-tabla p-4 sm:flex-row sm:items-end sm:justify-between" aria-label="Fecha de corte">
+        <section id="ind-corte" className="scroll-mt-24 flex flex-col gap-3 rounded-tarjeta border border-linea bg-tabla p-4 sm:flex-row sm:items-end sm:justify-between" aria-label="Fecha de corte">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-azul-noche">Inicio de la intervención</h2>
+            <h2 className="text-base font-semibold text-azul-noche">1. Inicio de la intervención</h2>
             <p className="text-sm text-gris-texto">
               Lo registrado antes de esta fecha es la línea base (pre-test); desde esta fecha, el uso del modelo (post-test).
               {primerRegistro(datos) && <> Primer registro: {fechaApi(inicio)}.</>} Se guarda en este navegador para esta panadería.
@@ -319,8 +361,8 @@ export function IndicadoresPage() {
         )}
 
         {/* ---- Hipótesis */}
-        <section className="flex flex-col gap-3" aria-label="Hipótesis">
-          <h2 className="text-sm font-semibold text-azul-noche">Hipótesis de investigación</h2>
+        <section id="ind-hipotesis" className="scroll-mt-24 flex flex-col gap-3" aria-label="Hipótesis">
+          <h2 className="text-sm font-semibold text-azul-noche">2. Hipótesis de investigación</h2>
           <div className="grid gap-3 lg:grid-cols-3">
             <TarjetaHipotesis
               titulo="Reducción del desperdicio"
@@ -354,18 +396,18 @@ export function IndicadoresPage() {
           <p className="text-sm text-gris-texto">Cargando registros…</p>
         ) : (
           <>
-            <TablaIndicadores titulo="Variable dependiente · Reducción del desperdicio de materias primas" filas={filasDesperdicio} conCorte={conCorte} color="bg-terracota" />
-            <TablaIndicadores titulo="Variable dependiente · Eficiencia operativa" filas={filasEficiencia} conCorte={conCorte} color="bg-verde-bosque" />
-            <TablaIndicadores titulo="Referencia · Pedidos a proveedores (kg recibidos)" filas={filasPedidos} conCorte={conCorte} color="bg-gris-texto" />
+            <TablaIndicadores id="ind-desperdicio" titulo="3. Variable dependiente · Reducción del desperdicio de materias primas" filas={filasDesperdicio} conCorte={conCorte} color="bg-terracota" />
+            <TablaIndicadores id="ind-eficiencia" titulo="4. Variable dependiente · Eficiencia operativa" filas={filasEficiencia} conCorte={conCorte} color="bg-verde-bosque" />
+            <TablaIndicadores id="ind-pedidos" titulo="5. Referencia · Pedidos a proveedores (kg recibidos)" filas={filasPedidos} conCorte={conCorte} color="bg-gris-texto" />
             <p className="-mt-3 text-xs text-gris-texto">
               Los kilos por entrega salen de las entradas registradas en Inventario. El valor declarado por la panadería (~800 kg por pedido) es una estimación; la línea base
               del pre-test es la que se mida aquí.{entregas.data && entregas.data.sin_peso > 0 ? ` ${entregas.data.sin_peso} entradas en unidades (no kg) no se cuentan.` : ''}
             </p>
-            <TablaIndicadores titulo="Variable dependiente · Trazabilidad y calidad (ISO/IEC 25010, fiabilidad)" filas={filasTrazabilidad} conCorte={conCorte} color="bg-pizarra" />
-            <TablaIndicadores titulo="Variable independiente · Estandarización técnica" filas={filasModelo} conCorte={conCorte} color="bg-azul-noche" />
+            <TablaIndicadores id="ind-trazabilidad" titulo="6. Variable dependiente · Trazabilidad y calidad (ISO/IEC 25010, fiabilidad)" filas={filasTrazabilidad} conCorte={conCorte} color="bg-pizarra" />
+            <TablaIndicadores id="ind-estandarizacion" titulo="7. Variable independiente · Estandarización técnica" filas={filasModelo} conCorte={conCorte} color="bg-azul-noche" />
 
-            <section className="rounded-tarjeta border border-linea bg-white" aria-label="Control de inventarios">
-              <h2 className="bg-azul-noche px-4 py-3 font-display text-base font-semibold text-white">Variable independiente · Control de inventarios y catálogo (medidos hoy)</h2>
+            <section id="ind-control" className="scroll-mt-24 rounded-tarjeta border border-linea bg-white" aria-label="Control de inventarios">
+              <h2 className="bg-azul-noche px-4 py-3 font-display text-base font-semibold text-white">8. Variable independiente · Control de inventarios y catálogo (medidos hoy)</h2>
               <dl className="grid gap-3 p-4 sm:grid-cols-3">
                 <div className="rounded-tarjeta border border-linea bg-tabla p-4">
                   <dt className="text-sm font-semibold text-grafito">Índice de rotación del inventario</dt>
@@ -379,7 +421,7 @@ export function IndicadoresPage() {
                   <dt className="text-sm font-semibold text-grafito">Índice de estandarización</dt>
                   <dd className="cifras mt-1 font-display text-2xl font-semibold text-azul-noche">{estandarizacion != null ? porcentaje(estandarizacion) : '—'}</dd>
                   <dd className="text-xs text-gris-texto">
-                    Productos con ficha técnica completa ({conFicha}) ÷ productos activos ({productos.length}) × 100.{' '}
+                    Productos con ficha técnica completa — procedimiento, tiempo y temperatura de horneado — ({conFicha}) ÷ productos activos ({productos.length}) × 100.{' '}
                     <Link to="/formulaciones" className="font-semibold text-pizarra hover:underline">Ver formulaciones</Link>
                   </dd>
                 </div>

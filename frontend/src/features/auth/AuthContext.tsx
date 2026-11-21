@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCargando(true);
     try {
       const sesion = await loginService(credenciales);
+      setPanaderiaActivaId(null); // cada sesión empieza en su panadería predeterminada
       localStorage.setItem(CLAVE_TOKEN, sesion.token);
       localStorage.setItem(CLAVE_USUARIO, JSON.stringify(sesion.usuario));
       setUsuario(sesion.usuario);

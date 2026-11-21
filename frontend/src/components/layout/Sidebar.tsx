@@ -166,7 +166,7 @@ export function Sidebar({ abierto, onCerrar }: SidebarProps) {
         </div>
 
         {usuario?.rol === 'superadministrador' ? (
-          <SelectorPanaderia nombreActual={panaderia?.nombre} />
+          <SelectorPanaderia actualId={panaderia?.id} nombreActual={panaderia?.nombre} />
         ) : (
           panaderia?.nombre && (
             <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-noche-tarjeta px-3 py-2 text-sm text-trigo">
