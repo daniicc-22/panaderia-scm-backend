@@ -1,14 +1,14 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown, Store } from 'lucide-react';
 import { getPanaderias } from '../../services/panaderiasService';
-import { guardarPanaderiaActiva } from '../../services/panaderiaActiva';
+import { getPanaderiaActivaId, setPanaderiaActivaId } from '../../services/panaderiaActiva';
 
 interface SelectorPanaderiaProps {
   /** Panadería que se está viendo ahora (la que resolvió el backend). */
   actualId?: string;
-  actualNombre?: string;
+  nombreActual?: string;
 }
 
 // Bloques sólidos de la paleta, como los recuadros del Inicio; se repiten si hay más panaderías
@@ -25,11 +25,21 @@ function iniciales(nombre: string): string {
 
 // Solo para el superadministrador: elige qué panadería ver sin cerrar sesión.
 // Las consultas siguientes llevan ?panaderiaId=... (ver httpClient) y el backend
-// valida que la panadería exista y esté activa.
-export function SelectorPanaderia({ actualId, actualNombre }: SelectorPanaderiaProps) {
-  const queryClient = useQueryClient();
-  const { data: panaderias } = useQuery({ queryKey: ['panaderias'], queryFn: getPanaderias, staleTime: 60 * 1000 });
-  const activas = (panaderias ?? []).filter((p) => p.activa);
+// valida que la panadería exista y esté activa. Al cambiar se recarga la pantalla
+// para que ningún dato de la panadería anterior quede en pantalla ni en caché.
+export function SelectorPanaderia({ actualId, nombreActual }: SelectorPanaderiaProps) {
+  const lista = useQuery({ queryKey: ['panaderias', 'selector'], queryFn: getPanaderias, staleTime: 60 * 1000 });
+  const activas = (lista.data ?? []).filter((p) => p.activa);
+  const guardada = getPanaderiaActivaId();
+  const guardadaValida = guardada !== null && activas.some((p) => p.id === guardada);
+
+  // Si la panadería guardada se desactivó o ya no existe, se vuelve a la primera activa
+  useEffect(() => {
+    if (lista.data && guardada && !guardadaValida) {
+      setPanaderiaActivaId(null);
+      window.location.assign('/');
+    }
+  }, [lista.data, guardada, guardadaValida]);
 
   const [abierto, setAbierto] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
@@ -60,9 +70,8 @@ export function SelectorPanaderia({ actualId, actualNombre }: SelectorPanaderiaP
     setAbierto(false);
     boton.current?.focus();
     if (id === actualId) return;
-    guardarPanaderiaActiva(id);
-    // Todo lo cargado era de la panadería anterior: se descarta y se vuelve a pedir
-    queryClient.resetQueries();
+    setPanaderiaActivaId(id);
+    window.location.assign('/');
   };
 
   const alTeclear = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -81,10 +90,10 @@ export function SelectorPanaderia({ actualId, actualNombre }: SelectorPanaderiaP
 
   // Con una sola panadería no hay nada que elegir: se muestra su nombre como antes
   if (activas.length <= 1) {
-    return actualNombre ? (
+    return nombreActual ? (
       <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-noche-tarjeta px-3 py-2 text-sm text-trigo">
         <Store size={16} aria-hidden="true" />
-        <span className="truncate">{actualNombre}</span>
+        <span className="truncate">{nombreActual}</span>
       </div>
     ) : null;
   }
@@ -101,7 +110,7 @@ export function SelectorPanaderia({ actualId, actualNombre }: SelectorPanaderiaP
         className="flex w-full items-center gap-2 rounded-lg bg-noche-tarjeta px-3 py-2 text-left text-sm text-trigo transition-colors hover:bg-[#355069] focus-visible:outline-2 focus-visible:outline-trigo"
       >
         <Store size={16} aria-hidden="true" className="shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{actualNombre ?? 'Elige una panadería'}</span>
+        <span className="min-w-0 flex-1 truncate">{nombreActual ?? 'Elige una panadería'}</span>
         <ChevronDown
           size={16}
           aria-hidden="true"

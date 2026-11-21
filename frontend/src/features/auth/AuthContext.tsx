@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { EVENTO_SESION_EXPIRADA } from '../../services/httpClient';
+import { setPanaderiaActivaId } from '../../services/panaderiaActiva';
 import { login as loginService } from './authService';
 import type { Credenciales, Usuario } from '../../types/auth.types';
 import { AuthContext } from './useAuth';
-import { borrarPanaderiaActiva } from '../../services/panaderiaActiva';
 
 // IMPORTANTE: esta persistencia en localStorage es una solución de
 // DESARROLLO para el modo mock. Cuando exista autenticación real, el
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCargando(true);
     try {
       const sesion = await loginService(credenciales);
-      borrarPanaderiaActiva(); // cada sesión empieza en su panadería predeterminada
+      setPanaderiaActivaId(null); // cada sesión empieza en su panadería predeterminada
       localStorage.setItem(CLAVE_TOKEN, sesion.token);
       localStorage.setItem(CLAVE_USUARIO, JSON.stringify(sesion.usuario));
       setUsuario(sesion.usuario);
@@ -50,11 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function cerrarSesion() {
+    setPanaderiaActivaId(null);
     localStorage.removeItem(CLAVE_TOKEN);
     localStorage.removeItem(CLAVE_USUARIO);
-    borrarPanaderiaActiva();
     setUsuario(null);
   }
+
+  // Si el servidor rechaza el token (venció o el usuario se desactivó), la pantalla vuelve al inicio de sesión
+  useEffect(() => {
+    const alExpirar = () => {
+      localStorage.removeItem(CLAVE_USUARIO);
+      setUsuario(null);
+    };
+    window.addEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+  }, []);
 
   function actualizarUsuario(cambios: Partial<Usuario>) {
     setUsuario((actual) => {

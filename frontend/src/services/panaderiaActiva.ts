@@ -1,8 +1,7 @@
-// Panadería que el superadministrador eligió ver. El backend la lee como ?panaderiaId=...
-// solo cuando quien consulta es superadministrador; para los demás roles se ignora.
-const CLAVE = 'panaderia_seleccionada';
+// Panadería que el superadministrador está viendo. Solo él puede elegir: para el resto el servidor ignora el dato.
+const CLAVE = 'panaderia_activa_id';
 
-export function leerPanaderiaActiva(): string | null {
+export function getPanaderiaActivaId(): string | null {
   try {
     return localStorage.getItem(CLAVE);
   } catch {
@@ -10,18 +9,11 @@ export function leerPanaderiaActiva(): string | null {
   }
 }
 
-export function guardarPanaderiaActiva(id: string) {
+export function setPanaderiaActivaId(id: string | null): void {
   try {
-    localStorage.setItem(CLAVE, id);
+    if (id) localStorage.setItem(CLAVE, id);
+    else localStorage.removeItem(CLAVE);
   } catch {
-    // sin almacenamiento disponible
-  }
-}
-
-export function borrarPanaderiaActiva() {
-  try {
-    localStorage.removeItem(CLAVE);
-  } catch {
-    // sin almacenamiento disponible
+    // sin almacenamiento: se usa la primera panadería activa
   }
 }

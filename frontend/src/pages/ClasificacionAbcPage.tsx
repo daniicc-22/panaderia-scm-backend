@@ -9,6 +9,8 @@ import type { ClaseAbc, FuenteAbc, ItemAbc } from '../types/abc.types';
 
 const pesos0 = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+// La demanda anual se lee mejor sin decimales (35.298 kg, no 35.297,86 kg)
+const kgAnual = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
 const COLOR_CLASE: Record<ClaseAbc, string> = {
   A: 'bg-critico-fondo text-critico-texto',
@@ -28,7 +30,7 @@ const columnas: ColumnaTabla<ItemAbc>[] = [
   { key: 'clase', encabezado: 'Clase', render: (i) => <Insignia clase={i.clase} /> },
   { key: 'codigo', encabezado: 'Código', render: (i) => i.codigo },
   { key: 'nombre', encabezado: 'Insumo', render: (i) => <span className="font-medium text-grafito">{i.nombre}</span> },
-  { key: 'demanda', encabezado: 'Demanda anual', render: (i) => `${numero.format(i.demanda_anual_kg)} kg` },
+  { key: 'demanda', encabezado: 'Demanda anual', render: (i) => `${kgAnual.format(i.demanda_anual_kg)} kg` },
   { key: 'costo', encabezado: 'Costo por kg', render: (i) => pesos0.format(i.costo_por_kg) },
   { key: 'valor', encabezado: 'Valor anual', render: (i) => pesos0.format(i.valor_anual) },
   { key: 'pct', encabezado: '% del valor', render: (i) => `${numero.format(i.porcentaje)} %` },

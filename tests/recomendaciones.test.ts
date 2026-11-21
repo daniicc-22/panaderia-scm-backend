@@ -331,3 +331,52 @@ describe('armarRecomendaciones: datos del modelo EOQ', () => {
     expect(h.modelo!.costo_mantener).toBe(0.5); // 25 % × costo de 2 por unidad
   });
 });
+
+describe('armarRecomendaciones: costo de pedir compartido', () => {
+  const sal = () => insumo({ materia_prima_id: 'mp-sal', codigo: 'MP-007', nombre: 'Sal' });
+  const azucar = () => insumo({ materia_prima_id: 'mp-azucar', codigo: 'MP-002', nombre: 'Azúcar' });
+  const armarCon = (insumos: DatosInsumo[], costoPedido?: 'por_insumo' | 'compartido') =>
+    armarRecomendaciones({ hoy: HOY, hora: '09:00', insumos, proveedores: [PROVEEDOR] }, costoPedido ? { costoPedido } : {});
+
+  test('por defecto cada insumo lleva el costo completo (EOQ clásico)', () => {
+    const r = armarCon([insumo(), sal(), azucar()]);
+    expect(r.costo_pedido_modo).toBe('por_insumo');
+    for (const i of r.items) {
+      expect(i.modelo?.costo_pedido).toBe(1000);
+      expect(i.costo_pedido_compartido).toBeNull();
+    }
+  });
+
+  test('compartido reparte el costo entre los insumos del mismo proveedor', () => {
+    const r = armarCon([insumo(), sal(), azucar()], 'compartido');
+    expect(r.costo_pedido_modo).toBe('compartido');
+    for (const i of r.items) {
+      expect(i.modelo?.costo_pedido).toBeCloseTo(1000 / 3, 2);
+      expect(i.costo_pedido_compartido).toEqual({ base: 1000, insumos: 3 });
+    }
+  });
+
+  test('un insumo solo con su proveedor conserva el costo completo', () => {
+    const r = armarCon([insumo()], 'compartido');
+    expect(r.items[0]!.modelo?.costo_pedido).toBe(1000);
+    expect(r.items[0]!.costo_pedido_compartido).toEqual({ base: 1000, insumos: 1 });
+  });
+
+  test('no cuentan los insumos al_uso, sin demanda ni sin costo de pedir', () => {
+    const base = insumo();
+    const alUso = insumo({ materia_prima_id: 'mp-a', parametros: { ...base.parametros!, modo_reposicion: 'al_uso' } });
+    const sinDemanda = insumo({ materia_prima_id: 'mp-b', consumo_declarado_semanal: null });
+    const sinCosto = insumo({ materia_prima_id: 'mp-c', parametros: { ...base.parametros!, costo_pedido: null } });
+    const r = armarCon([insumo(), sal(), alUso, sinDemanda, sinCosto], 'compartido');
+    const h = r.items.find((i) => i.materia_prima_id === 'mp-harina')!;
+    expect(h.costo_pedido_compartido).toEqual({ base: 1000, insumos: 2 });
+    expect(h.modelo?.costo_pedido).toBe(500);
+  });
+
+  test('un costo de pedir menor hace el ciclo igual o más corto, nunca más largo', () => {
+    const solo = armarCon([insumo()], 'compartido').items[0]!;
+    const junto = armarCon([insumo(), sal(), azucar()], 'compartido').items[0]!;
+    expect(junto.ciclo_economico_dias!).toBeLessThanOrEqual(solo.ciclo_economico_dias!);
+    expect(junto.modelo!.costo_anual_eoq).toBeLessThan(solo.modelo!.costo_anual_eoq);
+  });
+});

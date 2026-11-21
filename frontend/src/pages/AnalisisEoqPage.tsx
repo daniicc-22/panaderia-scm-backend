@@ -11,8 +11,9 @@ import { TablaEoq } from '../features/reposicion/eoq/TablaEoq';
 import { conEoq, costoEoq, costoPolitica, costoReferencia, explicacion, insumosSinEoq, motivosSinCalendario, motivosSinEoq, resumenGlobal } from '../features/reposicion/eoq/eoqCalculos';
 import { Indicador } from '../features/inicio/Panel';
 import { NavReposicion } from '../features/reposicion/NavReposicion';
-import { formatoCantidad, formatoDinero } from '../features/inventario/formatos';
-import { getRecomendaciones } from '../services/reposicionService';
+import { formatoCantidadPlan, formatoDinero } from '../features/inventario/formatos';
+import { getRecomendaciones, getRecomendacionesPorInsumo } from '../services/reposicionService';
+import type { ModoCostoPedido } from '../types/reposicion.types';
 
 // Las dos cantidades que importan, antes de mirar la curva: el pedido ideal y el que recomienda el sistema con el calendario
 function CifrasClave({ item }: { item: ReturnType<typeof conEoq>[number] }) {
@@ -23,12 +24,12 @@ function CifrasClave({ item }: { item: ReturnType<typeof conEoq>[number] }) {
     <dl className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
       <div className="rounded-tarjeta bg-azul-noche p-3 text-white">
         <dt className="text-xs font-medium text-niebla">Pedido ideal (EOQ)</dt>
-        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{formatoCantidad(item.eoq, item.unidad)}</dd>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{formatoCantidadPlan(item.eoq, item.unidad)}</dd>
         <dd className="text-xs text-niebla">{formatoDinero(costoEoq(item))} al año</dd>
       </div>
       <div className="rounded-tarjeta bg-trigo p-3 text-grafito">
         <dt className="text-xs font-medium text-[#4a3509]">Recomendado con el calendario</dt>
-        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{qp === null ? '—' : formatoCantidad(qp, item.unidad)}</dd>
+        <dd className="cifras mt-0.5 font-display text-xl font-semibold">{qp === null ? '—' : formatoCantidadPlan(qp, item.unidad)}</dd>
         <dd className="text-xs text-[#4a3509]">{polit === null ? 'Falta el calendario del proveedor' : `${formatoDinero(polit)} al año`}</dd>
       </div>
       <div className="rounded-tarjeta border border-linea bg-hueso p-3 text-grafito">
@@ -40,9 +41,26 @@ function CifrasClave({ item }: { item: ReturnType<typeof conEoq>[number] }) {
   );
 }
 
+// De dónde sale el costo por pedido de este insumo, cuando se reparte
+function NotaCostoPedido({ item }: { item: ReturnType<typeof conEoq>[number] }) {
+  const c = item.costo_pedido_compartido;
+  if (!c || c.insumos < 2) return null;
+  return (
+    <p className="mb-3 text-xs text-gris-texto">
+      Costo por pedido: {formatoDinero(c.base)} repartido entre {c.insumos} insumos del mismo proveedor = {formatoDinero(item.modelo.costo_pedido)} cada uno.
+    </p>
+  );
+}
+
 // Análisis EOQ: cuánto conviene pedir de cada insumo, qué tan cerca queda de ese ideal con el calendario del proveedor y cuánto cuesta la diferencia.
 export function AnalisisEoqPage() {
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['reposicion', 'recomendaciones'], queryFn: getRecomendaciones });
+  // Costo por pedido: compartido (lo que usa Reposición) o por insumo (EOQ clásico, para comparar)
+  const [modo, setModo] = useState<ModoCostoPedido>('compartido');
+  const { data, isLoading, isError, refetch } = useQuery(
+    modo === 'compartido'
+      ? { queryKey: ['reposicion', 'recomendaciones'], queryFn: () => getRecomendaciones() }
+      : { queryKey: ['reposicion', 'recomendaciones', 'por_insumo'], queryFn: () => getRecomendacionesPorInsumo() },
+  );
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
 
   const lista = useMemo(
@@ -62,6 +80,34 @@ export function AnalisisEoqPage() {
         <p className="mt-1 text-sm text-niebla">Cuánto conviene pedir de cada insumo y cuánto cuesta ajustarse al calendario del proveedor</p>
       </div>
       <NavReposicion />
+
+      <fieldset className="rounded-tarjeta border border-linea bg-white p-3">
+        <legend className="px-1 text-xs font-semibold text-gris-texto">Costo de hacer un pedido</legend>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cómo se carga el costo de hacer un pedido">
+          {(
+            [
+              ['compartido', 'Compartido por pedido'],
+              ['por_insumo', 'Por insumo (EOQ clásico)'],
+            ] as const
+          ).map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              type="button"
+              role="radio"
+              aria-checked={modo === valor}
+              onClick={() => setModo(valor)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${modo === valor ? 'border-pizarra bg-pizarra text-white' : 'border-linea bg-hueso text-grafito hover:bg-tabla'}`}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gris-texto">
+          {modo === 'compartido'
+            ? 'Un pedido al proveedor lleva varios insumos, así que su costo se reparte entre los que se piden juntos. Es lo que usa Reposición para decidir.'
+            : 'Cada insumo carga el costo completo de un pedido, como en el EOQ de un solo producto. Sirve para comparar, pero exagera el costo de pedir: en la práctica varios insumos viajan en el mismo pedido. Reposición no cambia.'}
+        </p>
+      </fieldset>
 
       <details className="rounded-tarjeta border border-linea bg-tabla p-3 text-sm text-grafito">
         <summary className="cursor-pointer font-medium text-grafito">¿Cómo se lee esta pantalla?</summary>
@@ -190,7 +236,7 @@ export function AnalisisEoqPage() {
               <div>
                 <h2 className="text-base font-semibold text-grafito">Curva de costos de {elegido.nombre}</h2>
                 <p className="text-sm text-gris-texto">
-                  Consumo de {elegido.demanda_semanal === null ? '—' : formatoCantidad(elegido.demanda_semanal, elegido.unidad)} por semana
+                  Consumo de {elegido.demanda_semanal === null ? '—' : formatoCantidadPlan(elegido.demanda_semanal, elegido.unidad)} por semana
                 </p>
               </div>
               <label className="text-sm text-grafito">
@@ -209,9 +255,10 @@ export function AnalisisEoqPage() {
               </label>
             </div>
             <CifrasClave item={elegido} />
+            <NotaCostoPedido item={elegido} />
             <CurvaCostos key={elegido.materia_prima_id} item={elegido} />
             <div className="mt-3 flex flex-col gap-1 rounded-md bg-hueso p-3 text-sm text-grafito">
-              {explicacion(elegido, { cantidad: (v) => formatoCantidad(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
+              {explicacion(elegido, { cantidad: (v) => formatoCantidadPlan(v, elegido.unidad), dinero: formatoDinero }).map((t) => (
                 <p key={t}>{t}</p>
               ))}
             </div>

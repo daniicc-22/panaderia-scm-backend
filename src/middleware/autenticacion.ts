@@ -31,7 +31,7 @@ export function verificarToken(req: Request, res: Response, next: NextFunction) 
   }
 
   try {
-    const payload = jwt.verify(token, jwtSecret) as PayloadUsuario;
+    const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as PayloadUsuario;
     req.usuario = payload;
     next();
   } catch (error) {

@@ -15,6 +15,12 @@ export async function getRecomendaciones(): Promise<RespuestaRecomendaciones> {
   return data;
 }
 
+// EOQ clásico (cada insumo con el costo de pedir completo), para comparar en Análisis EOQ
+export async function getRecomendacionesPorInsumo(): Promise<RespuestaRecomendaciones> {
+  const { data } = await httpClient.get<RespuestaRecomendaciones>('/reposicion/recomendaciones', { params: { costo_pedido: 'por_insumo' } });
+  return data;
+}
+
 export async function getParametrosReposicion(): Promise<RespuestaParametros> {
   const { data } = await httpClient.get<RespuestaParametros>('/reposicion/parametros');
   return data;

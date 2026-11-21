@@ -9,7 +9,7 @@ import { ErrorState } from '../components/feedback/ErrorState';
 import { EsqueletoIndicadores } from '../components/feedback/Esqueleto';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ESTADOS, etiquetaAdvertencia, etiquetaFaltante, ORIGEN_DEMANDA } from '../features/reposicion/etiquetas';
-import { diasHasta, formatoCantidad, formatoDinero, formatoFecha } from '../features/inventario/formatos';
+import { diasHasta, formatoCantidadPlan, formatoDinero, formatoFecha } from '../features/inventario/formatos';
 import { BotonImprimir } from '../components/ui/BotonImprimir';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../features/auth/useAuth';
@@ -63,7 +63,7 @@ function FilaInsumo({ i, soloImpresion, variosProveedores }: { i: ItemRecomendac
         </div>
 
         <div className="min-w-0 text-xs text-gris-texto">
-          <p className={`text-sm ${i.existencia <= 0 ? 'font-semibold text-critico-texto' : 'text-grafito'}`}>{i.existencia <= 0 ? 'Sin existencias' : `Hay ${formatoCantidad(i.existencia, i.unidad)}`}</p>
+          <p className={`text-sm ${i.existencia <= 0 ? 'font-semibold text-critico-texto' : 'text-grafito'}`}>{i.existencia <= 0 ? 'Sin existencias' : `Hay ${formatoCantidadPlan(i.existencia, i.unidad)}`}</p>
           {i.cobertura_dias !== null && (
             <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-arena" aria-hidden="true">
               <div className={`h-full rounded-full ${COLOR_BARRA[i.estado]}`} style={{ width: `${Math.min(i.cobertura_dias / DIAS_BARRA, 1) * 100}%` }} />
@@ -82,7 +82,7 @@ function FilaInsumo({ i, soloImpresion, variosProveedores }: { i: ItemRecomendac
                 Pedir {i.presentaciones_a_pedir?.toLocaleString('es-CO', { maximumFractionDigits: 2 })} × {i.presentacion}
               </p>
               <p className="text-xs text-gris-texto">
-                {formatoCantidad(i.cantidad_recomendada, i.unidad)}
+                {formatoCantidadPlan(i.cantidad_recomendada, i.unidad)}
                 {i.costos && ` · ${formatoDinero(i.costos.valor_pedido)}`}
               </p>
             </>
@@ -110,14 +110,14 @@ function FilaInsumo({ i, soloImpresion, variosProveedores }: { i: ItemRecomendac
         <summary className="cursor-pointer font-medium text-pizarra">Ver cómo se calculó</summary>
         <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
           <li>
-            Consumo semanal: {i.demanda_semanal === null ? 'sin dato' : formatoCantidad(i.demanda_semanal, i.unidad)}
+            Consumo semanal: {i.demanda_semanal === null ? 'sin dato' : formatoCantidadPlan(i.demanda_semanal, i.unidad)}
             {i.demanda_origen && ` (${ORIGEN_DEMANDA[i.demanda_origen]})`}
           </li>
-          <li>Stock de seguridad: {i.stock_seguridad === null ? 'sin definir' : formatoCantidad(i.stock_seguridad, i.unidad)}</li>
-          <li>Proyección al llegar el pedido: {i.proyeccion_a_la_entrega === null ? '—' : formatoCantidad(i.proyeccion_a_la_entrega, i.unidad)}</li>
-          <li>Punto de reorden: {i.punto_reorden_calendario === null ? '—' : formatoCantidad(i.punto_reorden_calendario, i.unidad)}</li>
-          <li>Nivel objetivo: {i.nivel_objetivo === null ? '—' : formatoCantidad(i.nivel_objetivo, i.unidad)}</li>
-          <li>EOQ (cantidad económica): {i.eoq === null ? 'no se calcula' : formatoCantidad(i.eoq, i.unidad)}</li>
+          <li>Stock de seguridad: {i.stock_seguridad === null ? 'sin definir' : formatoCantidadPlan(i.stock_seguridad, i.unidad)}</li>
+          <li>Proyección al llegar el pedido: {i.proyeccion_a_la_entrega === null ? '—' : formatoCantidadPlan(i.proyeccion_a_la_entrega, i.unidad)}</li>
+          <li>Punto de reorden: {i.punto_reorden_calendario === null ? '—' : formatoCantidadPlan(i.punto_reorden_calendario, i.unidad)}</li>
+          <li>Nivel objetivo: {i.nivel_objetivo === null ? '—' : formatoCantidadPlan(i.nivel_objetivo, i.unidad)}</li>
+          <li>EOQ (cantidad económica): {i.eoq === null ? 'no se calcula' : formatoCantidadPlan(i.eoq, i.unidad)}</li>
           <li>Entregas que cubre el pedido: {i.ciclos_elegidos ?? '—'}</li>
           <li>{estado.detalle}</li>
         </ul>
@@ -285,7 +285,7 @@ export function ReposicionPage() {
               <Alert variant="warning">
                 {sinStock} de {calculables.length} insumos aparecen sin existencias. Si en la bodega sí hay producto, el inventario aún no está cargado y las
                 alertas de «Se acaba antes de la entrega» no son confiables.{' '}
-                <Link to="/inventario" className="font-medium underline">
+                <Link to="/inventario/carga-inicial" className="font-medium underline">
                   Cargar existencias
                 </Link>
               </Alert>
@@ -374,8 +374,8 @@ export function ReposicionPage() {
                   <li key={i.materia_prima_id} className="rounded-tarjeta border border-linea bg-tabla p-3 text-sm">
                     <p className="font-medium text-azul-noche">{i.nombre}</p>
                     <p className="text-xs text-gris-texto">
-                      Hay {formatoCantidad(i.existencia, i.unidad)}
-                      {i.demanda_semanal !== null && ` · consumo por semana: ${formatoCantidad(i.demanda_semanal, i.unidad)}`}
+                      Hay {formatoCantidadPlan(i.existencia, i.unidad)}
+                      {i.demanda_semanal !== null && ` · consumo por semana: ${formatoCantidadPlan(i.demanda_semanal, i.unidad)}`}
                     </p>
                   </li>
                 ))}

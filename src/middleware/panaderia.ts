@@ -31,9 +31,16 @@ export const resolverPanaderia =
 
       const asignacion = await prisma.usuario_panaderia.findFirst({
         where: { usuario_id: req.usuario.id, activo: true, panaderia: { activa: true } },
+        include: { usuario: { select: { activo: true, rol: { select: { codigo: true } } } } },
       });
       if (!asignacion) {
         return res.status(403).json({ error: 'Tu usuario no está asignado a ninguna panadería' });
+      }
+      // El token puede durar horas: si el usuario se desactivó o cambió de rol, vale lo que dice la base de datos
+      const actual = asignacion.usuario;
+      if (actual) {
+        if (!actual.activo) return res.status(401).json({ error: 'Tu usuario está desactivado' });
+        req.usuario.rol = actual.rol.codigo;
       }
       req.panaderiaId = asignacion.panaderia_id;
       next();

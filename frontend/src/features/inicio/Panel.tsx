@@ -71,13 +71,13 @@ export function Indicador({ etiqueta, valor, numero, formato, detalle, tono = 'g
   const contenido = (
     <>
       <p className={`text-xs font-medium sm:text-sm ${t.etiqueta}`}>{etiqueta}</p>
-      <p className={`mt-1 font-display text-2xl font-semibold sm:text-3xl ${t.cifra}`}>
+      <p className={`mt-1 font-display font-semibold sm:text-3xl ${numero !== undefined ? 'text-2xl' : 'text-xl'} ${t.cifra}`}>
         {numero !== undefined ? <NumeroAnimado valor={numero} formato={formato} /> : <span className="cifras">{valor}</span>}
       </p>
       {detalle && <p className={`mt-1 text-xs ${t.etiqueta}`}>{detalle}</p>}
     </>
   );
-  const clases = `block animate-entra rounded-tarjeta p-4 sm:p-5 ${t.caja}`;
+  const clases = `block min-w-0 animate-entra rounded-tarjeta p-4 [overflow-wrap:anywhere] sm:p-5 ${t.caja}`;
   const retraso = { animationDelay: `${indice * 70}ms` };
 
   if (enlace) {

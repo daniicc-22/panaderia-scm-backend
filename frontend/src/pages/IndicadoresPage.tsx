@@ -7,7 +7,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../features/auth/useAuth';
 import { getMiPanaderia } from '../services/panaderiaService';
 import { getConteos } from '../services/conteosService';
-import { getInventario } from '../services/inventarioService';
+import { getEntregas, getInventario } from '../services/inventarioService';
 import { getDesviacionesPesaje } from '../services/produccionService';
 import { getFormulaciones } from '../services/formulacionesService';
 import { useAbcInicio, useMermasInicio, useProduccionesInicio } from '../features/inicio/datosInicio';
@@ -54,7 +54,8 @@ function TarjetaHipotesis({ titulo, veredicto, cifra, children }: { titulo: stri
   );
 }
 
-type Sentido = 'baja' | 'sube';
+// 'ninguno': dato de referencia, no es mejor ni peor (p. ej. kilos por pedido)
+type Sentido = 'baja' | 'sube' | 'ninguno';
 
 interface Fila {
   nombre: string;
@@ -74,6 +75,7 @@ function celdaVariacion(f: Fila) {
   const mejora = f.sentido === 'baja' ? d < 0 : d > 0;
   const igual = Math.abs(d) < 0.05;
   const texto = `${d > 0 ? '+' : ''}${cantidad(d)}${f.puntos ? ' pts' : ' %'}`;
+  if (f.sentido === 'ninguno') return <span className="font-semibold text-grafito">{texto}</span>;
   return (
     <span className={`font-semibold ${igual ? 'text-gris-texto' : mejora ? 'text-exito-texto' : 'text-critico-texto'}`}>
       {texto} {igual ? '' : mejora ? '· mejora' : '· empeora'}
@@ -87,6 +89,7 @@ const SECCIONES = [
   { id: 'ind-hipotesis', texto: 'Hipótesis de investigación', color: 'bg-grafito' },
   { id: 'ind-desperdicio', texto: 'Reducción del desperdicio', color: 'bg-terracota' },
   { id: 'ind-eficiencia', texto: 'Eficiencia operativa', color: 'bg-verde-bosque' },
+  { id: 'ind-pedidos', texto: 'Pedidos a proveedores', color: 'bg-gris-texto' },
   { id: 'ind-trazabilidad', texto: 'Trazabilidad y calidad', color: 'bg-pizarra' },
   { id: 'ind-estandarizacion', texto: 'Estandarización técnica', color: 'bg-azul-noche' },
   { id: 'ind-control', texto: 'Control de inventarios y catálogo', color: 'bg-azul-noche' },
@@ -122,7 +125,36 @@ function IndicePagina() {
 
 function TablaIndicadores({ id, titulo, filas, conCorte, color }: { id: string; titulo: string; filas: Fila[]; conCorte: boolean; color: string }) {
   return (
-    <section id={id} className="scroll-mt-24 overflow-x-auto rounded-tarjeta border border-linea bg-white" aria-label={titulo}>
+    <div id={id} className="scroll-mt-24">
+    <section className="overflow-hidden rounded-tarjeta border border-linea bg-white sm:hidden" aria-label={titulo}>
+      <h3 className={`px-4 py-3 font-display text-base font-semibold text-white ${color}`}>{titulo}</h3>
+      <ul className="divide-y divide-linea">
+        {filas.map((f) => (
+          <li key={f.nombre} className="px-4 py-3">
+            <p className="font-semibold text-grafito">{f.nombre}</p>
+            <p className="text-[11px] text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : f.sentido === 'sube' ? 'Mejor si sube' : 'Solo referencia'}</p>
+            <p className="mt-1 text-xs text-gris-texto">{f.formula}</p>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+              {conCorte && (
+                <>
+                  <dt className="text-gris-texto">Pre-test</dt>
+                  <dd className="cifras text-right">{f.pre != null ? f.formato(f.pre) : '—'}</dd>
+                </>
+              )}
+              <dt className="text-gris-texto">{conCorte ? 'Post-test' : 'Desde el primer registro'}</dt>
+              <dd className="cifras text-right font-semibold text-grafito">{f.post != null ? f.formato(f.post) : '—'}</dd>
+              {conCorte && (
+                <>
+                  <dt className="text-gris-texto">Variación</dt>
+                  <dd className="cifras text-right">{celdaVariacion(f)}</dd>
+                </>
+              )}
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section className="hidden overflow-x-auto rounded-tarjeta border border-linea bg-white sm:block" aria-label={titulo}>
       <table className="w-full min-w-[46rem] text-sm">
         <caption className={`px-4 py-3 text-left font-display text-base font-semibold text-white ${color}`}>{titulo}</caption>
         <thead className="bg-tabla text-left text-azul-noche">
@@ -139,7 +171,7 @@ function TablaIndicadores({ id, titulo, filas, conCorte, color }: { id: string; 
             <tr key={f.nombre} className={i % 2 ? 'bg-tabla/60' : ''}>
               <th scope="row" className="px-4 py-2.5 text-left font-semibold text-grafito">
                 {f.nombre}
-                <span className="block text-[11px] font-normal text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : 'Mejor si sube'}</span>
+                <span className="block text-[11px] font-normal text-gris-texto">{f.sentido === 'baja' ? 'Mejor si baja' : f.sentido === 'sube' ? 'Mejor si sube' : 'Solo referencia'}</span>
               </th>
               <td className="px-4 py-2.5 text-xs text-gris-texto">{f.formula}</td>
               {conCorte && <td className="cifras px-4 py-2.5 text-right">{f.pre != null ? f.formato(f.pre) : '—'}</td>}
@@ -150,6 +182,7 @@ function TablaIndicadores({ id, titulo, filas, conCorte, color }: { id: string; 
         </tbody>
       </table>
     </section>
+    </div>
   );
 }
 
@@ -163,6 +196,7 @@ export function IndicadoresPage() {
   const abc = useAbcInicio();
   const conteos = useQuery({ queryKey: ['conteos', 'lista'], queryFn: getConteos });
   const inventario = useQuery({ queryKey: ['inicio', 'inventario'], queryFn: getInventario });
+  const entregas = useQuery({ queryKey: ['indicadores', 'entregas'], queryFn: getEntregas });
   const formulaciones = useQuery({ queryKey: ['formulaciones'], queryFn: getFormulaciones });
 
   // La fecha se guarda por panadería; se relee al cambiar de panadería
@@ -178,6 +212,7 @@ export function IndicadoresPage() {
     producciones: producciones.data ?? [],
     conteos: conteos.data?.items ?? [],
     abc: abc.data,
+    entregas: entregas.data?.dias ?? [],
   };
   const hoy = new Date();
   const manana = mananaDe(hoy);
@@ -245,6 +280,11 @@ export function IndicadoresPage() {
     { nombre: 'Costo de desperdicio por lote', formula: 'Costo de la merma en producción ÷ lotes producidos', pre: pre?.costoPorLote ?? null, post: post.costoPorLote, formato: (n) => pesos.format(n), sentido: 'baja' },
     { nombre: 'Costo de las mermas al mes', formula: 'Costo de todas las mermas en un mes laboral (26 días)', pre: pre?.costoMermaMes ?? null, post: post.costoMermaMes, formato: (n) => pesos.format(n), sentido: 'baja' },
     { nombre: 'Rendimiento de producción', formula: 'Unidades obtenidas ÷ unidades planificadas × 100', pre: pre?.rendimiento ?? null, post: post.rendimiento, formato: pct, sentido: 'sube', puntos: true },
+  ];
+  const filasPedidos: Fila[] = [
+    { nombre: 'Kilos recibidos por entrega', formula: 'Kg de insumos recibidos ÷ días con entrega (se excluye el día de la carga inicial)', pre: pre?.kgPorEntrega ?? null, post: post.kgPorEntrega, formato: kg, sentido: 'ninguno', puntos: false },
+    { nombre: 'Kilos recibidos al mes', formula: 'Kg recibidos en un mes laboral (26 días)', pre: pre?.kgEntregasMes ?? null, post: post.kgEntregasMes, formato: kg, sentido: 'ninguno' },
+    { nombre: 'Entregas recibidas', formula: 'Días con entrada de mercancía en el periodo', pre: pre ? pre.entregasDias : null, post: post.entregasDias, formato: (n) => String(n), sentido: 'ninguno' },
   ];
   const filasTrazabilidad: Fila[] = [
     { nombre: 'Exactitud de inventarios (ERI)', formula: `Promedio de los conteos físicos · meta ≥ ${metaEri} %`, pre: pre?.eri ?? null, post: post.eri, formato: pct, sentido: 'sube', puntos: true },
@@ -358,11 +398,16 @@ export function IndicadoresPage() {
           <>
             <TablaIndicadores id="ind-desperdicio" titulo="3. Variable dependiente · Reducción del desperdicio de materias primas" filas={filasDesperdicio} conCorte={conCorte} color="bg-terracota" />
             <TablaIndicadores id="ind-eficiencia" titulo="4. Variable dependiente · Eficiencia operativa" filas={filasEficiencia} conCorte={conCorte} color="bg-verde-bosque" />
-            <TablaIndicadores id="ind-trazabilidad" titulo="5. Variable dependiente · Trazabilidad y calidad (ISO/IEC 25010, fiabilidad)" filas={filasTrazabilidad} conCorte={conCorte} color="bg-pizarra" />
-            <TablaIndicadores id="ind-estandarizacion" titulo="6. Variable independiente · Estandarización técnica" filas={filasModelo} conCorte={conCorte} color="bg-azul-noche" />
+            <TablaIndicadores id="ind-pedidos" titulo="5. Referencia · Pedidos a proveedores (kg recibidos)" filas={filasPedidos} conCorte={conCorte} color="bg-gris-texto" />
+            <p className="-mt-3 text-xs text-gris-texto">
+              Los kilos por entrega salen de las entradas registradas en Inventario. El valor declarado por la panadería (~800 kg por pedido) es una estimación; la línea base
+              del pre-test es la que se mida aquí.{entregas.data && entregas.data.sin_peso > 0 ? ` ${entregas.data.sin_peso} entradas en unidades (no kg) no se cuentan.` : ''}
+            </p>
+            <TablaIndicadores id="ind-trazabilidad" titulo="6. Variable dependiente · Trazabilidad y calidad (ISO/IEC 25010, fiabilidad)" filas={filasTrazabilidad} conCorte={conCorte} color="bg-pizarra" />
+            <TablaIndicadores id="ind-estandarizacion" titulo="7. Variable independiente · Estandarización técnica" filas={filasModelo} conCorte={conCorte} color="bg-azul-noche" />
 
             <section id="ind-control" className="scroll-mt-24 rounded-tarjeta border border-linea bg-white" aria-label="Control de inventarios">
-              <h2 className="bg-azul-noche px-4 py-3 font-display text-base font-semibold text-white">7. Variable independiente · Control de inventarios y catálogo (medidos hoy)</h2>
+              <h2 className="bg-azul-noche px-4 py-3 font-display text-base font-semibold text-white">8. Variable independiente · Control de inventarios y catálogo (medidos hoy)</h2>
               <dl className="grid gap-3 p-4 sm:grid-cols-3">
                 <div className="rounded-tarjeta border border-linea bg-tabla p-4">
                   <dt className="text-sm font-semibold text-grafito">Índice de rotación del inventario</dt>

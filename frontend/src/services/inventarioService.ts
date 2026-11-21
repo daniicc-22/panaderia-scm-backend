@@ -5,6 +5,7 @@ import type {
   VencimientoCorregido,
   DatosEntrada,
   EntradaRegistrada,
+  ResumenEntregas,
   Inventario,
   LotesMateria,
   OpcionesEntrada,
@@ -25,8 +26,8 @@ export async function getOpcionesEntrada(): Promise<OpcionesEntrada> {
   return data;
 }
 
-export async function registrarEntrada(datos: DatosEntrada): Promise<EntradaRegistrada> {
-  const { data } = await httpClient.post<EntradaRegistrada>('/inventario/entradas', datos);
+export async function registrarEntrada(datos: DatosEntrada, timeoutMs?: number): Promise<EntradaRegistrada> {
+  const { data } = await httpClient.post<EntradaRegistrada>('/inventario/entradas', datos, timeoutMs ? { timeout: timeoutMs } : undefined);
   return data;
 }
 
@@ -50,5 +51,10 @@ export async function corregirLote(loteId: string, datos: DatosCorreccion): Prom
 // Solo administradores. null quita la fecha (no se permite en insumos que se manejan por vencimiento)
 export async function corregirVencimiento(loteId: string, fecha: string | null): Promise<VencimientoCorregido> {
   const { data } = await httpClient.patch<VencimientoCorregido>(`/inventario/lotes/${loteId}/vencimiento`, { fecha_vencimiento: fecha });
+  return data;
+}
+
+export async function getEntregas(): Promise<ResumenEntregas> {
+  const { data } = await httpClient.get<ResumenEntregas>('/inventario/entregas');
   return data;
 }
