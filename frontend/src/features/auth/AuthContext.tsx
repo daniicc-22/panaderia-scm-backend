@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { login as loginService } from './authService';
 import type { Credenciales, Usuario } from '../../types/auth.types';
 import { AuthContext } from './useAuth';
+import { borrarPanaderiaActiva } from '../../services/panaderiaActiva';
 
 // IMPORTANTE: esta persistencia en localStorage es una solución de
 // DESARROLLO para el modo mock. Cuando exista autenticación real, el
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCargando(true);
     try {
       const sesion = await loginService(credenciales);
+      borrarPanaderiaActiva(); // cada sesión empieza en su panadería predeterminada
       localStorage.setItem(CLAVE_TOKEN, sesion.token);
       localStorage.setItem(CLAVE_USUARIO, JSON.stringify(sesion.usuario));
       setUsuario(sesion.usuario);
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function cerrarSesion() {
     localStorage.removeItem(CLAVE_TOKEN);
     localStorage.removeItem(CLAVE_USUARIO);
+    borrarPanaderiaActiva();
     setUsuario(null);
   }
 
